@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finanças Pessoais</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="layout" id="appLayout" style="display:none">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"></line>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">Finanças</span>
+          <span class="brand-sub">Pessoais</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section-label">Menu</div>
+      <nav class="menu">
+        <button class="menu-item active" data-screen="dashboard">
+          <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg></span>
+          Dashboard
+        </button>
+        <button class="menu-item" data-screen="contas">
+          <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg></span>
+          Contas
+        </button>
+        <button class="menu-item" data-screen="lancamentos">
+          <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></span>
+          Lançamentos
+        </button>
+        <button class="menu-item" data-screen="transferencias">
+          <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg></span>
+          Transferências
+        </button>
+        <button class="menu-item" data-screen="recorrencias">
+          <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></span>
+          Recorrências
+        </button>
+        <button class="menu-item" data-screen="metas">
+          <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg></span>
+          Metas
+        </button>
+        <button class="menu-item" data-screen="planilha">
+          <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg></span>
+          Planilha
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="btnTema" class="btn-tema" title="Alternar tema">🌙</button>
+        <div class="user-info"><span id="userEmail" class="user-email"></span><button id="btnLogout" class="btn-logout" title="Sair">↪ Sair</button></div>
+        <div class="sidebar-footer-text">Dados salvos na nuvem ☁️</div>
+      </div>
+    </aside>
+
+    <main class="content">
+
+      <!-- DASHBOARD -->
+      <section class="screen active" id="screen-dashboard">
+        <div class="page-header">
+          <p class="page-eyebrow">Visão geral</p>
+          <h2 class="page-title">Dashboard</h2>
+        </div>
+        <div class="cards-grid">
+          <div class="info-card card-highlight">
+            <div class="card-label">Saldo total</div>
+            <div class="card-value" id="saldoTotalDashboard">R$ 0,00</div>
+            <div class="card-desc">Consolidado de todas as contas</div>
+          </div>
+          <div class="info-card">
+            <div class="card-label card-label-green">↑ Entradas</div>
+            <div class="card-value" id="totalEntradas">R$ 0,00</div>
+            <div class="card-desc">Total de valores recebidos</div>
+          </div>
+          <div class="info-card">
+            <div class="card-label card-label-red">↓ Gastos</div>
+            <div class="card-value" id="totalGastos">R$ 0,00</div>
+            <div class="card-desc">Total de saídas registradas</div>
+          </div>
+          <div class="info-card">
+            <div class="card-label">Movimentações</div>
+            <div class="card-value" id="totalMovimentos">0</div>
+            <div class="card-desc">Quantidade total lançada</div>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:16px">
+          <div class="panel-header">
+            <h3 class="panel-title">Evolução do saldo (últimos 6 meses)</h3>
+          </div>
+          <div style="height:220px;position:relative;">
+            <canvas id="chartEvolucao"></canvas>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Resumo das contas</h3>
+          </div>
+          <div id="resumoContasDashboard" class="empty-state">Nenhuma conta cadastrada ainda.</div>
+        </div>
+      </section>
+
+      <!-- CONTAS -->
+      <section class="screen" id="screen-contas">
+        <div class="page-header">
+          <p class="page-eyebrow">Configuração</p>
+          <h2 class="page-title">Gerenciar Contas</h2>
+        </div>
+        <div class="form-panel">
+          <div class="form-panel-title">Nova conta</div>
+          <form id="formBanco" class="form-grid form-grid-contas">
+            <div class="field">
+              <label for="nomeBanco">Nome do banco / conta</label>
+              <input type="text" id="nomeBanco" placeholder="Ex: Nubank, Itaú, Binance" required />
+            </div>
+            <div class="field">
+              <label for="tipoBanco">Tipo da conta</label>
+              <select id="tipoBanco" required>
+                <option value="">Selecione o tipo</option>
+                <option value="Banco Digital">Banco Digital</option>
+                <option value="Banco Tradicional">Banco Tradicional</option>
+                <option value="Conta Corrente">Conta Corrente</option>
+                <option value="Poupança">Poupança</option>
+                <option value="Carteira Crypto">Carteira Crypto</option>
+                <option value="Carteira Física">Carteira Física</option>
+                <option value="Investimentos">Investimentos</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="saldoBanco">Saldo inicial (R$)</label>
+              <input type="number" id="saldoBanco" step="0.01" placeholder="0,00" required />
+            </div>
+            <div class="field field-button">
+              <button type="submit" class="btn-primary">Adicionar conta</button>
+            </div>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><h3 class="panel-title">Contas cadastradas</h3></div>
+          <div id="listaBancos" class="empty-state">Nenhuma conta cadastrada ainda.</div>
+        </div>
+      </section>
+
+      <!-- LANÇAMENTOS -->
+      <section class="screen" id="screen-lancamentos">
+        <div class="page-header">
+          <p class="page-eyebrow">Movimentações</p>
+          <h2 class="page-title">Lançamento Rápido</h2>
+        </div>
+        <div class="form-panel">
+          <div class="form-panel-title">Descreva em linguagem natural</div>
+          <form id="formTexto" class="form-grid form-grid-large">
+            <div class="field field-full">
+              <label for="textoLivre">Descrição da movimentação</label>
+              <textarea id="textoLivre" rows="3" placeholder="Ex: gastei no mercado 200 reais, recebi 1500 de salário..." required></textarea>
+            </div>
+            <div class="field">
+              <label for="contaMovimento">Conta</label>
+              <select id="contaMovimento" required></select>
+            </div>
+            <div class="field">
+              <label for="dataMovimento">Data</label>
+              <input type="date" id="dataMovimento" required />
+            </div>
+            <div class="field field-button">
+              <button type="submit" class="btn-primary">Registrar</button>
+            </div>
+          </form>
+        </div>
+        <div class="form-panel">
+          <div class="form-panel-title">Importar extrato CSV</div>
+          <form id="formImportarExtrato" class="form-grid form-grid-import">
+            <div class="field">
+              <label for="contaExtrato">Conta de destino</label>
+              <select id="contaExtrato" required></select>
+            </div>
+            <div class="field">
+              <label for="arquivoExtrato">Arquivo CSV</label>
+              <input type="file" id="arquivoExtrato" accept=".csv,text/csv" required />
+            </div>
+            <div class="field field-button">
+              <button type="submit" class="btn-primary">Importar</button>
+            </div>
+          </form>
+          <p class="helper-text helper-text-small">Formatos aceitos: CSV com colunas <strong>data</strong>, <strong>descrição</strong> e <strong>valor</strong>.</p>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Histórico completo</h3>
+            <div class="panel-header-actions">
+              <input type="text" id="buscaMovimento" class="busca-input" placeholder="🔍 Buscar..." />
+              <button id="exportarCSV" class="btn-ghost" type="button">⬇ Exportar CSV</button>
+              <button id="limparTudo" class="btn-danger" type="button">Limpar tudo</button>
+            </div>
+          </div>
+          <div id="listaMovimentos" class="empty-state">Nenhuma movimentação registrada ainda.</div>
+        </div>
+      </section>
+
+      <!-- TRANSFERÊNCIAS -->
+      <section class="screen" id="screen-transferencias">
+        <div class="page-header">
+          <p class="page-eyebrow">Entre contas</p>
+          <h2 class="page-title">Transferências</h2>
+        </div>
+        <div class="form-panel">
+          <div class="form-panel-title">Nova transferência</div>
+          <form id="formTransferencia" class="form-grid form-grid-transfer">
+            <div class="field">
+              <label for="transOrigem">Conta de origem</label>
+              <select id="transOrigem" required></select>
+            </div>
+            <div class="field">
+              <label for="transDestino">Conta de destino</label>
+              <select id="transDestino" required></select>
+            </div>
+            <div class="field">
+              <label for="transValor">Valor (R$)</label>
+              <input type="number" id="transValor" step="0.01" min="0.01" placeholder="0,00" required />
+            </div>
+            <div class="field">
+              <label for="transData">Data</label>
+              <input type="date" id="transData" required />
+            </div>
+            <div class="field">
+              <label for="transDescricao">Descrição (opcional)</label>
+              <input type="text" id="transDescricao" placeholder="Ex: reserva mensal" />
+            </div>
+            <div class="field field-button">
+              <button type="submit" class="btn-primary">Transferir</button>
+            </div>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><h3 class="panel-title">Histórico de transferências</h3></div>
+          <div id="listaTransferencias" class="empty-state">Nenhuma transferência realizada ainda.</div>
+        </div>
+      </section>
+
+      <!-- RECORRÊNCIAS -->
+      <section class="screen" id="screen-recorrencias">
+        <div class="page-header">
+          <p class="page-eyebrow">Automático</p>
+          <h2 class="page-title">Lançamentos Recorrentes</h2>
+        </div>
+        <div class="form-panel">
+          <div class="form-panel-title">Nova recorrência</div>
+          <form id="formRecorrencia" class="form-grid form-grid-recorrencia">
+            <div class="field">
+              <label for="recDescricao">Descrição</label>
+              <input type="text" id="recDescricao" placeholder="Ex: Aluguel, Netflix, Salário..." required />
+            </div>
+            <div class="field">
+              <label for="recValor">Valor (R$)</label>
+              <input type="number" id="recValor" step="0.01" min="0.01" placeholder="0,00" required />
+            </div>
+            <div class="field">
+              <label for="recTipo">Tipo</label>
+              <select id="recTipo">
+                <option value="gasto">Gasto</option>
+                <option value="entrada">Entrada</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="recCategoria">Categoria</label>
+              <select id="recCategoria">
+                <option value="Gasto importante">Gasto importante</option>
+                <option value="Lazer">Lazer</option>
+                <option value="Transporte">Transporte</option>
+                <option value="Compras">Compras</option>
+                <option value="Entrada">Entrada</option>
+                <option value="Outros">Outros</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="recConta">Conta</label>
+              <select id="recConta" required></select>
+            </div>
+            <div class="field">
+              <label for="recDia">Dia do mês</label>
+              <input type="number" id="recDia" min="1" max="31" placeholder="Ex: 5" required />
+            </div>
+            <div class="field field-button">
+              <button type="submit" class="btn-primary">Salvar recorrência</button>
+            </div>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Recorrências ativas</h3>
+            <button id="processarRecorrencias" class="btn-ghost" type="button">⚡ Gerar lançamentos do mês</button>
+          </div>
+          <div id="listaRecorrencias" class="empty-state">Nenhuma recorrência cadastrada ainda.</div>
+        </div>
+      </section>
+
+      <!-- METAS -->
+      <section class="screen" id="screen-metas">
+        <div class="page-header">
+          <p class="page-eyebrow">Orçamento</p>
+          <h2 class="page-title">Metas por Categoria</h2>
+        </div>
+        <div class="form-panel">
+          <div class="form-panel-title">Definir meta mensal</div>
+          <form id="formMeta" class="form-grid form-grid-meta">
+            <div class="field">
+              <label for="metaCategoria">Categoria</label>
+              <select id="metaCategoria" required>
+                <option value="">Selecione</option>
+                <option value="Gasto importante">Gasto importante</option>
+                <option value="Lazer">Lazer</option>
+                <option value="Transporte">Transporte</option>
+                <option value="Compras">Compras</option>
+                <option value="Outros">Outros</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="metaValor">Limite mensal (R$)</label>
+              <input type="number" id="metaValor" step="0.01" min="1" placeholder="Ex: 500,00" required />
+            </div>
+            <div class="field field-button">
+              <button type="submit" class="btn-primary">Salvar meta</button>
+            </div>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><h3 class="panel-title">Progresso deste mês</h3></div>
+          <div id="listaMetas" class="empty-state">Nenhuma meta cadastrada ainda.</div>
+        </div>
+      </section>
+
+      <!-- PLANILHA -->
+      <section class="screen" id="screen-planilha">
+        <div class="page-header">
+          <p class="page-eyebrow">Análise</p>
+          <h2 class="page-title">Planilha Financeira</h2>
+        </div>
+        <div class="form-panel">
+          <div class="form-panel-title">Filtrar período</div>
+          <form id="formFiltrosPlanilha" class="form-grid form-grid-filtro">
+            <div class="field">
+              <label for="tipoFiltro">Tipo de filtro</label>
+              <select id="tipoFiltro">
+                <option value="todos">Todos</option>
+                <option value="dia">Por dia</option>
+                <option value="mes">Por mês</option>
+                <option value="ano">Por ano</option>
+              </select>
+            </div>
+            <div class="field" id="fieldFiltroDia"><label for="filtroDia">Dia</label><input type="date" id="filtroDia" /></div>
+            <div class="field" id="fieldFiltroMes"><label for="filtroMes">Mês</label><input type="month" id="filtroMes" /></div>
+            <div class="field" id="fieldFiltroAno"><label for="filtroAno">Ano</label><input type="number" id="filtroAno" min="2000" max="2100" placeholder="2026" /></div>
+            <div class="field field-button"><button type="button" id="limparFiltros" class="btn-ghost">Limpar filtros</button></div>
+          </form>
+        </div>
+        <div class="cards-grid cards-grid-planilha">
+          <div class="info-card">
+            <div class="card-label">Saldo do período</div>
+            <div class="card-value" id="saldoTotalPlanilha">R$ 0,00</div>
+            <div class="card-desc">Com base no filtro aplicado</div>
+          </div>
+          <div class="info-card">
+            <div class="card-label">Maior categoria de gasto</div>
+            <div class="card-value card-value-sm" id="maiorCategoriaGasto">—</div>
+            <div class="card-desc">Categoria com maior saída no período</div>
+          </div>
+        </div>
+        <div class="dashboard-grid">
+          <div class="panel"><div class="panel-header"><h3 class="panel-title">Por categoria</h3></div><div id="resumoCategorias" class="empty-state">Nenhuma movimentação registrada ainda.</div></div>
+          <div class="panel"><div class="panel-header"><h3 class="panel-title">Por conta</h3></div><div id="resumoContas" class="empty-state">Nenhuma conta cadastrada ainda.</div></div>
+          <div class="panel"><div class="panel-header"><h3 class="panel-title">Gastos por categoria</h3></div><div class="chart-perfect-wrap"><canvas id="chartCategoriasPlanilha"></canvas></div></div>
+          <div class="panel"><div class="panel-header"><h3 class="panel-title">Entradas × Gastos</h3></div><div class="chart-perfect-wrap"><canvas id="chartFluxoPlanilha"></canvas></div></div>
+          <div class="panel full-width">
+            <div class="panel-header panel-header-stack">
+              <h3 class="panel-title">Tabela de movimentações</h3>
+              <div class="table-filters">
+                <div class="field field-inline">
+                  <label for="filtroCategoriaTabela">Filtrar categoria</label>
+                  <select id="filtroCategoriaTabela">
+                    <option value="todas">Todas</option>
+                    <option value="Entrada">Entrada</option>
+                    <option value="Gasto importante">Gasto importante</option>
+                    <option value="Lazer">Lazer</option>
+                    <option value="Transporte">Transporte</option>
+                    <option value="Compras">Compras</option>
+                    <option value="Outros">Outros</option>
+                  </select>
+                </div>
+                <button id="exportarCSVPlanilha" class="btn-ghost" type="button">⬇ Exportar CSV</button>
+              </div>
+            </div>
+            <div class="table-wrapper">
+              <table class="finance-table">
+                <thead><tr><th>Data</th><th>Descrição</th><th>Conta</th><th>Categoria</th><th>Tipo</th><th>Valor</th></tr></thead>
+                <tbody id="tabelaMovimentosBody"><tr><td colspan="6" class="table-empty">Nenhuma movimentação registrada ainda.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL EDITAR MOVIMENTO -->
+  <div class="modal-overlay" id="modalEditarMovimento">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Editar lançamento</h3>
+        <button class="modal-close" id="fecharModalMovimento">✕</button>
+      </div>
+      <form id="formEditarMovimento" class="modal-form">
+        <input type="hidden" id="editMovId" />
+        <div class="field"><label>Descrição</label><textarea id="editMovDescricao" rows="2" required></textarea></div>
+        <div class="field"><label>Valor (R$)</label><input type="number" id="editMovValor" step="0.01" min="0.01" required /></div>
+        <div class="field"><label>Tipo</label><select id="editMovTipo"><option value="gasto">Gasto</option><option value="entrada">Entrada</option></select></div>
+        <div class="field"><label>Categoria</label>
+          <select id="editMovCategoria">
+            <option value="Entrada">Entrada</option><option value="Gasto importante">Gasto importante</option>
+            <option value="Lazer">Lazer</option><option value="Transporte">Transporte</option>
+            <option value="Compras">Compras</option><option value="Outros">Outros</option>
+          </select>
+        </div>
+        <div class="field"><label>Conta</label><select id="editMovConta"></select></div>
+        <div class="field"><label>Data</label><input type="date" id="editMovData" required /></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="cancelarEditarMovimento">Cancelar</button>
+          <button type="submit" class="btn-primary">Salvar alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR CONTA -->
+  <div class="modal-overlay" id="modalEditarConta">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Editar conta</h3>
+        <button class="modal-close" id="fecharModalConta">✕</button>
+      </div>
+      <form id="formEditarConta" class="modal-form">
+        <input type="hidden" id="editContaId" />
+        <div class="field"><label>Nome</label><input type="text" id="editContaNome" required /></div>
+        <div class="field"><label>Tipo</label>
+          <select id="editContaTipo" required>
+            <option value="Banco Digital">Banco Digital</option><option value="Banco Tradicional">Banco Tradicional</option>
+            <option value="Conta Corrente">Conta Corrente</option><option value="Poupança">Poupança</option>
+            <option value="Carteira Crypto">Carteira Crypto</option><option value="Carteira Física">Carteira Física</option>
+            <option value="Investimentos">Investimentos</option><option value="Outro">Outro</option>
+          </select>
+        </div>
+        <div class="field"><label>Saldo inicial (R$)</label><input type="number" id="editContaSaldo" step="0.01" required /></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="cancelarEditarConta">Cancelar</button>
+          <button type="submit" class="btn-primary">Salvar alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR RECORRÊNCIA -->
+  <div class="modal-overlay" id="modalEditarRecorrencia">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Editar recorrência</h3>
+        <button class="modal-close" id="fecharModalRecorrencia">✕</button>
+      </div>
+      <form id="formEditarRecorrencia" class="modal-form">
+        <input type="hidden" id="editRecId" />
+        <div class="field"><label>Descrição</label><input type="text" id="editRecDescricao" required /></div>
+        <div class="field"><label>Valor (R$)</label><input type="number" id="editRecValor" step="0.01" min="0.01" required /></div>
+        <div class="field"><label>Tipo</label><select id="editRecTipo"><option value="gasto">Gasto</option><option value="entrada">Entrada</option></select></div>
+        <div class="field"><label>Categoria</label>
+          <select id="editRecCategoria">
+            <option value="Entrada">Entrada</option><option value="Gasto importante">Gasto importante</option>
+            <option value="Lazer">Lazer</option><option value="Transporte">Transporte</option>
+            <option value="Compras">Compras</option><option value="Outros">Outros</option>
+          </select>
+        </div>
+        <div class="field"><label>Conta</label><select id="editRecConta"></select></div>
+        <div class="field"><label>Dia do mês (1–28)</label><input type="number" id="editRecDia" min="1" max="28" required /></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="cancelarEditarRecorrencia">Cancelar</button>
+          <button type="submit" class="btn-primary">Salvar alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- LOADING OVERLAY -->
+  <div id="loadingOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:99999;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+    <div class="loading-spinner"></div>
+    <span style="color:#fff;font-size:14px;font-family:DM Sans,sans-serif">Carregando...</span>
+  </div>
+
+  <!-- TELA DE LOGIN -->
+  <div id="telaLogin" style="display:flex;min-height:100vh;align-items:center;justify-content:center;background:var(--bg);padding:24px;">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="brand-icon" style="margin:0 auto 12px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+        </div>
+        <div class="brand-name" style="color:var(--text-primary);font-size:22px">Finanças Pessoais</div>
+        <div class="brand-sub" style="color:var(--text-muted);font-size:13px;margin-top:2px">Gerencie seu dinheiro com clareza</div>
+      </div>
+
+      <!-- FORM LOGIN -->
+      <div id="formLoginWrap" style="display:flex;flex-direction:column;gap:16px;">
+        <div class="login-title">Entrar na sua conta</div>
+        <form id="formLogin" style="display:flex;flex-direction:column;gap:12px;">
+          <div class="field"><label for="loginEmail">E-mail</label><input type="email" id="loginEmail" placeholder="seu@email.com" required autocomplete="email" /></div>
+          <div class="field"><label for="loginSenha">Senha</label><input type="password" id="loginSenha" placeholder="••••••••" required autocomplete="current-password" /></div>
+          <button type="submit" class="btn-primary" style="margin-top:4px;">Entrar</button>
+        </form>
+        <div class="login-switch">Não tem conta? <button id="btnIrCadastro" class="btn-link">Criar conta grátis</button></div>
+      </div>
+
+      <!-- FORM CADASTRO -->
+      <div id="formCadastroWrap" style="display:none;flex-direction:column;gap:16px;">
+        <div class="login-title">Criar conta</div>
+        <form id="formCadastro" style="display:flex;flex-direction:column;gap:12px;">
+          <div class="field"><label for="cadEmail">E-mail</label><input type="email" id="cadEmail" placeholder="seu@email.com" required /></div>
+          <div class="field"><label for="cadSenha">Senha</label><input type="password" id="cadSenha" placeholder="Mínimo 6 caracteres" required /></div>
+          <div class="field"><label for="cadConfirmar">Confirmar senha</label><input type="password" id="cadConfirmar" placeholder="Repita a senha" required /></div>
+          <button type="submit" class="btn-primary" style="margin-top:4px;">Criar conta</button>
+        </form>
+        <div class="login-switch">Já tem conta? <button id="btnIrLogin" class="btn-link">Entrar</button></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
