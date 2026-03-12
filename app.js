@@ -277,6 +277,10 @@ document.getElementById("formLogin")?.addEventListener("submit", async e => {
     renderTudo();
     trocarTela("dashboard");
     toast(`Bem-vindo, ${email}! 👋`, "success");
+    // Onboarding para novo usuário
+    if (!localStorage.getItem("fp_onboarding_done")) {
+      setTimeout(() => mostrarOnboarding(), 600);
+    }
   } catch(err) {
     toast(err.message, "error");
   } finally {
@@ -490,14 +494,23 @@ function renderResumoDashboard() {
 function renderContasDashboard() {
   if (!resumoContasDashboard) return;
   if (!state.bancos.length) {
-    resumoContasDashboard.innerHTML = `<div class="empty-state">Nenhuma conta cadastrada ainda.</div>`; return;
+    resumoContasDashboard.innerHTML = `<div class="empty-state">Nenhuma conta cadastrada ainda.</div>`;
+    return;
   }
-  resumoContasDashboard.innerHTML = `<div class="contas-dashboard">` +
-    state.bancos.map(b => {
-      const s = calcularSaldoBanco(b.id);
-      return `<div class="conta-dashboard">
-        <div class="conta-dashboard-top"><span class="conta-nome">${b.nome}</span><span class="conta-saldo">${fmtMoeda(s)}</span></div>
-        <div class="conta-dashboard-categoria">${b.tipo}</div>
+  const saldoTotal = calcularSaldoTotal();
+  const saldos = state.bancos.map(b => ({ b, s: calcularSaldoBanco(b.id) }));
+  resumoContasDashboard.innerHTML = `<div class="bancos-cards-grid">` +
+    saldos.map(({ b, s }) => {
+      const pct = saldoTotal !== 0 ? ((s / saldoTotal) * 100).toFixed(1) : "0.0";
+      const cls = s > 0 ? "positivo" : s < 0 ? "negativo" : "";
+      return `<div class="banco-card">
+        <div class="banco-card-top">
+          <span class="banco-card-nome">${b.nome}</span>
+          <span class="banco-card-tipo">${b.tipo}</span>
+        </div>
+        <div class="banco-card-divider"></div>
+        <div class="banco-card-saldo ${cls}">${fmtMoeda(s)}</div>
+        <div class="banco-card-pct">${pct}% do total</div>
       </div>`;
     }).join("") + `</div>`;
 }
@@ -851,6 +864,7 @@ function trocarTela(name) {
       s.classList.remove("active","screen-enter");
     }
   });
+  sincronizarBottomNav(name);
 }
 menuItems.forEach(i=>i.addEventListener("click",()=>trocarTela(i.dataset.screen)));
 
@@ -1184,6 +1198,65 @@ document.getElementById("formEditarRecorrencia")?.addEventListener("submit", asy
   } catch(err) { toast(err.message,"error"); }
 });
 
+
+/* ============================================================
+   SPLASH SCREEN
+   ============================================================ */
+function mostrarSplash() {
+  const el = document.getElementById("splashScreen");
+  if (el) el.style.display = "flex";
+}
+
+function esconderSplash() {
+  const el = document.getElementById("splashScreen");
+  if (!el) return;
+  el.classList.add("hiding");
+  setTimeout(() => { el.style.display = "none"; el.classList.remove("hiding"); }, 420);
+}
+
+/* ============================================================
+   ONBOARDING
+   ============================================================ */
+function mostrarOnboarding() {
+  const el = document.getElementById("onboarding");
+  if (el) el.style.display = "flex";
+}
+
+function obProximo(step) {
+  document.querySelectorAll(".ob-step").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".ob-dot").forEach(d => d.classList.remove("active"));
+  const stepEl = document.getElementById("obStep" + step);
+  const dotEl  = document.getElementById("obDot"  + step);
+  if (stepEl) stepEl.classList.add("active");
+  if (dotEl)  dotEl.classList.add("active");
+}
+
+function obFinalizar() {
+  const el = document.getElementById("onboarding");
+  if (el) el.style.display = "none";
+  localStorage.setItem("fp_onboarding_done", "1");
+  trocarTela("contas");
+  toast("Comece cadastrando sua primeira conta bancária! 🏦", "info");
+}
+
+/* ============================================================
+   BOTTOM NAV MOBILE
+   ============================================================ */
+document.querySelectorAll(".bnav-item").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const screen = btn.dataset.screen;
+    trocarTela(screen);
+    document.querySelectorAll(".bnav-item").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+  });
+});
+
+function sincronizarBottomNav(screen) {
+  document.querySelectorAll(".bnav-item").forEach(b => {
+    b.classList.toggle("active", b.dataset.screen === screen);
+  });
+}
+
 /* ============================================================
    INICIALIZAÇÃO
    ============================================================ */
@@ -1191,7 +1264,9 @@ async function iniciar() {
   const tema = localStorage.getItem("fp_tema") || "light";
   aplicarTema(tema);
 
-  // Verificar sessão salva
+  // Mostrar splash enquanto verifica sessão
+  mostrarSplash();
+
   const tokenSalvo = localStorage.getItem("fp_token");
   const userSalvo  = localStorage.getItem("fp_user");
 
@@ -1200,16 +1275,18 @@ async function iniciar() {
       state.user = JSON.parse(userSalvo);
       document.getElementById("userEmail").textContent = state.user.email;
       await carregarDadosNuvem();
+      esconderSplash();
       mostrarTelaApp();
       renderTudo();
       trocarTela("dashboard");
     } catch(e) {
-      // Token expirado ou inválido
       localStorage.removeItem("fp_token");
       localStorage.removeItem("fp_user");
+      esconderSplash();
       mostrarTelaLogin();
     }
   } else {
+    esconderSplash();
     mostrarTelaLogin();
   }
 
