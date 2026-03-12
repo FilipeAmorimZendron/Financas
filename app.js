@@ -865,6 +865,8 @@ function trocarTela(name) {
     }
   });
   sincronizarBottomNav(name);
+  // Mostrar guia na primeira visita à seção
+  mostrarGuia(name);
 }
 menuItems.forEach(i=>i.addEventListener("click",()=>trocarTela(i.dataset.screen)));
 
@@ -1257,6 +1259,194 @@ function sincronizarBottomNav(screen) {
   });
 }
 
+
+/* ============================================================
+   GUIA CONTEXTUAL POR SEÇÃO
+   ============================================================ */
+
+const GUIAS = {
+  dashboard: {
+    icon: "📊",
+    titulo: "Dashboard — Visão Geral",
+    subtitulo: "Aqui você acompanha tudo de uma vez",
+    itens: [
+      { icon: "💰", titulo: "Saldo total", desc: "Soma de todas as suas contas. Atualiza automaticamente a cada lançamento." },
+      { icon: "↑", titulo: "Entradas", desc: "Total de receitas registradas no período. Clique em <em>Lançamentos</em> para adicionar novas entradas." },
+      { icon: "↓", titulo: "Gastos", desc: "Total de despesas do período. Se estiver alto, confira as <em>Metas</em> para controlar por categoria." },
+      { icon: "🏦", titulo: "Saldo por conta", desc: "Cada banco ou carteira aparece como um card com o saldo atual e a porcentagem que representa do total." },
+      { icon: "📈", titulo: "Evolução do saldo", desc: "Gráfico dos últimos 6 meses. Útil para ver se você está evoluindo ou regredindo ao longo do tempo." },
+    ],
+    dica: "💡 Dica: o dashboard reflete sempre os dados em tempo real. Quanto mais lançamentos você fizer, mais preciso ele fica."
+  },
+  contas: {
+    icon: "🏦",
+    titulo: "Contas — Suas carteiras",
+    subtitulo: "Organize seu dinheiro em diferentes contas",
+    itens: [
+      { icon: "➕", titulo: "Criar conta", desc: "Adicione quantas contas quiser: Nubank, Itaú, Carteira física, Poupança, Investimentos, etc." },
+      { icon: "💵", titulo: "Saldo inicial", desc: "Informe o saldo atual da conta ao criá-la. Isso garante que o dashboard comece com os valores corretos." },
+      { icon: "🏷️", titulo: "Tipo de conta", desc: "Classifique como <em>Corrente, Poupança, Investimento</em> ou <em>Carteira</em> para melhor organização." },
+      { icon: "✏️", titulo: "Editar ou excluir", desc: "Clique em qualquer conta para editar o nome, tipo ou saldo inicial. Excluir uma conta também apaga seus lançamentos." },
+    ],
+    dica: "💡 Dica: crie uma conta separada para sua reserva de emergência — assim você vê claramente quanto tem guardado."
+  },
+  lancamentos: {
+    icon: "💸",
+    titulo: "Lançamentos — Registro financeiro",
+    subtitulo: "Registre entradas e gastos rapidamente",
+    itens: [
+      { icon: "🗣️", titulo: "Linguagem natural", desc: 'Digite algo como <em>"gastei 80 reais no mercado"</em> ou <em>"recebi 2000 de salário"</em> e o app detecta tudo automaticamente.' },
+      { icon: "📂", titulo: "Categorias automáticas", desc: "O app identifica a categoria pelo texto: mercado → Alimentação, uber → Transporte, netflix → Lazer, etc." },
+      { icon: "📤", titulo: "Importar extrato CSV", desc: "Baixe o extrato do seu banco em CSV e importe aqui. O app lê e cria os lançamentos automaticamente." },
+      { icon: "🔍", titulo: "Busca e filtros", desc: "Use a busca para encontrar qualquer lançamento. Filtre por data, conta ou categoria no histórico." },
+      { icon: "↩️", titulo: "Desfazer exclusão", desc: "Ao excluir um lançamento, aparece um toast por 5 segundos para desfazer caso tenha sido acidente." },
+    ],
+    dica: "💡 Dica: lance seus gastos todo dia antes de dormir. Com 1 minuto por dia você mantém tudo atualizado."
+  },
+  transferencias: {
+    icon: "↔️",
+    titulo: "Transferências — Entre contas",
+    subtitulo: "Mova dinheiro sem afetar suas receitas ou gastos",
+    itens: [
+      { icon: "🔄", titulo: "O que é uma transferência", desc: "Quando você move dinheiro de uma conta para outra, não é receita nem gasto. Use esta tela para registrar corretamente." },
+      { icon: "📋", titulo: "Como registrar", desc: "Selecione conta de origem, conta de destino, valor e data. Opcionalmente adicione uma descrição." },
+      { icon: "📊", titulo: "Impacto no saldo", desc: "A conta de <em>origem perde</em> o valor e a conta de <em>destino ganha</em>. O saldo total consolidado não muda." },
+      { icon: "📜", titulo: "Histórico", desc: "Todas as transferências ficam registradas com data e descrição para consulta futura." },
+    ],
+    dica: "💡 Dica: use transferências para alimentar seu fundo de emergência mensalmente. Ex: Corrente → Poupança."
+  },
+  recorrencias: {
+    icon: "🔁",
+    titulo: "Recorrências — Gastos automáticos",
+    subtitulo: "Configure contas fixas que se repetem todo mês",
+    itens: [
+      { icon: "⚡", titulo: "O que são recorrências", desc: "Contas que se repetem todo mês: aluguel, academia, Netflix, plano de saúde. Cadastre uma vez, o app lança automaticamente." },
+      { icon: "📅", titulo: "Dia do lançamento", desc: "Defina o dia do mês em que o lançamento deve ser gerado. O app cria o movimento automaticamente nessa data." },
+      { icon: "✏️", titulo: "Editar recorrência", desc: "Precisa ajustar o valor do plano? Edite a recorrência e os próximos lançamentos já usarão o valor novo." },
+      { icon: "🗑️", titulo: "Cancelar", desc: "Ao excluir uma recorrência, os lançamentos passados são mantidos. Só os futuros deixam de ser gerados." },
+    ],
+    dica: "💡 Dica: cadastre todas as suas contas fixas aqui. O dashboard mostrará uma previsão de quanto você já tem comprometido no mês."
+  },
+  metas: {
+    icon: "🎯",
+    titulo: "Metas — Controle de gastos",
+    subtitulo: "Defina limites por categoria e evite excessos",
+    itens: [
+      { icon: "📏", titulo: "Como funciona", desc: "Defina um limite mensal por categoria. Ex: Lazer = R$ 300. O app mostra quanto você já usou com uma barra de progresso." },
+      { icon: "🟡", titulo: "Alertas visuais", desc: "A barra fica <em>amarela</em> quando você passou de 75% e <em>vermelha</em> quando estourou o limite da categoria." },
+      { icon: "➕", titulo: "Criar meta", desc: "Selecione a categoria e defina o valor máximo mensal. Você pode ter metas para Alimentação, Lazer, Transporte, etc." },
+      { icon: "📊", titulo: "Acompanhamento", desc: "Os gastos reais são calculados automaticamente com base nos lançamentos do mês atual." },
+    ],
+    dica: "💡 Dica: comece definindo metas para as 3 categorias onde você mais gasta. Pequenas mudanças nessas áreas têm grande impacto."
+  },
+  planilha: {
+    icon: "📋",
+    titulo: "Planilha — Análise detalhada",
+    subtitulo: "Explore seus dados com filtros e resumos",
+    itens: [
+      { icon: "🔍", titulo: "Filtros por período", desc: "Filtre por dia, mês ou ano específico. Útil para conferir como foi determinado mês ou comparar períodos." },
+      { icon: "🗂️", titulo: "Resumo por categoria", desc: "Veja quanto você gastou em cada categoria no período filtrado. Identifique onde vai mais dinheiro." },
+      { icon: "🏦", titulo: "Resumo por conta", desc: "Quanto entrou e saiu de cada banco no período. Útil para reconciliar com o extrato do banco." },
+      { icon: "📤", titulo: "Exportar CSV", desc: "Baixe todos os lançamentos filtrados em CSV. Compatível com Excel, Google Sheets e qualquer planilha." },
+    ],
+    dica: "💡 Dica: no final de cada mês, exporte o CSV e guarde como backup. Também serve para declaração de imposto de renda."
+  },
+  graficos: {
+    icon: "📈",
+    titulo: "Gráficos — Visualização financeira",
+    subtitulo: "Entenda seus padrões de gastos visualmente",
+    itens: [
+      { icon: "🍕", titulo: "Pizza de gastos por categoria", desc: "Mostra a proporção dos seus gastos entre as categorias. Revela onde vai a maior parte do seu dinheiro." },
+      { icon: "🍩", titulo: "Donut entradas × gastos", desc: "Comparação rápida entre total de entradas e total de gastos. Ideal para ver se você está no azul ou no vermelho." },
+      { icon: "📅", titulo: "Período dos gráficos", desc: "Os gráficos usam todos os lançamentos registrados. Quanto mais histórico você tiver, mais precisos ficam." },
+    ],
+    dica: "💡 Dica: se a pizza mostrar uma categoria muito dominante, vale criar uma <em>Meta</em> para controlar aquele gasto."
+  }
+};
+
+const GUIA_STORAGE_KEY = "fp_guia_visto_";
+
+function mostrarGuia(screen) {
+  const guia = GUIAS[screen];
+  if (!guia) return;
+
+  // Verificar se usuário marcou "não mostrar"
+  if (localStorage.getItem(GUIA_STORAGE_KEY + screen) === "1") return;
+
+  const conteudo = document.getElementById("guideContent");
+  const naoMostrar = document.getElementById("guideNaoMostrar");
+  if (!conteudo) return;
+
+  naoMostrar.checked = false;
+  naoMostrar.dataset.screen = screen;
+
+  conteudo.innerHTML = `
+    <div class="guide-header">
+      <div class="guide-icon">${guia.icon}</div>
+      <div>
+        <div class="guide-titulo">${guia.titulo}</div>
+        <div class="guide-subtitulo">${guia.subtitulo}</div>
+      </div>
+    </div>
+    <div class="guide-itens">
+      ${guia.itens.map(item => `
+        <div class="guide-item">
+          <div class="guide-item-icon">${item.icon}</div>
+          <div class="guide-item-body">
+            <div class="guide-item-titulo">${item.titulo}</div>
+            <div class="guide-item-desc">${item.desc}</div>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+    ${guia.dica ? `<div class="guide-dica">${guia.dica}</div>` : ""}
+  `;
+
+  const overlay = document.getElementById("guideOverlay");
+  overlay.style.display = "flex";
+}
+
+function fecharGuia() {
+  const overlay = document.getElementById("guideOverlay");
+  const naoMostrar = document.getElementById("guideNaoMostrar");
+  if (naoMostrar?.checked && naoMostrar.dataset.screen) {
+    localStorage.setItem(GUIA_STORAGE_KEY + naoMostrar.dataset.screen, "1");
+  }
+  overlay.style.display = "none";
+}
+
+// Botão "?" nos page-headers — injetado dinamicamente
+function injetarBotoesGuia() {
+  const mapeamento = {
+    "screen-dashboard":      "dashboard",
+    "screen-contas":         "contas",
+    "screen-lancamentos":    "lancamentos",
+    "screen-transferencias": "transferencias",
+    "screen-recorrencias":   "recorrencias",
+    "screen-metas":          "metas",
+    "screen-planilha":       "planilha",
+    "screen-graficos":       "graficos"
+  };
+
+  Object.entries(mapeamento).forEach(([screenId, guiaKey]) => {
+    const screen = document.getElementById(screenId);
+    if (!screen) return;
+    const header = screen.querySelector(".page-header");
+    if (!header) return;
+    if (header.querySelector(".btn-guia-secao")) return; // já tem
+
+    const btn = document.createElement("button");
+    btn.className = "btn-guia-secao";
+    btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Como funciona`;
+    btn.onclick = () => {
+      // força mostrar mesmo se já viu
+      localStorage.removeItem(GUIA_STORAGE_KEY + guiaKey);
+      mostrarGuia(guiaKey);
+    };
+    header.appendChild(btn);
+  });
+}
+
 /* ============================================================
    INICIALIZAÇÃO
    ============================================================ */
@@ -1278,6 +1468,7 @@ async function iniciar() {
       esconderSplash();
       mostrarTelaApp();
       renderTudo();
+      injetarBotoesGuia();
       trocarTela("dashboard");
     } catch(e) {
       localStorage.removeItem("fp_token");
