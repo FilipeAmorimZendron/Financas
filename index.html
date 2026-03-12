@@ -2,8 +2,14 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Finanças Pessoais</title>
+  <meta name="description" content="Controle total do seu dinheiro em um só lugar." />
+  <meta name="theme-color" content="#1e2540" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Finanças" />
+  <link rel="manifest" href="manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet" />
@@ -62,6 +68,30 @@
       </div>
     </aside>
 
+    <!-- BOTTOM NAV MOBILE -->
+    <nav class="bottom-nav" id="bottomNav">
+      <button class="bnav-item active" data-screen="dashboard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        <span>Dashboard</span>
+      </button>
+      <button class="bnav-item" data-screen="lancamentos">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span>Lançar</span>
+      </button>
+      <button class="bnav-item" data-screen="contas">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+        <span>Contas</span>
+      </button>
+      <button class="bnav-item" data-screen="planilha">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+        <span>Planilha</span>
+      </button>
+      <button class="bnav-item" data-screen="metas">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+        <span>Metas</span>
+      </button>
+    </nav>
+
     <main class="content">
 
       <!-- DASHBOARD -->
@@ -102,9 +132,10 @@
         </div>
         <div class="panel">
           <div class="panel-header">
-            <h3 class="panel-title">Resumo das contas</h3>
+            <h3 class="panel-title">Saldo por conta</h3>
           </div>
           <div id="resumoContasDashboard" class="empty-state">Nenhuma conta cadastrada ainda.</div>
+
         </div>
       </section>
 
@@ -503,6 +534,53 @@
   <div id="loadingOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:99999;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
     <div class="loading-spinner"></div>
     <span style="color:#fff;font-size:14px;font-family:DM Sans,sans-serif">Carregando...</span>
+  </div>
+
+  <!-- SPLASH SCREEN -->
+  <div id="splashScreen" class="splash-screen">
+    <div class="splash-inner">
+      <div class="splash-spinner"></div>
+      <div class="splash-brand">Finanças Pessoais</div>
+      <div class="splash-sub">Sincronizando seus dados...</div>
+    </div>
+  </div>
+
+  <!-- ONBOARDING -->
+  <div id="onboarding" class="onboarding-overlay" style="display:none">
+    <div class="onboarding-card">
+      <div class="onboarding-steps">
+        <div class="ob-step active" id="obStep1">
+          <div class="ob-icon">🎉</div>
+          <h2 class="ob-title">Bem-vindo ao Finanças Pessoais!</h2>
+          <p class="ob-desc">Você está a 3 passos de ter controle total do seu dinheiro. Vamos configurar sua conta juntos.</p>
+          <button class="btn-primary ob-btn" onclick="obProximo(2)">Começar →</button>
+        </div>
+        <div class="ob-step" id="obStep2">
+          <div class="ob-icon">🏦</div>
+          <h2 class="ob-title">Cadastre sua conta bancária</h2>
+          <p class="ob-desc">Adicione seus bancos, carteiras ou qualquer conta que você use. Você pode adicionar várias contas.</p>
+          <div class="ob-exemplo">
+            <span>Ex: Nubank, Itaú, Carteira física, Binance...</span>
+          </div>
+          <button class="btn-primary ob-btn" onclick="obProximo(3)">Entendido →</button>
+        </div>
+        <div class="ob-step" id="obStep3">
+          <div class="ob-icon">💸</div>
+          <h2 class="ob-title">Registre suas movimentações</h2>
+          <p class="ob-desc">Use linguagem natural para lançar: <em>"gastei 50 reais no mercado"</em> ou importe um extrato CSV do seu banco.</p>
+          <div class="ob-exemplo">
+            <span>Dica: o app detecta valor, tipo e categoria automaticamente!</span>
+          </div>
+          <button class="btn-primary ob-btn" onclick="obFinalizar()">Ir para o app ✓</button>
+        </div>
+      </div>
+      <div class="ob-dots">
+        <span class="ob-dot active" id="obDot1"></span>
+        <span class="ob-dot" id="obDot2"></span>
+        <span class="ob-dot" id="obDot3"></span>
+      </div>
+      <button class="ob-pular" onclick="obFinalizar()">Pular introdução</button>
+    </div>
   </div>
 
   <!-- TELA DE LOGIN -->
