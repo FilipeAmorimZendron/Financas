@@ -530,6 +530,22 @@
   <!-- TOAST CONTAINER -->
   <div id="toastContainer" class="toast-container"></div>
 
+
+  <!-- GUIA CONTEXTUAL POR SEÇÃO -->
+  <div id="guideOverlay" class="guide-overlay" style="display:none" onclick="fecharGuia()">
+    <div class="guide-panel" onclick="event.stopPropagation()">
+      <button class="guide-close" onclick="fecharGuia()">✕</button>
+      <div id="guideContent"></div>
+      <div class="guide-footer">
+        <label class="guide-nao-mostrar">
+          <input type="checkbox" id="guideNaoMostrar" />
+          Não mostrar novamente para esta seção
+        </label>
+        <button class="btn-primary guide-btn-ok" onclick="fecharGuia()">Entendido ✓</button>
+      </div>
+    </div>
+  </div>
+
   <!-- LOADING OVERLAY -->
   <div id="loadingOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:99999;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
     <div class="loading-spinner"></div>
