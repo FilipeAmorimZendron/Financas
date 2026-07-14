@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -71,10 +71,15 @@
       </nav>
 
       <div class="sidebar-footer">
-        <button id="btnTema" class="btn-tema" title="Alternar tema">🌙</button>
-        <div class="user-info"><span id="userEmail" class="user-email"></span><button id="btnLogout" class="btn-logout" title="Sair">↪ Sair</button></div>
-        <button class="btn-privacidade" onclick="abrirModal('modalPrivacidade')">🔒 Meus dados e privacidade</button>
-        <div class="sidebar-footer-text">Dados salvos na nuvem ☁️</div>
+        <button class="perfil-btn" data-screen="conta" title="Sua conta">
+          <span class="perfil-avatar" id="perfilAvatar">—</span>
+          <span class="perfil-info">
+            <span class="perfil-email" id="userEmail"></span>
+            <span class="perfil-acao">Ver conta</span>
+          </span>
+          <svg class="perfil-seta" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+        <div class="sidebar-footer-text">Dados sincronizados ☁️</div>
       </div>
     </aside>
 
@@ -121,17 +126,26 @@
             <div class="card-desc">Consolidado de todas as contas</div>
           </div>
           <div class="info-card">
-            <div class="card-label card-label-green">↑ Entradas</div>
+            <div class="card-label card-label-green">
+              <svg class="card-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>
+              Entradas
+            </div>
             <div class="card-value" id="totalEntradas">R$ 0,00</div>
             <div class="card-desc">Total de valores recebidos</div>
           </div>
           <div class="info-card">
-            <div class="card-label card-label-red">↓ Gastos</div>
+            <div class="card-label card-label-red">
+              <svg class="card-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="6 13 12 19 18 13"/></svg>
+              Gastos
+            </div>
             <div class="card-value" id="totalGastos">R$ 0,00</div>
             <div class="card-desc">Total de saídas registradas</div>
           </div>
           <div class="info-card" id="cardAPagar">
-            <div class="card-label card-label-warn">⏳ A pagar</div>
+            <div class="card-label card-label-warn">
+              <svg class="card-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+              A pagar
+            </div>
             <div class="card-value" id="totalAPagar">R$ 0,00</div>
             <div class="card-desc" id="descAPagar">Nenhuma conta pendente</div>
           </div>
@@ -159,7 +173,7 @@
               </select>
             </div>
           </div>
-          <div id="listaPendentes" class="empty-state">Nenhuma conta pendente. Tudo em dia! 🎉</div>
+          <div id="listaPendentes" class="empty-state">Carregando...</div>
         </div>
 
         <div class="panel">
@@ -787,6 +801,161 @@
         </div>
       </section>
 
+      <!-- CONTA -->
+      <section class="screen" id="screen-conta">
+        <div class="conta-wrap">
+
+          <!-- Cabeçalho -->
+          <div class="conta-topo">
+            <button class="conta-avatar-btn" onclick="abrirSeletorAvatar()" title="Alterar foto">
+              <div class="conta-avatar" id="contaAvatar">—</div>
+              <span class="conta-avatar-editar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+              </span>
+            </button>
+            <h2 class="conta-email" id="contaEmail">—</h2>
+            <p class="conta-desde" id="contaDesde"></p>
+          </div>
+
+          <!-- Cards de status -->
+          <div class="conta-cards">
+            <div class="conta-card">
+              <div class="conta-card-icone">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.2-6.3-4.6L5.7 21 8 13.8 2 9.4h7.6z"/></svg>
+              </div>
+              <div class="conta-card-valor">Grátis</div>
+              <div class="conta-card-label">Plano atual</div>
+            </div>
+            <div class="conta-card">
+              <div class="conta-card-icone">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              </div>
+              <div class="conta-card-valor" id="contaQtdContas">0</div>
+              <div class="conta-card-label">Contas cadastradas</div>
+            </div>
+            <div class="conta-card">
+              <div class="conta-card-icone">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+              </div>
+              <div class="conta-card-valor" id="contaQtdLancamentos">0</div>
+              <div class="conta-card-label">Lançamentos</div>
+            </div>
+          </div>
+
+          <!-- GERAL -->
+          <div class="conta-grupo">
+            <div class="conta-grupo-titulo">Geral</div>
+
+            <div class="conta-linha conta-linha-toggle">
+              <div class="conta-linha-esq">
+                <span class="conta-linha-icone">🌓</span>
+                <div>
+                  <div class="conta-linha-titulo">Tema</div>
+                  <div class="conta-linha-desc">Claro ou escuro</div>
+                </div>
+              </div>
+              <button id="btnTema" class="conta-toggle" title="Alternar tema">
+                <span class="conta-toggle-txt" id="temaLabel">Escuro</span>
+              </button>
+            </div>
+
+            <button class="conta-linha" onclick="abrirDocumento('assinatura')">
+              <div class="conta-linha-esq">
+                <span class="conta-linha-icone">💳</span>
+                <div>
+                  <div class="conta-linha-titulo">Assinatura</div>
+                  <div class="conta-linha-desc">Você está no plano gratuito</div>
+                </div>
+              </div>
+              <svg class="conta-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+
+          <!-- DADOS E PRIVACIDADE -->
+          <div class="conta-grupo">
+            <div class="conta-grupo-titulo">Dados e privacidade</div>
+
+            <button class="conta-linha" onclick="exportarTudoJSON()">
+              <div class="conta-linha-esq">
+                <span class="conta-linha-icone">📥</span>
+                <div>
+                  <div class="conta-linha-titulo">Exportar meus dados</div>
+                  <div class="conta-linha-desc">Baixe uma cópia completa em JSON</div>
+                </div>
+              </div>
+              <svg class="conta-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <button class="conta-linha" onclick="exportarTudoCSV()">
+              <div class="conta-linha-esq">
+                <span class="conta-linha-icone">📊</span>
+                <div>
+                  <div class="conta-linha-titulo">Exportar em CSV</div>
+                  <div class="conta-linha-desc">Formato de planilha</div>
+                </div>
+              </div>
+              <svg class="conta-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <button class="conta-linha" onclick="abrirDocumento('privacidade')">
+              <div class="conta-linha-esq">
+                <span class="conta-linha-icone">🔒</span>
+                <div>
+                  <div class="conta-linha-titulo">Política de Privacidade</div>
+                  <div class="conta-linha-desc">Como tratamos seus dados</div>
+                </div>
+              </div>
+              <svg class="conta-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <button class="conta-linha" onclick="abrirDocumento('termos')">
+              <div class="conta-linha-esq">
+                <span class="conta-linha-icone">📄</span>
+                <div>
+                  <div class="conta-linha-titulo">Termos de Uso</div>
+                  <div class="conta-linha-desc">Regras do serviço</div>
+                </div>
+              </div>
+              <svg class="conta-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+
+          <!-- SEGURANÇA -->
+          <div class="conta-grupo">
+            <div class="conta-grupo-titulo">Segurança</div>
+
+            <button class="conta-linha" onclick="pedirTrocaSenha()">
+              <div class="conta-linha-esq">
+                <span class="conta-linha-icone">🔑</span>
+                <div>
+                  <div class="conta-linha-titulo">Alterar senha</div>
+                  <div class="conta-linha-desc">Enviaremos um link por e-mail</div>
+                </div>
+              </div>
+              <svg class="conta-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <button class="conta-linha conta-linha-perigo" onclick="iniciarExclusaoConta()">
+              <div class="conta-linha-esq">
+                <span class="conta-linha-icone">🗑</span>
+                <div>
+                  <div class="conta-linha-titulo">Excluir minha conta</div>
+                  <div class="conta-linha-desc">Apaga tudo permanentemente</div>
+                </div>
+              </div>
+              <svg class="conta-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+
+          <!-- SAIR -->
+          <button id="btnLogout" class="conta-sair">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sair da conta
+          </button>
+
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -951,40 +1120,41 @@
     </div>
   </div>
 
-  <!-- MODAL PRIVACIDADE E DADOS (LGPD) -->
-  <div class="modal-overlay" id="modalPrivacidade">
-    <div class="modal modal-doc">
+  <!-- MODAL SELETOR DE AVATAR -->
+  <div class="modal-overlay" id="modalAvatar">
+    <div class="modal modal-avatar">
       <div class="modal-header">
-        <h3 class="modal-title">Meus dados e privacidade</h3>
-        <button class="modal-close" onclick="fecharModal('modalPrivacidade')">✕</button>
+        <h3 class="modal-title">Sua foto</h3>
+        <button class="modal-close" onclick="fecharModal('modalAvatar')">✕</button>
       </div>
 
-      <div class="lgpd-secao">
-        <div class="lgpd-titulo">📥 Exportar meus dados</div>
-        <p class="lgpd-desc">Baixe uma cópia completa de tudo que você registrou: contas, lançamentos, transferências, recorrências, metas, objetivos e investimentos.</p>
-        <div class="lgpd-acoes">
-          <button class="btn-ghost" onclick="exportarTudoJSON()">⬇ Baixar em JSON</button>
-          <button class="btn-ghost" onclick="exportarTudoCSV()">⬇ Baixar em CSV</button>
-        </div>
+      <!-- Prévia -->
+      <div class="avatar-preview-wrap">
+        <div class="avatar-preview" id="avatarPreview">—</div>
       </div>
 
-      <div class="lgpd-secao">
-        <div class="lgpd-titulo">📄 Documentos</div>
-        <div class="lgpd-acoes">
-          <button class="btn-ghost" onclick="abrirDocumento('privacidade')">Política de Privacidade</button>
-          <button class="btn-ghost" onclick="abrirDocumento('termos')">Termos de Uso</button>
-        </div>
+      <!-- Galeria de avatares (caminho principal) -->
+      <div class="avatar-secao">
+        <div class="avatar-secao-titulo">Escolha um avatar</div>
+        <div class="avatar-galeria" id="avatarGaleria"></div>
       </div>
 
-      <div class="lgpd-secao lgpd-perigo">
-        <div class="lgpd-titulo">🗑 Excluir minha conta</div>
-        <p class="lgpd-desc">
-          Isso apaga <strong>permanentemente</strong> sua conta e todos os seus dados.
-          <strong>Não há como desfazer.</strong> Recomendamos exportar seus dados antes.
-        </p>
-        <div class="lgpd-acoes">
-          <button class="btn-danger" onclick="iniciarExclusaoConta()">Excluir minha conta e todos os dados</button>
-        </div>
+      <!-- Ações secundárias -->
+      <div class="avatar-acoes">
+        <label class="avatar-acao">
+          <input type="file" id="avatarArquivo" accept="image/png,image/jpeg,image/webp" hidden />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Enviar minha foto
+        </label>
+        <button type="button" class="avatar-acao" onclick="usarAvatarInicial()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+          Usar a inicial
+        </button>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" onclick="fecharModal('modalAvatar')">Cancelar</button>
+        <button type="button" class="btn-primary" onclick="salvarAvatar()">Salvar</button>
       </div>
     </div>
   </div>

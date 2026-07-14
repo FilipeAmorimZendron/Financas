@@ -93,17 +93,17 @@
   --green:        #46b483;
   --green-dim:    rgba(70, 180, 131, 0.14);
 
-  --text-primary:   #e9edf5;
-  --text-secondary: #a3adc4;
-  --text-muted:     #626d8a;
+  --text-primary:   #E6EEF5;
+  --text-secondary: #9FB0C2;
+  --text-muted:     #7C8FA3;
 
   /* Sidebar no escuro: navy profundo com texto claro */
-  --sidebar-bg:       #131a2e;
-  --sidebar-border:   #202a44;
-  --sidebar-text:     #c8d2e4;
-  --sidebar-text-dim: #7a86a2;
-  --sidebar-active:   rgba(74,154,164,0.18);
-  --sidebar-hover:    rgba(255,255,255,0.05);
+  --sidebar-bg:       #08152A;
+  --sidebar-border:   #223046;
+  --sidebar-text:     #C6D3E0;
+  --sidebar-text-dim: #7C8FA3;
+  --sidebar-active:   rgba(30, 246, 221, 0.13);
+  --sidebar-hover:    rgba(255,255,255,0.045);
 
   --sec-form:    #1b2440;
   --sec-form-bd: #2a3557;
@@ -360,7 +360,7 @@ button, input, textarea, select {
 .card-label-red   { color: var(--red); }
 
 .card-value {
-  font-family: 'DM Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 27px;
   font-weight: 500;
   color: var(--text-primary);
@@ -581,7 +581,7 @@ textarea { resize: vertical; }
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 2px 8px;
-  font-family: 'DM Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;
   color: var(--accent);
   margin: 2px 4px;
@@ -639,9 +639,9 @@ textarea { resize: vertical; }
 
 .conta-dashboard-categoria { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
-.valor-positivo { color: var(--green); font-weight: 600; font-family: 'DM Mono', monospace; font-size: 13px; }
-.valor-negativo { color: var(--red);   font-weight: 600; font-family: 'DM Mono', monospace; font-size: 13px; }
-.valor-neutro, .conta-saldo { color: var(--accent); font-weight: 600; font-family: 'DM Mono', monospace; font-size: 14px; }
+.valor-positivo { color: var(--green); font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+.valor-negativo { color: var(--red);   font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+.valor-neutro, .conta-saldo { color: var(--accent); font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 14px; }
 
 /* ============================================================
    BADGES
@@ -815,7 +815,7 @@ textarea { resize: vertical; }
 
 .meta-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; }
 .meta-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-.meta-valores { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+.meta-valores { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
 .meta-valores strong { color: var(--text-primary); }
 
 .progress-bar-wrap {
@@ -861,7 +861,7 @@ textarea { resize: vertical; }
 .trans-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
 .trans-contas { font-size: 14px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
 .trans-seta { color: var(--accent); font-size: 16px; }
-.trans-valor { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 600; color: var(--blue); }
+.trans-valor { font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600; color: var(--blue); }
 .trans-meta { font-size: 12px; color: var(--text-muted); }
 
 /* ============================================================
@@ -1163,7 +1163,7 @@ textarea { resize: vertical; }
   white-space: nowrap; flex-shrink: 0;
 }
 .banco-card-divider { height: 1px; background: var(--border-soft); }
-.banco-card-saldo { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 500; color: var(--text-primary); }
+.banco-card-saldo { font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 500; color: var(--text-primary); }
 .banco-card-saldo.positivo { color: var(--green); }
 .banco-card-saldo.negativo { color: var(--red); }
 .banco-card-pct { font-size: 11px; color: var(--text-muted); }
@@ -1174,7 +1174,7 @@ textarea { resize: vertical; }
   border-top: 1px solid var(--border-soft);
 }
 .contas-total-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
-.contas-total-valor { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; color: var(--accent); }
+.contas-total-valor { font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 500; color: var(--accent); }
 
 /* ============================================================
    SPLASH SCREEN
@@ -1529,7 +1529,7 @@ textarea { resize: vertical; }
   margin-bottom: 12px; gap: 12px;
 }
 .objetivo-nome { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-.objetivo-valores { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+.objetivo-valores { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
 .objetivo-valores strong { color: var(--text-primary); }
 
 .objetivo-meta {
@@ -1599,7 +1599,7 @@ textarea { resize: vertical; }
 }
 .inst-nome { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .inst-valor {
-  font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500;
+  font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 500;
   color: var(--text-primary); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .inst-meta {
@@ -1771,7 +1771,7 @@ textarea { resize: vertical; }
   letter-spacing: -0.01em;
 }
 .grupo-inst-total {
-  font-family: 'DM Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 13px;
   font-weight: 500;
   color: var(--accent);
@@ -1869,7 +1869,7 @@ textarea { resize: vertical; }
   flex-shrink: 0;
 }
 .pend-dir > div:first-child {
-  font-family: 'DM Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 14px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -1901,7 +1901,7 @@ textarea { resize: vertical; }
 .item-pendente { opacity: 0.82; border-left: 3px solid var(--border); }
 .valor-pendente {
   color: var(--text-muted);
-  font-family: 'DM Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-variant-numeric: tabular-nums;
 }
 .tag-status {
@@ -2040,7 +2040,7 @@ textarea { resize: vertical; }
   flex-shrink: 0;
 }
 .ocor-dia-num {
-  font-family: 'DM Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 16px;
   font-weight: 500;
   color: var(--text-primary);
@@ -2089,7 +2089,7 @@ textarea { resize: vertical; }
   flex-shrink: 0;
 }
 .ocor-valor {
-  font-family: 'DM Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 14px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -2232,24 +2232,6 @@ body.sem-internet .layout { padding-top: 34px; }
 .btn-link-inline:hover { opacity: 0.8; }
 
 /* Botão de privacidade no menu */
-.btn-privacidade {
-  width: 100%;
-  padding: 8px 10px;
-  margin-bottom: 8px;
-  background: none;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
-  color: var(--sidebar-text, var(--text-secondary));
-  font-size: 11.5px;
-  font-family: inherit;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.15s, border-color 0.15s;
-}
-.btn-privacidade:hover {
-  background: rgba(255,255,255,0.06);
-  border-color: var(--accent);
-}
 
 /* Modal de documento (mais largo e com scroll) */
 .modal-doc { max-width: 620px; }
@@ -2600,7 +2582,7 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 
 .lp-painel-saldo {
-  font-family: 'DM Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 33px;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -2622,7 +2604,7 @@ body.sem-internet .layout { padding-top: 34px; }
 
 .lp-painel-txt { color: var(--lp-text-dim); flex: 1; }
 .lp-painel-val {
-  font-family: 'DM Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-variant-numeric: tabular-nums;
   font-size: 13px;
 }
@@ -2643,7 +2625,7 @@ body.sem-internet .layout { padding-top: 34px; }
   color: var(--lp-text);
 }
 .lp-painel-val-forte {
-  font-family: 'DM Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 17px;
   font-weight: 500;
   color: var(--lp-text);
@@ -2719,7 +2701,7 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .lp-compare-bom .lp-compare-tag { color: var(--lp-teal-soft); }
 .lp-compare-val {
-  font-family: 'DM Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 21px;
   font-variant-numeric: tabular-nums;
   margin-bottom: 5px;
@@ -2781,7 +2763,7 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .lp-passo:last-child { border-bottom: 1px solid var(--lp-line); }
 .lp-passo-num {
-  font-family: 'DM Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 12.5px;
   color: var(--lp-teal-soft);
   min-width: 32px;
@@ -2825,7 +2807,7 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-faq-item summary::-webkit-details-marker { display: none; }
 .lp-faq-item summary::after {
   content: "+";
-  font-family: 'DM Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 19px;
   color: var(--lp-teal);
   transition: transform 0.28s cubic-bezier(0.16,1,0.3,1);
@@ -3314,4 +3296,562 @@ body.sem-internet .layout { padding-top: 34px; }
 /* Quem prefere menos movimento não vê o vídeo tocando */
 @media (prefers-reduced-motion: reduce) {
   .auth-midia { display: none; }
+}
+
+/* ============================================================
+   PERFIL NO RODAPÉ DA SIDEBAR (v12)
+   Antes era um amontoado de botões. Agora é um só, que leva
+   para a tela de Conta — onde tudo cabe com dignidade.
+   ============================================================ */
+
+.sidebar-footer {
+  padding: 16px 14px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.perfil-btn {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 10px 11px;
+  background: var(--surface2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color 0.18s, background 0.18s, transform 0.15s;
+}
+.perfil-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.perfil-btn:active { transform: scale(0.985); }
+
+.perfil-avatar {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--bg);
+  font-family: 'Sora', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.perfil-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.perfil-email {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.perfil-acao {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+.perfil-seta {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.18s, color 0.18s;
+}
+.perfil-btn:hover .perfil-seta {
+  color: var(--accent);
+  transform: translateX(2px);
+}
+
+.sidebar-footer-text {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-align: center;
+  opacity: 0.7;
+}
+
+/* ============================================================
+   TELA DE CONTA
+   ============================================================ */
+
+.conta-wrap {
+  max-width: 620px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+/* Cabeçalho */
+.conta-topo {
+  text-align: center;
+  padding: 20px 0 34px;
+}
+.conta-avatar {
+  width: 72px; height: 72px;
+  margin: 0 auto 16px;
+  display: grid; place-items: center;
+  border-radius: 20px;
+  background: linear-gradient(150deg, var(--accent), var(--teal-500));
+  color: var(--bg);
+  font-family: 'Sora', sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  box-shadow: 0 12px 34px -10px var(--accent-glow);
+}
+.conta-email {
+  font-family: 'Sora', sans-serif;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+  word-break: break-all;
+}
+.conta-desde {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Cards de status */
+.conta-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 34px;
+}
+.conta-card {
+  padding: 18px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  text-align: center;
+  transition: border-color 0.2s;
+}
+.conta-card:hover { border-color: var(--teal-glow); }
+.conta-card-icone {
+  width: 20px; height: 20px;
+  margin: 0 auto 10px;
+  color: var(--accent);
+}
+.conta-card-icone svg { width: 100%; height: 100%; }
+.conta-card-valor {
+  font-family: 'Sora', sans-serif;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+.conta-card-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+/* Grupos de opções */
+.conta-grupo { margin-bottom: 26px; }
+.conta-grupo-titulo {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  padding-left: 3px;
+}
+
+.conta-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color 0.18s, background 0.18s, transform 0.14s;
+}
+.conta-linha + .conta-linha { margin-top: 7px; }
+.conta-linha:hover {
+  border-color: var(--accent);
+  background: var(--surface2);
+}
+.conta-linha:active { transform: scale(0.995); }
+
+.conta-linha-esq {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+}
+.conta-linha-icone {
+  font-size: 17px;
+  flex-shrink: 0;
+  width: 22px;
+  text-align: center;
+}
+.conta-linha-titulo {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.conta-linha-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.conta-seta {
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.18s, color 0.18s;
+}
+.conta-linha:hover .conta-seta {
+  color: var(--accent);
+  transform: translateX(2px);
+}
+
+/* Linha de perigo */
+.conta-linha-perigo:hover {
+  border-color: var(--red);
+  background: var(--red-dim);
+}
+.conta-linha-perigo:hover .conta-linha-titulo { color: var(--red); }
+.conta-linha-perigo:hover .conta-seta { color: var(--red); }
+
+/* Toggle de tema (não é link, é ação) */
+.conta-linha-toggle { cursor: default; }
+.conta-linha-toggle:hover { border-color: var(--border-soft); background: var(--surface); }
+.conta-toggle {
+  padding: 7px 15px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.18s, background 0.18s;
+}
+.conta-toggle:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* Sair */
+.conta-sair {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  padding: 14px;
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--red);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s;
+}
+.conta-sair svg { width: 16px; height: 16px; }
+.conta-sair:hover {
+  border-color: var(--red);
+  background: var(--red-dim);
+}
+
+/* Plano no documento de assinatura */
+.doc-plano {
+  padding: 20px;
+  margin-bottom: 22px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+.doc-plano-tag {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.doc-plano-nome {
+  font-family: 'Sora', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.doc-plano-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .conta-cards { grid-template-columns: 1fr; }
+  .conta-card { display: flex; align-items: center; gap: 12px; text-align: left; padding: 14px; }
+  .conta-card-icone { margin: 0; }
+  .conta-linha-desc { display: none; }
+}
+
+/* ============================================================
+   AVATAR DO PERFIL (v13)
+   ============================================================ */
+
+/* Quando tem imagem, o avatar vira moldura */
+.conta-avatar.tem-imagem,
+.perfil-avatar.tem-imagem,
+.avatar-preview.tem-imagem {
+  background: var(--surface2);
+  padding: 0;
+  overflow: hidden;
+}
+.conta-avatar img,
+.perfil-avatar img,
+.avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Avatar clicável na tela de conta */
+.conta-avatar-btn {
+  position: relative;
+  display: inline-block;
+  padding: 0;
+  margin: 0 auto 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.18s;
+}
+.conta-avatar-btn:hover { transform: scale(1.04); }
+.conta-avatar-btn:active { transform: scale(0.98); }
+.conta-avatar-btn .conta-avatar { margin: 0; }
+
+.conta-avatar-editar {
+  position: absolute;
+  bottom: -2px; right: -2px;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  background: var(--surface);
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  color: var(--accent);
+  transition: background 0.18s;
+}
+.conta-avatar-editar svg { width: 12px; height: 12px; }
+.conta-avatar-btn:hover .conta-avatar-editar { background: var(--accent); color: var(--bg); }
+
+/* ─── Modal do seletor ───────────────────────────────────── */
+.modal-avatar { max-width: 420px; }
+
+.avatar-preview-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 24px;
+}
+.avatar-preview {
+  width: 84px; height: 84px;
+  display: grid; place-items: center;
+  border-radius: 22px;
+  background: linear-gradient(150deg, var(--accent), var(--teal-500));
+  color: var(--bg);
+  font-family: 'Sora', sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  overflow: hidden;
+  box-shadow: 0 12px 34px -12px var(--accent-glow);
+}
+
+.avatar-secao { margin-bottom: 22px; }
+.avatar-secao-titulo {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+
+/* Galeria */
+.avatar-galeria {
+  display: grid;
+  /* auto-fit: se adicionar mais avatares depois, o grid se ajusta sozinho */
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  gap: 10px;
+}
+.avatar-opcao {
+  aspect-ratio: 1;
+  padding: 0;
+  background: var(--surface2);
+  border: 2px solid var(--border-soft);
+  border-radius: 14px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.18s, transform 0.15s;
+}
+.avatar-opcao img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.avatar-opcao:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.avatar-opcao.ativo {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+/* Se a imagem não carregar, mostra um marcador em vez de quebrar */
+.avatar-opcao.sem-imagem::after {
+  content: "?";
+  display: grid;
+  place-items: center;
+  width: 100%; height: 100%;
+  color: var(--text-muted);
+  font-size: 18px;
+}
+
+
+
+
+/* Ações secundárias do avatar — discretas, lado a lado.
+   A galeria é o caminho principal; isto são as exceções. */
+.avatar-acoes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-soft);
+}
+.avatar-acao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 12px;
+  background: none;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.18s, color 0.18s, background 0.18s;
+}
+.avatar-acao svg {
+  width: 15px; height: 15px;
+  flex-shrink: 0;
+}
+.avatar-acao:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+@media (max-width: 420px) {
+  .avatar-acoes { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   ESTADOS VAZIOS (v14)
+   Não é "não tem nada" — é "faça isto agora".
+   ============================================================ */
+
+.vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 44px 24px;
+}
+.vazio-icone {
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  margin-bottom: 16px;
+  border-radius: 13px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-glow);
+  color: var(--accent);
+}
+.vazio-icone svg { width: 21px; height: 21px; }
+
+.vazio-titulo {
+  font-family: 'Sora', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.vazio-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  max-width: 330px;
+  margin-bottom: 18px;
+}
+.vazio-btn {
+  padding: 9px 20px;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 100px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.22s;
+}
+.vazio-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px -6px var(--accent-glow);
+}
+.vazio-btn:active { transform: none; }
+
+/* Ícones dos cards do dashboard (substituem os emojis) */
+.card-icone {
+  width: 13px; height: 13px;
+  vertical-align: -1px;
+  margin-right: 1px;
+}
+.card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Gráfico: mais respiro */
+.panel > div[style*="height:220px"] {
+  padding: 6px 4px 0;
 }

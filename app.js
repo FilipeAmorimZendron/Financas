@@ -28,6 +28,7 @@ const _h = { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Author
 const state = {
   bancos: [], movimentos: [], transferencias: [], recorrencias: [], metas: [],
   objetivos: [], investimentos: [], recPagamentos: [],
+  perfil: { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null },
   user: null
 };
 
@@ -370,7 +371,7 @@ async function dbDelete(tabela, id) {
 async function carregarDadosNuvem() {
   mostrarLoading(true);
   try {
-    const [contas, movimentos, transferencias, recorrencias, metas, objetivos, investimentos, recPagamentos] = await Promise.all([
+    const [contas, movimentos, transferencias, recorrencias, metas, objetivos, investimentos, recPagamentos, perfilRows] = await Promise.all([
       dbSelect("contas"),
       dbSelect("movimentos"),
       dbSelect("transferencias"),
@@ -378,7 +379,8 @@ async function carregarDadosNuvem() {
       dbSelect("metas"),
       dbSelect("objetivos").catch(()=>[]),
       dbSelect("investimentos").catch(()=>[]),
-      dbSelect("recorrencia_pagamentos").catch(()=>[])
+      dbSelect("recorrencia_pagamentos").catch(()=>[]),
+      dbSelect("perfil").catch(()=>[])
     ]);
     // Mapear campos do banco para o formato do app
     state.bancos         = contas.map(c => ({ id:c.id, nome:c.nome, tipo:c.tipo, saldoInicial: Number(c.saldo_inicial) }));
@@ -394,6 +396,7 @@ async function carregarDadosNuvem() {
       fim: r.fim || null,
       ativa: r.ativa !== false
     }));
+    state.perfil = mapPerfil((perfilRows||[])[0]);
     state.recPagamentos  = (recPagamentos||[]).map(p => ({
       id:p.id, recorrenciaId:p.recorrencia_id, vencimento:p.vencimento,
       pagoEm:p.pago_em, valorPago: p.valor_pago != null ? Number(p.valor_pago) : null,
@@ -810,7 +813,12 @@ function renderResumoDashboard() {
 function renderContasDashboard() {
   if (!resumoContasDashboard) return;
   if (!state.bancos.length) {
-    resumoContasDashboard.innerHTML = `<div class="empty-state">Nenhuma conta cadastrada ainda.</div>`;
+    resumoContasDashboard.innerHTML = vazio(
+      ICO.conta,
+      "Comece cadastrando uma conta",
+      "Nubank, Itaú, carteira física — informe o saldo atual de cada uma.",
+      { texto: "Cadastrar conta", onclick: "irParaContas()" }
+    );
     return;
   }
   const saldoTotal = calcularSaldoTotal();
@@ -833,12 +841,14 @@ function renderContasDashboard() {
 
 function renderGraficoEvolucao() {
   if (chartEvolucao) chartEvolucao.destroy();
+
   const PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
   const hoje = new Date();
   const meses = Array.from({length:6},(_,i)=>{
     const d = new Date(hoje.getFullYear(), hoje.getMonth()-(5-i), 1);
-    return { ano:d.getFullYear(), mes:d.getMonth()+1, label:`${PT[d.getMonth()]} ${d.getFullYear()}` };
+    return { ano:d.getFullYear(), mes:d.getMonth()+1, label:PT[d.getMonth()], ano2:String(d.getFullYear()).slice(2) };
   });
+
   const dados = meses.map(({ano,mes}) => {
     const lim = ano*100+mes;
     const base = state.bancos.reduce((a,b)=>a+b.saldoInicial, 0);
@@ -847,32 +857,129 @@ function renderGraficoEvolucao() {
       .reduce((a,m) => m.tipo==="entrada" ? a+m.valor : a-m.valor, 0);
     return base + mov;
   });
+
+  const canvas = document.getElementById("chartEvolucao");
+  if (!canvas) return;
+
   const dark = document.documentElement.getAttribute("data-theme") === "dark";
-  const tc = dark ? "#a3adc4" : "#4d5e73";
-  const gc = dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)";
-  const canvas = document.getElementById("chartEvolucao"); if(!canvas) return;
+  const css = getComputedStyle(document.documentElement);
+  const accent = css.getPropertyValue("--accent").trim() || "#1EF6DD";
+  const txt    = dark ? "#7C8FA3" : "#8296a5";
+  const grid   = dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.045)";
+
+  // Gradiente vertical — o preenchimento dá corpo, a linha sozinha é seca
+  const ctx = canvas.getContext("2d");
+  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height || 240);
+  grad.addColorStop(0,   hexParaRgba(accent, 0.22));
+  grad.addColorStop(0.6, hexParaRgba(accent, 0.06));
+  grad.addColorStop(1,   hexParaRgba(accent, 0));
+
+  // Carteira zerada: mostra o convite, não uma linha reta no zero
+  const vazio = dados.every(v => v === 0);
+
   chartEvolucao = new Chart(canvas, {
-    type:"line",
-    data:{ labels:meses.map(m=>m.label), datasets:[{
-      label:"Saldo", data:dados,
-      borderColor:"#2d6a72", backgroundColor:"rgba(45,106,114,0.09)",
-      borderWidth:2.5, pointBackgroundColor:"#2d6a72", pointRadius:4, pointHoverRadius:6,
-      fill:true, tension:0.4
-    }]},
-    options:{ responsive:true, maintainAspectRatio:false, animation:{duration:400},
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>` ${fmtMoeda(c.raw)}`}} },
-      scales:{
-        x:{ grid:{color:gc}, ticks:{color:tc,font:{family:"Inter",size:12}} },
-        y:{ grid:{color:gc}, ticks:{color:tc,font:{family:"Inter",size:12},callback:v=>fmtMoeda(v)} }
+    type: "line",
+    data: {
+      labels: meses.map(m => m.label),
+      datasets: [{
+        label: "Saldo",
+        data: dados,
+        borderColor: accent,
+        backgroundColor: grad,
+        borderWidth: 2,
+        fill: true,
+        tension: 0.35,
+        pointRadius: 0,               // pontos só no hover — linha limpa
+        pointHoverRadius: 5,
+        pointHoverBorderWidth: 2.5,
+        pointHoverBackgroundColor: accent,
+        pointHoverBorderColor: dark ? "#011025" : "#ffffff",
+        clip: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 700, easing: "easeOutQuart" },
+      interaction: { mode: "index", intersect: false },
+      layout: { padding: { top: 8, right: 4, bottom: 0, left: 0 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: dark ? "#0D1B2F" : "#ffffff",
+          borderColor: dark ? "#2C384A" : "#e0e6e8",
+          borderWidth: 1,
+          titleColor: dark ? "#E6EEF5" : "#16233a",
+          bodyColor: accent,
+          titleFont: { family: "Inter", size: 12, weight: "600" },
+          bodyFont: { family: "IBM Plex Mono", size: 14, weight: "500" },
+          padding: 11,
+          displayColors: false,
+          cornerRadius: 8,
+          caretSize: 5,
+          callbacks: {
+            title: it => {
+              const i = it[0].dataIndex;
+              return `${meses[i].label}/${meses[i].ano2}`;
+            },
+            label: c => fmtMoeda(c.raw)
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          border: { display: false },
+          ticks: {
+            color: txt,
+            font: { family: "Inter", size: 11 },
+            padding: 8
+          }
+        },
+        y: {
+          // Sem dados, não força uma escala falsa de -1 a 1
+          suggestedMin: vazio ? 0 : undefined,
+          suggestedMax: vazio ? 100 : undefined,
+          grid: { color: grid, drawTicks: false },
+          border: { display: false },
+          ticks: {
+            color: txt,
+            font: { family: "IBM Plex Mono", size: 10.5 },
+            padding: 10,
+            maxTicksLimit: 5,
+            callback: v => fmtCompacto(v)
+          }
+        }
       }
     }
   });
 }
 
+/* Converte #RRGGBB para rgba() com alfa */
+function hexParaRgba(hex, a) {
+  const h = hex.replace("#","");
+  const r = parseInt(h.slice(0,2),16);
+  const g = parseInt(h.slice(2,4),16);
+  const b = parseInt(h.slice(4,6),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+/* Valores curtos no eixo: 12.500 vira "12,5k" — não polui o gráfico */
+function fmtCompacto(v) {
+  const abs = Math.abs(v);
+  if (abs >= 1000000) return (v/1000000).toFixed(1).replace(".",",") + "M";
+  if (abs >= 1000)    return (v/1000).toFixed(abs >= 10000 ? 0 : 1).replace(".",",") + "k";
+  return String(Math.round(v));
+}
+
 function renderBancos() {
   if (!listaBancosEl) return;
   if (!state.bancos.length) {
-    listaBancosEl.innerHTML  = `<div class="empty-state">Nenhuma conta cadastrada ainda.</div>`;
+    listaBancosEl.innerHTML = vazio(
+      ICO.conta,
+      "Nenhuma conta ainda",
+      "Cadastre suas contas no formulário acima para começar."
+    );
     if(resumoContasEl) resumoContasEl.innerHTML = `<div class="empty-state">Nenhuma conta cadastrada ainda.</div>`; return;
   }
   listaBancosEl.innerHTML = state.bancos.map(b => {
@@ -916,7 +1023,14 @@ function renderMovimentos() {
   let movs = [...state.movimentos].sort((a,b)=>new Date(b.data)-new Date(a.data));
   if (busca) movs = movs.filter(m => m.descricao.toLowerCase().includes(busca) || m.categoria.toLowerCase().includes(busca));
   if (!movs.length) {
-    listaMovimentosEl.innerHTML = `<div class="empty-state">${busca?"Nenhum resultado encontrado.":"Nenhuma movimentação ainda."}</div>`; return;
+    listaMovimentosEl.innerHTML = busca
+      ? `<div class="empty-state">Nenhum resultado para "${esc(busca)}".</div>`
+      : vazio(
+          ICO.lista,
+          "Nenhum lançamento ainda",
+          "Escreva algo como \"gastei 50 no mercado\" no formulário acima."
+        );
+    return;
   }
 
   // PAGINAÇÃO: renderizar 2000 itens de uma vez trava o navegador.
@@ -992,7 +1106,11 @@ function renderRecorrencias() {
   renderOcorrencias();
 
   if (!state.recorrencias.length) {
-    listaRecorrenciasEl.innerHTML = `<div class="empty-state">Nenhuma recorrência cadastrada ainda.</div>`;
+    listaRecorrenciasEl.innerHTML = vazio(
+      ICO.repetir,
+      "Nenhuma conta recorrente",
+      "Aluguel, assinaturas, salário — cadastre uma vez e o app cuida do resto."
+    );
     return;
   }
   const bMap = Object.fromEntries(state.bancos.map(b=>[b.id, b.nome]));
@@ -1223,7 +1341,8 @@ function parseCSV(texto) {
 
 /* ─── Render global ──────────────────────────────────────── */
 function renderTudo() {
-  invalidarCacheSaldos();   // dados podem ter mudado — recalcula na próxima leitura
+  invalidarCacheSaldos();
+  renderConta();   // dados podem ter mudado — recalcula na próxima leitura
   atualizarSelectContas();
   ajustarFormPorTipo();
   ajustarFormRecorrencia();
@@ -1259,10 +1378,14 @@ function trocarTela(name) {
 }
 menuItems.forEach(i=>i.addEventListener("click",()=>trocarTela(i.dataset.screen)));
 
+/* O perfil no rodapé também navega (leva para a tela de Conta) */
+document.querySelector(".perfil-btn")?.addEventListener("click", () => trocarTela("conta"));
+
 /* ─── Botão de tema ──────────────────────────────────────── */
 document.getElementById("btnTema")?.addEventListener("click", () => {
   const atual = document.documentElement.getAttribute("data-theme") || "light";
   aplicarTema(atual === "dark" ? "light" : "dark");
+  renderConta();
 });
 
 /* ============================================================
@@ -1564,6 +1687,12 @@ function fecharModal(k) { _elModal(k)?.classList.remove("open"); }
 
 Object.entries(_modais).forEach(([k,el]) => {
   el?.addEventListener("click", e => { if (e.target===el) fecharModal(k); });
+});
+
+/* Modais criados depois (avatar, documentos) também fecham ao clicar fora */
+["modalAvatar", "modalDocumento", "modalEditarInvestimento", "modalEditarTransferencia"].forEach(id => {
+  const el = document.getElementById(id);
+  el?.addEventListener("click", e => { if (e.target === el) fecharModal(id); });
 });
 
 ["fecharModalMovimento","cancelarEditarMovimento"].forEach(id => document.getElementById(id)?.addEventListener("click",()=>fecharModal("movimento")));
@@ -1941,7 +2070,11 @@ function diasEntre(d1, d2) {
 function renderObjetivos() {
   if (!listaObjetivosEl) return;
   if (!state.objetivos.length) {
-    listaObjetivosEl.innerHTML = `<div class="empty-state">Nenhum objetivo cadastrado ainda.</div>`;
+    listaObjetivosEl.innerHTML = vazio(
+      ICO.cofre,
+      "Nenhum objetivo ainda",
+      "Um carro, uma viagem, uma reserva. Defina o valor e o prazo."
+    );
     return;
   }
   listaObjetivosEl.innerHTML = state.objetivos.map(o => {
@@ -2289,7 +2422,11 @@ function renderInvestimentos() {
   renderResumoInstituicoes();
 
   if (!state.investimentos.length) {
-    listaInvestimentosEl.innerHTML = `<div class="empty-state">Nenhum investimento cadastrado ainda.</div>`;
+    listaInvestimentosEl.innerHTML = vazio(
+      ICO.grafico,
+      "Nenhum investimento ainda",
+      "CDB, Tesouro, ações, cripto — registre onde seu dinheiro está aplicado."
+    );
     return;
   }
 
@@ -2849,10 +2986,23 @@ function renderPendentes() {
   else if (filtro === "mes") pend = pend.filter(m => m.vencimento.startsWith(mesAtualISO()));
 
   if (!pend.length) {
-    const msg = filtro === "todos"
-      ? "Nenhuma conta pendente. Tudo em dia! 🎉"
-      : "Nenhuma conta neste filtro.";
-    listaPendentesEl.innerHTML = `<div class="empty-state">${msg}</div>`;
+    if (filtro !== "todos") {
+      listaPendentesEl.innerHTML = `<div class="empty-state">Nenhuma conta neste filtro.</div>`;
+    } else if (!state.recorrencias.length && !state.bancos.length) {
+      // App novo: nem faz sentido falar de pendências ainda
+      listaPendentesEl.innerHTML = vazio(
+        ICO.repetir,
+        "Cadastre o que se repete",
+        "Aluguel, assinaturas, salário. Você cadastra uma vez e o app avisa todo mês.",
+        { texto: "Criar recorrência", onclick: "irParaRecorrencias()" }
+      );
+    } else {
+      listaPendentesEl.innerHTML = vazio(
+        ICO.check,
+        "Tudo em dia",
+        "Nenhuma conta pendente no momento."
+      );
+    }
     return;
   }
 
@@ -3104,9 +3254,9 @@ function renderOcorrencias() {
   if (!itens.length) {
     const msgs = {
       todos: "Nenhum vencimento neste mês.",
-      pendentes: "Nenhuma conta pendente neste mês. Tudo pago! 🎉",
+      pendentes: "Tudo pago neste mês",
       pagos: "Nenhuma conta paga neste mês ainda.",
-      atrasados: "Nenhuma conta atrasada neste mês. 👍"
+      atrasados: "Nenhuma conta atrasada"
     };
     listaOcorrenciasEl.innerHTML = `<div class="empty-state">${msgs[filtroOcor]}</div>`;
     return;
@@ -3569,6 +3719,29 @@ const DOCUMENTOS = {
       <p class="doc-data">Última atualização: [DATA]</p>
     `
   },
+  assinatura: {
+    titulo: "Assinatura",
+    corpo: `
+      <div class="doc-plano">
+        <div class="doc-plano-tag">Plano atual</div>
+        <div class="doc-plano-nome">Grátis</div>
+        <p class="doc-plano-desc">Você tem acesso completo a todas as funcionalidades, sem custo.</p>
+      </div>
+
+      <h4>O que está incluído</h4>
+      <ul>
+        <li>Contas, lançamentos e transferências ilimitados</li>
+        <li>Contas a pagar e receber, com recorrências</li>
+        <li>Investimentos e simulador de rendimento</li>
+        <li>Metas e objetivos de economia</li>
+        <li>Sincronização entre dispositivos</li>
+        <li>Exportação dos seus dados a qualquer momento</li>
+      </ul>
+
+      <h4>E no futuro?</h4>
+      <p>Se planos pagos forem lançados, quem já usa o FAZ será avisado com antecedência — e nunca perderá acesso aos próprios dados.</p>
+    `
+  },
   termos: {
     titulo: "Termos de Uso",
     corpo: `
@@ -3947,10 +4120,307 @@ function iniciarLanding() {
 
 
 
+
+/* ============================================================
+   TELA DE CONTA (v12)
+   ============================================================ */
+
+function renderConta() {
+  const email = state.user?.email || "—";
+
+  renderAvatares();
+
+  // E-mail
+  const e1 = document.getElementById("userEmail");
+  const e2 = document.getElementById("contaEmail");
+  if (e1) e1.textContent = email;
+  if (e2) e2.textContent = email;
+
+  // Números
+  const qc = document.getElementById("contaQtdContas");
+  const ql = document.getElementById("contaQtdLancamentos");
+  if (qc) qc.textContent = String(state.bancos.length);
+  if (ql) ql.textContent = String(state.movimentos.length);
+
+  // Rótulo do tema
+  const tl = document.getElementById("temaLabel");
+  if (tl) {
+    const escuro = document.documentElement.getAttribute("data-theme") === "dark";
+    tl.textContent = escuro ? "Escuro" : "Claro";
+  }
+}
+
+/* Envia o link de troca de senha para o e-mail do usuário */
+async function pedirTrocaSenha() {
+  const email = state.user?.email;
+  if (!email) return;
+
+  const ok = await confirmar(
+    `Enviaremos um link de redefinição para<br><strong>${esc(email)}</strong>.<br><br>Deseja continuar?`
+  );
+  if (!ok) return;
+
+  mostrarLoading(true);
+  try {
+    await sbEnviarResetSenha(email);
+    toast("Link enviado! Confira seu e-mail (e o spam).", "success");
+  } catch(err) {
+    tratarErro(err);
+  } finally { mostrarLoading(false); }
+}
+
+
+/* ============================================================
+   AVATAR DO PERFIL (v13)
+   Três modos: inicial do e-mail (padrão), avatar da galeria,
+   ou foto enviada pelo usuário.
+   ============================================================ */
+
+/* A galeria. Os arquivos ficam em /avatars/<id>.png */
+const AVATARES = [
+  { id: "macaco",   nome: "Macaco"   },
+  { id: "cachorro", nome: "Cachorro" },
+  { id: "girafa",   nome: "Girafa"   },
+];
+
+const TAM_MAX_AVATAR = 2 * 1024 * 1024;   // 2 MB
+
+/* Seleção temporária dentro do modal (só vira definitiva ao salvar) */
+let _avatarEscolhido = null;   // { tipo:'padrao'|'upload'|'inicial', valor, arquivo? }
+
+/* ─── Renderização ───────────────────────────────────────── */
+
+/* Monta o conteúdo de um avatar (usado na sidebar, na conta e na prévia) */
+function pintarAvatar(el, perfil, inicial) {
+  if (!el) return;
+  const p = perfil || state.perfil || {};
+
+  if (p.avatarTipo === "upload" && p.avatarUrl) {
+    el.innerHTML = `<img src="${esc(p.avatarUrl)}" alt="" onerror="this.remove()" />`;
+    el.classList.add("tem-imagem");
+  } else if (p.avatarTipo === "padrao" && p.avatarPadrao) {
+    el.innerHTML = `<img src="avatars/${esc(p.avatarPadrao)}.png" alt="" onerror="this.remove()" />`;
+    el.classList.add("tem-imagem");
+  } else {
+    el.textContent = inicial;
+    el.classList.remove("tem-imagem");
+  }
+}
+
+function renderAvatares() {
+  const email = state.user?.email || "";
+  const inicial = email ? email[0].toUpperCase() : "—";
+  pintarAvatar(document.getElementById("perfilAvatar"), null, inicial);
+  pintarAvatar(document.getElementById("contaAvatar"), null, inicial);
+}
+
+/* ─── Modal ──────────────────────────────────────────────── */
+
+function abrirSeletorAvatar() {
+  // Começa com o que já está salvo
+  const p = state.perfil || {};
+  _avatarEscolhido = {
+    tipo: p.avatarTipo || "inicial",
+    valor: p.avatarTipo === "padrao" ? p.avatarPadrao : p.avatarUrl,
+    arquivo: null
+  };
+
+  montarGaleria();
+  atualizarPreviaAvatar();
+  abrirModal("modalAvatar");
+}
+
+function montarGaleria() {
+  const g = document.getElementById("avatarGaleria");
+  if (!g) return;
+  g.innerHTML = AVATARES.map(a => `
+    <button type="button" class="avatar-opcao" data-id="${a.id}" onclick="escolherAvatarPadrao('${a.id}')" title="${a.nome}">
+      <img src="avatars/${a.id}.png" alt="${a.nome}" onerror="this.parentElement.classList.add('sem-imagem')" />
+    </button>
+  `).join("");
+  marcarSelecionado();
+}
+
+function marcarSelecionado() {
+  document.querySelectorAll(".avatar-opcao").forEach(b => {
+    const ativo = _avatarEscolhido?.tipo === "padrao" && b.dataset.id === _avatarEscolhido.valor;
+    b.classList.toggle("ativo", ativo);
+  });
+}
+
+function escolherAvatarPadrao(id) {
+  _avatarEscolhido = { tipo: "padrao", valor: id, arquivo: null };
+  marcarSelecionado();
+  atualizarPreviaAvatar();
+}
+
+function usarAvatarInicial() {
+  _avatarEscolhido = { tipo: "inicial", valor: null, arquivo: null };
+  marcarSelecionado();
+  atualizarPreviaAvatar();
+}
+
+/* Prévia dentro do modal */
+function atualizarPreviaAvatar() {
+  const el = document.getElementById("avatarPreview");
+  if (!el) return;
+  const email = state.user?.email || "";
+  const inicial = email ? email[0].toUpperCase() : "—";
+
+  const e = _avatarEscolhido;
+  if (e?.tipo === "upload" && e.valor) {
+    el.innerHTML = `<img src="${e.valor}" alt="" />`;
+    el.classList.add("tem-imagem");
+  } else if (e?.tipo === "padrao" && e.valor) {
+    el.innerHTML = `<img src="avatars/${esc(e.valor)}.png" alt="" onerror="this.remove()" />`;
+    el.classList.add("tem-imagem");
+  } else {
+    el.textContent = inicial;
+    el.classList.remove("tem-imagem");
+  }
+}
+
+/* ─── Upload ─────────────────────────────────────────────── */
+
+document.getElementById("avatarArquivo")?.addEventListener("change", e => {
+  const arq = e.target.files?.[0];
+  if (!arq) return;
+
+  if (!/^image\/(png|jpeg|jpg|webp)$/.test(arq.type)) {
+    toast("Formato não aceito. Use PNG, JPG ou WEBP.", "error");
+    e.target.value = "";
+    return;
+  }
+  if (arq.size > TAM_MAX_AVATAR) {
+    toast(`Imagem muito grande (${(arq.size/1024/1024).toFixed(1)} MB). O limite é 2 MB.`, "error");
+    e.target.value = "";
+    return;
+  }
+
+  // Prévia local imediata (sem subir ainda)
+  const url = URL.createObjectURL(arq);
+  _avatarEscolhido = { tipo: "upload", valor: url, arquivo: arq };
+  marcarSelecionado();
+  atualizarPreviaAvatar();
+});
+
+/* Envia o arquivo para o Supabase Storage */
+async function subirAvatar(arquivo) {
+  const ext = (arquivo.name.split(".").pop() || "png").toLowerCase();
+  const caminho = `${state.user.id}/avatar.${ext}`;
+
+  const res = await fetchSeguro(
+    `${SUPABASE_URL}/storage/v1/object/avatars/${caminho}`,
+    {
+      method: "POST",
+      headers: {
+        ...getAuthHeader(),
+        "apikey": SUPABASE_KEY,
+        "Content-Type": arquivo.type,
+        "x-upsert": "true"          // substitui se já existir
+      },
+      body: arquivo
+    }
+  );
+  await res.json().catch(()=>({}));
+
+  // URL pública (com timestamp para furar o cache do navegador)
+  return `${SUPABASE_URL}/storage/v1/object/public/avatars/${caminho}?v=${Date.now()}`;
+}
+
+/* ─── Salvar ─────────────────────────────────────────────── */
+
+async function salvarAvatar() {
+  const e = _avatarEscolhido;
+  if (!e) { fecharModal("modalAvatar"); return; }
+
+  mostrarLoading(true);
+  try {
+    let dados;
+
+    if (e.tipo === "upload" && e.arquivo) {
+      const url = await subirAvatar(e.arquivo);
+      dados = { avatar_tipo: "upload", avatar_url: url, avatar_padrao: null };
+    } else if (e.tipo === "padrao") {
+      dados = { avatar_tipo: "padrao", avatar_padrao: e.valor, avatar_url: null };
+    } else {
+      dados = { avatar_tipo: "inicial", avatar_padrao: null, avatar_url: null };
+    }
+
+    const salvo = await salvarPerfil(dados);
+    state.perfil = mapPerfil(salvo);
+
+    renderAvatares();
+    fecharModal("modalAvatar");
+    toast("Foto de perfil atualizada!", "success");
+
+  } catch(err) {
+    tratarErro(err);
+  } finally { mostrarLoading(false); }
+}
+
+/* Cria ou atualiza a linha de perfil (upsert) */
+async function salvarPerfil(dados) {
+  const res = await fetchSeguro(`${SUPABASE_URL}/rest/v1/perfil`, {
+    method: "POST",
+    headers: {
+      ..._h,
+      ...getAuthHeader(),
+      "Prefer": "resolution=merge-duplicates,return=representation"
+    },
+    body: JSON.stringify({ user_id: state.user.id, ...dados, atualizado_em: new Date().toISOString() })
+  });
+  const rows = await res.json();
+  return rows[0];
+}
+
+function mapPerfil(p) {
+  if (!p) return { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null };
+  return {
+    avatarTipo:   p.avatar_tipo   || "inicial",
+    avatarPadrao: p.avatar_padrao || null,
+    avatarUrl:    p.avatar_url    || null,
+    nome:         p.nome          || null
+  };
+}
+
+
+
+/* ============================================================
+   ESTADOS VAZIOS (v14)
+   Um painel vazio dizendo "não tem nada" é espaço desperdiçado.
+   Ele deve dizer o que fazer — e permitir fazer ali mesmo.
+   ============================================================ */
+
+/* Monta um estado vazio com ação */
+function vazio(icone, titulo, desc, acao) {
+  return `<div class="vazio">
+    <div class="vazio-icone">${icone}</div>
+    <div class="vazio-titulo">${titulo}</div>
+    ${desc ? `<div class="vazio-desc">${desc}</div>` : ""}
+    ${acao ? `<button class="vazio-btn" onclick="${acao.onclick}">${acao.texto}</button>` : ""}
+  </div>`;
+}
+
+const ICO = {
+  conta: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
+  check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+  lista: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
+  grafico: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>`,
+  alvo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>`,
+  cofre: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="8" x2="12" y2="9"/></svg>`,
+  repetir: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/></svg>`,
+};
+
+/* Atalhos de navegação usados pelos botões */
+function irParaContas()       { trocarTela("contas"); }
+function irParaLancamentos()  { trocarTela("lancamentos"); }
+function irParaRecorrencias() { trocarTela("recorrencias"); }
+
 async function iniciar() {
   const ri = document.getElementById("recInicio");
   if (ri && !ri.value) ri.value = hojeISO();
-  const tema = localStorage.getItem("fp_tema") || "light";
+  const tema = localStorage.getItem("fp_tema") || "dark";
   aplicarTema(tema);
 
   // ANTES de tudo: o usuário chegou pelo link de redefinição de senha?
