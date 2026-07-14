@@ -164,23 +164,21 @@
         <div class="panel" style="margin-bottom:16px">
           <div class="panel-header">
             <h3 class="panel-title">Contas a pagar e receber</h3>
-            <div class="panel-header-actions">
-              <select id="filtroPendentes" class="busca-input" style="width:auto">
-                <option value="todos">Todos os pendentes</option>
-                <option value="atrasados">Só atrasados</option>
-                <option value="semana">Próximos 7 dias</option>
-                <option value="mes">Este mês</option>
-              </select>
+            <div class="periodo-seletor" id="periodoSeletor">
+              <button type="button" class="periodo-opcao ativo" data-p="mes">Este mês</button>
+              <button type="button" class="periodo-opcao" data-p="proximo">Próximo mês</button>
+              <button type="button" class="periodo-opcao" data-p="3meses">3 meses</button>
+              <button type="button" class="periodo-opcao" data-p="tudo">Tudo</button>
             </div>
           </div>
-          <div id="listaPendentes" class="empty-state">Carregando...</div>
+          <div id="listaPendentes" class="lista-container"><div class="empty-state">Carregando...</div></div>
         </div>
 
         <div class="panel">
           <div class="panel-header">
             <h3 class="panel-title">Saldo por conta</h3>
           </div>
-          <div id="resumoContasDashboard" class="empty-state">Nenhuma conta cadastrada ainda.</div>
+          <div id="resumoContasDashboard" class="lista-container"><div class="empty-state">Nenhuma conta cadastrada ainda.</div></div>
 
         </div>
       </section>
@@ -216,6 +214,17 @@
               <label for="saldoBanco">Saldo inicial (R$)</label>
               <input type="number" id="saldoBanco" step="0.01" placeholder="0,00" required />
             </div>
+            <div class="field field-cor">
+              <label for="btnCor">Cor</label>
+              <button type="button" class="cor-btn" id="btnCor" onclick="abrirCorPop('corPop')" title="Escolher cor">
+                <span class="cor-btn-amostra" id="corAmostra"></span>
+                <svg class="cor-btn-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="cor-pop" id="corPop">
+                <div class="cor-pop-titulo">Cor da conta</div>
+                <div class="cor-grade" id="corPicker"></div>
+              </div>
+            </div>
             <div class="field field-button">
               <button type="submit" class="btn-primary">Adicionar conta</button>
             </div>
@@ -223,7 +232,7 @@
         </div>
         <div class="panel">
           <div class="panel-header"><h3 class="panel-title">Contas cadastradas</h3></div>
-          <div id="listaBancos" class="empty-state">Nenhuma conta cadastrada ainda.</div>
+          <div id="listaBancos" class="lista-container"><div class="empty-state">Nenhuma conta cadastrada ainda.</div></div>
         </div>
       </section>
 
@@ -231,62 +240,105 @@
       <section class="screen" id="screen-lancamentos">
         <div class="page-header">
           <p class="page-eyebrow">Movimentações</p>
-          <h2 class="page-title">Lançamento Rápido</h2>
+          <h2 class="page-title">Lançamentos</h2>
         </div>
+
+        <!-- REGISTRAR -->
         <div class="form-panel">
-          <div class="form-panel-title">Descreva em linguagem natural</div>
-          <form id="formTexto" class="form-grid form-grid-large">
-            <div class="field field-full">
-              <label for="textoLivre">Descrição da movimentação</label>
-              <textarea id="textoLivre" rows="3" placeholder="Ex: gastei no mercado 200 reais, recebi 1500 de salário..." required></textarea>
+          <div class="form-panel-title">Novo lançamento</div>
+
+          <form id="formTexto" class="lanc-form">
+            <div class="lanc-linha-texto">
+              <label for="textoLivre" class="lanc-label">O que aconteceu?</label>
+              <textarea id="textoLivre" rows="2" placeholder="Ex: gastei 200 no mercado &nbsp;·&nbsp; recebi 1500 de salário" required></textarea>
+              <p class="lanc-dica">O app identifica o valor, o tipo e a categoria automaticamente.</p>
             </div>
-            <div class="field">
-              <label for="contaMovimento">Conta</label>
-              <select id="contaMovimento" required></select>
-            </div>
-            <div class="field">
-              <label for="statusMovimento">Situação</label>
-              <select id="statusMovimento">
-                <option value="pago">Já pago / recebido</option>
-                <option value="pendente">Agendar (ainda não pago)</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="dataMovimento" id="labelDataMovimento">Data</label>
-              <input type="date" id="dataMovimento" required  min="2000-01-01" max="2100-12-31" />
-            </div>
-            <div class="field field-button">
-              <button type="submit" class="btn-primary">Registrar</button>
+
+            <div class="lanc-linha-campos">
+              <div class="field">
+                <label for="contaMovimento">Conta</label>
+                <select id="contaMovimento" required></select>
+              </div>
+              <div class="field">
+                <label for="statusMovimento">Situação</label>
+                <select id="statusMovimento">
+                  <option value="pago">Já pago / recebido</option>
+                  <option value="pendente">Agendar (ainda não pago)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="dataMovimento" id="labelDataMovimento">Data</label>
+                <input type="date" id="dataMovimento" min="2000-01-01" max="2100-12-31" required />
+              </div>
+              <div class="field field-button">
+                <button type="submit" class="btn-primary">Registrar</button>
+              </div>
             </div>
           </form>
         </div>
-        <div class="form-panel">
-          <div class="form-panel-title">Importar extrato CSV</div>
-          <form id="formImportarExtrato" class="form-grid form-grid-import">
-            <div class="field">
-              <label for="contaExtrato">Conta de destino</label>
-              <select id="contaExtrato" required></select>
-            </div>
-            <div class="field">
-              <label for="arquivoExtrato">Arquivo CSV</label>
-              <input type="file" id="arquivoExtrato" accept=".csv,text/csv" required />
-            </div>
-            <div class="field field-button">
-              <button type="submit" class="btn-primary">Importar</button>
-            </div>
-          </form>
-          <p class="helper-text helper-text-small">Formatos aceitos: CSV com colunas <strong>data</strong>, <strong>descrição</strong> e <strong>valor</strong>.</p>
-        </div>
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">Histórico completo</h3>
-            <div class="panel-header-actions">
-              <input type="text" id="buscaMovimento" class="busca-input" placeholder="🔍 Buscar..." />
-              <button id="exportarCSV" class="btn-ghost" type="button">⬇ Exportar CSV</button>
-              <button id="limparTudo" class="btn-danger" type="button">Limpar tudo</button>
+
+        <!-- IMPORTAR -->
+        <div class="form-panel form-panel-collapsible" id="painelImportar">
+          <button type="button" class="collapsible-header" id="toggleImportar" aria-expanded="false">
+            <span class="collapsible-title">Importar extrato</span>
+            <span class="collapsible-hint">CSV ou OFX do seu banco</span>
+            <svg class="collapsible-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+
+          <div class="collapsible-body" id="conteudoImportar">
+            <div class="collapsible-inner">
+              <form id="formImportarExtrato" class="import-form">
+                <!-- A área de arquivo é o passo principal — ocupa a linha toda -->
+                <label class="import-drop" id="importDrop">
+                  <input type="file" id="arquivoExtrato" accept=".csv,.ofx,.qfx,text/csv" hidden required />
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span class="import-drop-txt" id="importDropTxt">Escolher arquivo ou arrastar aqui</span>
+                  <small>CSV, OFX ou QFX &nbsp;·&nbsp; até 5 MB</small>
+                </label>
+
+                <!-- Depois: para onde vai, e o botão -->
+                <div class="import-linha">
+                  <div class="field">
+                    <label for="contaExtrato">Importar para</label>
+                    <select id="contaExtrato" required></select>
+                  </div>
+                  <button type="submit" class="btn-primary">Importar</button>
+                </div>
+              </form>
+
+              <div class="import-formatos">
+                <div class="import-formato">
+                  <strong>OFX / QFX</strong>
+                  <span>Formato padrão dos bancos. Basta baixar do internet banking.</span>
+                </div>
+                <div class="import-formato">
+                  <strong>CSV</strong>
+                  <span>Precisa ter colunas de data, descrição e valor.</span>
+                </div>
+              </div>
             </div>
           </div>
-          <div id="listaMovimentos" class="empty-state">Nenhuma movimentação registrada ainda.</div>
+        </div>
+
+        <!-- HISTÓRICO -->
+        <div class="panel">
+          <div class="hist-head">
+            <h3 class="panel-title">Histórico</h3>
+            <div class="hist-acoes">
+              <div class="busca-wrap">
+                <svg class="busca-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="buscaMovimento" class="busca-input" placeholder="Buscar lançamento..." />
+              </div>
+              <button id="exportarCSV" class="btn-secundario" type="button" title="Exportar CSV">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Exportar</span>
+              </button>
+              <button id="limparTudo" class="btn-secundario btn-secundario-danger" type="button" title="Limpar tudo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              </button>
+            </div>
+          </div>
+          <div id="listaMovimentos" class="lista-container"><div class="empty-state">Carregando...</div></div>
         </div>
       </section>
 
@@ -326,7 +378,7 @@
         </div>
         <div class="panel">
           <div class="panel-header"><h3 class="panel-title">Histórico de transferências</h3></div>
-          <div id="listaTransferencias" class="empty-state">Nenhuma transferência realizada ainda.</div>
+          <div id="listaTransferencias" class="lista-container"><div class="empty-state">Nenhuma transferência realizada ainda.</div></div>
         </div>
       </section>
 
@@ -337,103 +389,133 @@
           <h2 class="page-title">Contas Recorrentes</h2>
         </div>
 
-        <div class="form-panel">
-          <div class="form-panel-title">Nova conta recorrente</div>
-          <form id="formRecorrencia" class="form-grid form-grid-recorrencia">
-            <div class="field">
-              <label for="recDescricao">Descrição</label>
-              <input type="text" id="recDescricao" placeholder="Ex: Aluguel, Netflix, IPVA..." required />
-            </div>
-            <div class="field">
-              <label for="recValor">Valor (R$)</label>
-              <input type="number" id="recValor" step="0.01" min="0.01" placeholder="0,00" required />
-            </div>
-            <div class="field">
-              <label for="recTipo">Tipo</label>
-              <select id="recTipo">
-                <option value="gasto">Gasto</option>
-                <option value="entrada">Entrada</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="recCategoria">Categoria</label>
-              <select id="recCategoria">
-                <option value="Gasto importante">Gasto importante</option>
-                <option value="Lazer">Lazer</option>
-                <option value="Transporte">Transporte</option>
-                <option value="Compras">Compras</option>
-                <option value="Entrada">Entrada</option>
-                <option value="Outros">Outros</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="recConta">Conta</label>
-              <select id="recConta" required></select>
-            </div>
-
-            <div class="field">
-              <label for="recFrequencia">Repete</label>
-              <select id="recFrequencia">
-                <option value="mensal">Todo mês</option>
-                <option value="anual">Todo ano</option>
-                <option value="diaria">Todo dia</option>
-                <option value="personalizada">Personalizado</option>
-              </select>
-            </div>
-
-            <!-- Campos da frequência personalizada -->
-            <div class="field hidden-filter" id="fieldRecIntervalo">
-              <label for="recIntervalo">A cada</label>
-              <input type="number" id="recIntervalo" min="1" value="1" />
-            </div>
-            <div class="field hidden-filter" id="fieldRecIntervaloUn">
-              <label for="recIntervaloUnidade">Unidade</label>
-              <select id="recIntervaloUnidade">
-                <option value="meses">Meses</option>
-                <option value="dias">Dias</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label for="recInicio">Primeiro vencimento</label>
-              <input type="date" id="recInicio" required  min="2000-01-01" max="2100-12-31" />
-            </div>
-            <div class="field">
-              <label for="recFim">Até <span class="label-opt">(vazio = sempre)</span></label>
-              <input type="date" id="recFim"  min="2000-01-01" max="2100-12-31" />
-            </div>
-
-            <div class="field field-button">
-              <button type="submit" class="btn-primary">Salvar</button>
-            </div>
-          </form>
-          <p class="helper-text helper-text-small" id="previewRecorrencia"></p>
+        <!-- Dica dispensável -->
+        <div class="dica-box" id="dicaRecorrencias">
+          <div class="dica-icone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/></svg>
+          </div>
+          <div class="dica-texto">
+            <strong>Cadastre uma vez. O app avisa sempre.</strong>
+            <span>Aluguel, assinaturas, salário — tudo que se repete.</span>
+          </div>
+          <button type="button" class="dica-fechar" onclick="dispensarDica('recorrencias')" aria-label="Dispensar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
 
-        <!-- Navegação de período -->
+        <!-- FORMULÁRIO -->
+        <div class="form-panel">
+          <div class="form-panel-title">Nova conta recorrente</div>
+
+          <form id="formRecorrencia" class="rec-form">
+            <div class="rec-campos">
+              <div class="field field-desc">
+                <label for="recDescricao">Descrição</label>
+                <input type="text" id="recDescricao" placeholder="Ex: Aluguel, Netflix, Salário" required />
+              </div>
+              <div class="field">
+                <label for="recValor">Valor (R$)</label>
+                <input type="number" id="recValor" step="0.01" min="0.01" placeholder="0,00" required />
+              </div>
+              <div class="field">
+                <label for="recTipo">Tipo</label>
+                <select id="recTipo">
+                  <option value="gasto">Gasto</option>
+                  <option value="entrada">Entrada</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="recCategoria">Categoria</label>
+                <select id="recCategoria">
+                  <option value="Gasto importante">Gasto importante</option>
+                  <option value="Lazer">Lazer</option>
+                  <option value="Transporte">Transporte</option>
+                  <option value="Compras">Compras</option>
+                  <option value="Entrada">Entrada</option>
+                  <option value="Outros">Outros</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="recConta">Conta</label>
+                <select id="recConta" required></select>
+              </div>
+
+              <div class="field">
+                <label for="recFrequencia">Repete</label>
+                <select id="recFrequencia">
+                  <option value="mensal">Todo mês</option>
+                  <option value="anual">Todo ano</option>
+                  <option value="diaria">Todo dia</option>
+                  <option value="personalizada">Personalizado</option>
+                </select>
+              </div>
+              <div class="field hidden-filter" id="fieldRecIntervalo">
+                <label for="recIntervalo">A cada</label>
+                <input type="number" id="recIntervalo" min="1" value="1" />
+              </div>
+              <div class="field hidden-filter" id="fieldRecIntervaloUn">
+                <label for="recIntervaloUnidade">Unidade</label>
+                <select id="recIntervaloUnidade">
+                  <option value="meses">Meses</option>
+                  <option value="dias">Dias</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="recInicio">Começa em</label>
+                <input type="date" id="recInicio" min="2000-01-01" max="2100-12-31" required />
+              </div>
+              <div class="field">
+                <label for="recFim">Termina em <span class="label-opt">— opcional</span></label>
+                <input type="date" id="recFim" min="2000-01-01" max="2100-12-31" />
+              </div>
+
+              <div class="field field-button">
+                <button type="submit" class="btn-primary">Salvar</button>
+              </div>
+            </div>
+
+            <p class="rec-preview" id="previewRecorrencia"></p>
+          </form>
+        </div>
+
+        <!-- VENCIMENTOS -->
         <div class="panel">
-          <div class="panel-header panel-header-stack">
+          <div class="venc-head">
             <h3 class="panel-title">Vencimentos</h3>
-            <div class="periodo-nav">
-              <button type="button" class="btn-nav" id="mesAnterior">‹</button>
+            <div class="venc-nav">
+              <button type="button" class="btn-nav" id="mesAnterior" title="Mês anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
               <span class="periodo-label" id="periodoLabel">—</span>
-              <button type="button" class="btn-nav" id="mesProximo">›</button>
-              <button type="button" class="btn-ghost btn-hoje" id="voltarHoje">Hoje</button>
+              <button type="button" class="btn-nav" id="mesProximo" title="Próximo mês">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+              <button type="button" class="btn-hoje" id="voltarHoje">Hoje</button>
             </div>
           </div>
+
           <div class="filtro-chips" id="filtroOcorrencias">
             <button type="button" class="chip ativo" data-f="todos">Todos</button>
             <button type="button" class="chip" data-f="pendentes">Pendentes</button>
             <button type="button" class="chip" data-f="atrasados">Atrasados</button>
             <button type="button" class="chip" data-f="pagos">Pagos</button>
           </div>
-          <div id="listaOcorrencias" class="empty-state">Nenhuma conta recorrente cadastrada.</div>
+
+          <div id="listaOcorrencias" class="lista-container"><div class="empty-state">Carregando...</div></div>
         </div>
 
-        <!-- Regras cadastradas -->
-        <div class="panel">
-          <div class="panel-header"><h3 class="panel-title">Regras cadastradas</h3></div>
-          <div id="listaRecorrencias" class="empty-state">Nenhuma recorrência cadastrada ainda.</div>
+        <!-- REGRAS (recolhível) -->
+        <div class="panel panel-collapsible" id="painelRegras">
+          <button type="button" class="panel-toggle" id="toggleRegras" aria-expanded="true">
+            <h3 class="panel-title">Regras cadastradas</h3>
+            <span class="panel-toggle-count" id="contadorRegras"></span>
+            <svg class="panel-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="panel-body open" id="corpoRegras">
+            <div class="panel-body-inner">
+              <div id="listaRecorrencias" class="lista-container"><div class="empty-state">Carregando...</div></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -497,7 +579,7 @@
 
         <div class="panel">
           <div class="panel-header"><h3 class="panel-title">Meus objetivos</h3></div>
-          <div id="listaObjetivos" class="empty-state">Nenhum objetivo cadastrado ainda.</div>
+          <div id="listaObjetivos" class="lista-container"><div class="empty-state">Nenhum objetivo cadastrado ainda.</div></div>
         </div>
         <div class="form-panel">
           <div class="form-panel-title">Definir meta mensal</div>
@@ -524,7 +606,7 @@
         </div>
         <div class="panel">
           <div class="panel-header"><h3 class="panel-title">Progresso deste mês</h3></div>
-          <div id="listaMetas" class="empty-state">Nenhuma meta cadastrada ainda.</div>
+          <div id="listaMetas" class="lista-container"><div class="empty-state">Nenhuma meta cadastrada ainda.</div></div>
         </div>
       </section>
 
@@ -640,12 +722,12 @@
 
         <div class="panel">
           <div class="panel-header"><h3 class="panel-title">Meus investimentos</h3></div>
-          <div id="listaInvestimentos" class="empty-state">Nenhum investimento cadastrado ainda.</div>
+          <div id="listaInvestimentos" class="lista-container"><div class="empty-state">Nenhum investimento cadastrado ainda.</div></div>
         </div>
 
         <div class="panel">
           <div class="panel-header"><h3 class="panel-title">Total por instituição</h3></div>
-          <div id="resumoInstituicoes" class="empty-state">Nenhum investimento cadastrado ainda.</div>
+          <div id="resumoInstituicoes" class="lista-container"><div class="empty-state">Nenhum investimento cadastrado ainda.</div></div>
         </div>
 
         <div class="form-panel form-panel-collapsible" id="painelSimulador">
@@ -768,8 +850,8 @@
           </div>
         </div>
         <div class="dashboard-grid">
-          <div class="panel"><div class="panel-header"><h3 class="panel-title">Por categoria</h3></div><div id="resumoCategorias" class="empty-state">Nenhuma movimentação registrada ainda.</div></div>
-          <div class="panel"><div class="panel-header"><h3 class="panel-title">Por conta</h3></div><div id="resumoContas" class="empty-state">Nenhuma conta cadastrada ainda.</div></div>
+          <div class="panel"><div class="panel-header"><h3 class="panel-title">Por categoria</h3></div><div id="resumoCategorias" class="lista-container"><div class="empty-state">Nenhuma movimentação registrada ainda.</div></div></div>
+          <div class="panel"><div class="panel-header"><h3 class="panel-title">Por conta</h3></div><div id="resumoContas" class="lista-container"><div class="empty-state">Nenhuma conta cadastrada ainda.</div></div></div>
           <div class="panel"><div class="panel-header"><h3 class="panel-title">Gastos por categoria</h3></div><div class="chart-perfect-wrap"><canvas id="chartCategoriasPlanilha"></canvas></div></div>
           <div class="panel"><div class="panel-header"><h3 class="panel-title">Entradas × Gastos</h3></div><div class="chart-perfect-wrap"><canvas id="chartFluxoPlanilha"></canvas></div></div>
           <div class="panel full-width">
@@ -1007,6 +1089,10 @@
           </select>
         </div>
         <div class="field"><label>Saldo inicial (R$)</label><input type="number" id="editContaSaldo" step="0.01" required /></div>
+        <div class="field">
+          <label>Cor</label>
+          <div class="cor-grade cor-grade-modal" id="editCorPicker"></div>
+        </div>
         <div class="modal-actions">
           <button type="button" class="btn-ghost" id="cancelarEditarConta">Cancelar</button>
           <button type="submit" class="btn-primary">Salvar alterações</button>

@@ -383,7 +383,7 @@ async function carregarDadosNuvem() {
       dbSelect("perfil").catch(()=>[])
     ]);
     // Mapear campos do banco para o formato do app
-    state.bancos         = contas.map(c => ({ id:c.id, nome:c.nome, tipo:c.tipo, saldoInicial: Number(c.saldo_inicial) }));
+    state.bancos         = contas.map(c => ({ id:c.id, nome:c.nome, tipo:c.tipo, saldoInicial: Number(c.saldo_inicial), cor: c.cor || null }));
     state.movimentos     = movimentos.map(m => ({ id:m.id, descricao:m.descricao, bancoId:m.conta_id, data:m.data, valor:Number(m.valor), tipo:m.tipo, categoria:m.categoria, recorrenciaId:m.recorrencia_id, status:m.status||"pago", vencimento:m.vencimento||null, pagoEm:m.pago_em||null }));
     state.transferencias = transferencias.map(t => ({ id:t.id, origem:t.conta_origem, destino:t.conta_destino, valor:Number(t.valor), data:t.data, descricao:t.descricao||"" }));
     state.recorrencias   = recorrencias.map(r => ({
@@ -697,8 +697,36 @@ function listarPendentes() {
 
 /* Compromissos unificados: lançamentos avulsos pendentes + recorrências não pagas.
    Retorna todos no mesmo formato para a UI. */
+/* O horizonte que o dashboard enxerga.
+   Padrão: só o mês atual — mostrar 3 Netflix (jul, ago, set) é ruído,
+   não informação. Quem quiser ver o futuro escolhe o período. */
+let periodoDash = "mes";
+
+function limiteDoPeriodo() {
+  const hoje = hojeISO();
+  const [a, m] = hoje.split("-").map(Number);
+  const ultimoDia = (ano, mes) => new Date(ano, mes, 0).getDate();
+
+  switch (periodoDash) {
+    case "proximo": {
+      // Até o fim do mês que vem
+      const d = new Date(a, m, 1);           // mês seguinte
+      const ano = d.getFullYear(), mes = d.getMonth() + 1;
+      return `${ano}-${String(mes).padStart(2,"0")}-${ultimoDia(ano, mes)}`;
+    }
+    case "3meses":
+      return somarMeses(hoje, 3);
+    case "tudo":
+      return somarMeses(hoje, 12);           // um ano à frente já basta
+    case "mes":
+    default:
+      // Até o último dia deste mês
+      return `${a}-${String(m).padStart(2,"0")}-${ultimoDia(a, m)}`;
+  }
+}
+
 function todosCompromissos(ateISO) {
-  const limite = ateISO || somarMeses(hojeISO(), 2);   // olha 2 meses à frente
+  const limite = ateISO || limiteDoPeriodo();
 
   // 1. Lançamentos avulsos marcados como pendentes
   const avulsos = listarPendentes().map(m => ({
@@ -829,7 +857,7 @@ function renderContasDashboard() {
       const cls = s > 0 ? "positivo" : s < 0 ? "negativo" : "";
       return `<div class="banco-card">
         <div class="banco-card-top">
-          <span class="banco-card-nome">${esc(b.nome)}</span>
+          <span class="banco-card-nome">${marcaConta(b, "sm")}${esc(b.nome)}</span>
           <span class="banco-card-tipo">${esc(b.tipo)}</span>
         </div>
         <div class="banco-card-divider"></div>
@@ -980,19 +1008,49 @@ function renderBancos() {
       "Nenhuma conta ainda",
       "Cadastre suas contas no formulário acima para começar."
     );
-    if(resumoContasEl) resumoContasEl.innerHTML = `<div class="empty-state">Nenhuma conta cadastrada ainda.</div>`; return;
+    if(resumoContasEl) resumoContasEl.innerHTML = `<div class="empty-state">Nenhuma conta cadastrada ainda.</div>`;
+    return;
   }
+
   listaBancosEl.innerHTML = state.bancos.map(b => {
-    const s = calcularSaldoBanco(b.id);
-    return `<div class="conta-item">
-      <div class="item-top"><div class="item-title">${esc(b.nome)}</div><div class="valor-neutro">${fmtMoeda(s)}</div></div>
-      <div class="item-meta">
-        <span>Tipo: <span class="badge">${esc(b.tipo)}</span></span><br>
-        <span>Saldo inicial: <strong>${fmtMoeda(b.saldoInicial)}</strong></span>
-      </div>
-      <div class="item-actions">
-        <button class="btn-icon" onclick="abrirEditarConta('${b.id}')">✏️ Editar</button>
-        <button class="btn-icon btn-icon-danger" onclick="excluirConta('${b.id}')">🗑 Excluir</button>
+    const atual = calcularSaldoBanco(b.id);
+    const dif = atual - b.saldoInicial;
+    const qtd = state.movimentos.filter(m => m.bancoId === b.id && ehPago(m)).length;
+    const temMovimento = Math.abs(dif) > 0.005;
+    const clsDif = dif >= 0 ? "valor-positivo" : "valor-negativo";
+    const sinal  = dif >= 0 ? "+" : "−";
+
+    return `<div class="conta-box">
+      <div class="conta-box-main">
+        ${marcaConta(b)}
+
+        <div class="conta-box-info">
+          <div class="conta-box-nome">${esc(b.nome)}</div>
+          <div class="conta-box-meta">
+            <span class="badge">${esc(b.tipo)}</span>
+            ${temMovimento
+              ? `<span class="conta-box-sub">${qtd} lançamento${qtd === 1 ? "" : "s"}</span>`
+              : `<span class="conta-box-sub conta-box-sub-fraco">Sem movimentações</span>`
+            }
+          </div>
+        </div>
+
+        <div class="conta-box-num">
+          <div class="conta-box-valor">${fmtMoeda(atual)}</div>
+          ${temMovimento
+            ? `<div class="conta-box-dif ${clsDif}">${sinal}${fmtMoeda(Math.abs(dif))}</div>`
+            : `<div class="conta-box-dif conta-box-dif-fraco">inicial</div>`
+          }
+        </div>
+
+        <div class="conta-box-acoes">
+          <button class="btn-acao" onclick="abrirEditarConta('${b.id}')" title="Editar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          </button>
+          <button class="btn-acao btn-acao-danger" onclick="excluirConta('${b.id}')" title="Excluir">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+        </div>
       </div>
     </div>`;
   }).join("");
@@ -1018,50 +1076,65 @@ function renderResumoContasFiltrado(movs) {
 
 function renderMovimentos() {
   if (!listaMovimentosEl) return;
-  const bMap = Object.fromEntries(state.bancos.map(b=>[b.id,`${esc(b.nome)} · ${esc(b.tipo)}`]));
   const busca = (buscaMovimentoInput?.value||"").toLowerCase().trim();
   let movs = [...state.movimentos].sort((a,b)=>new Date(b.data)-new Date(a.data));
   if (busca) movs = movs.filter(m => m.descricao.toLowerCase().includes(busca) || m.categoria.toLowerCase().includes(busca));
+
   if (!movs.length) {
     listaMovimentosEl.innerHTML = busca
       ? `<div class="empty-state">Nenhum resultado para "${esc(busca)}".</div>`
-      : vazio(
-          ICO.lista,
-          "Nenhum lançamento ainda",
-          "Escreva algo como \"gastei 50 no mercado\" no formulário acima."
-        );
+      : vazio(ICO.lista, "Nenhum lançamento ainda",
+              "Escreva algo como \"gastei 50 no mercado\" no formulário acima.");
     return;
   }
 
-  // PAGINAÇÃO: renderizar 2000 itens de uma vez trava o navegador.
   const total = movs.length;
   const mostrando = Math.min(movsVisiveis, total);
   const pagina = movs.slice(0, mostrando);
 
   listaMovimentosEl.innerHTML = pagina.map(m => {
-    const cls = m.tipo==="entrada" ? "valor-positivo" : "valor-negativo";
-    const sig = m.tipo==="entrada" ? "+" : "−";
+    const b = state.bancos.find(x => x.id === m.bancoId);
     const pend = ehPendente(m);
     const atras = estaAtrasado(m);
-    return `<div class="movimento-item ${pend ? "item-pendente" : ""}">
-      <div class="item-top">
-        <div class="item-title">${esc(m.descricao)} ${pend ? `<span class="tag-status ${atras ? "tag-atrasado" : "tag-pendente"}">${atras ? "Atrasado" : "Pendente"}</span>` : ""}</div>
-        <div class="${pend ? "valor-pendente" : cls}">${sig} ${fmtMoeda(m.valor)}</div>
+    const ehEntrada = m.tipo === "entrada";
+    const cls = pend ? "valor-pendente" : (ehEntrada ? "valor-positivo" : "valor-negativo");
+    const sig = ehEntrada ? "+" : "−";
+    const dataFmt = new Date(vencDe(m)+"T00:00:00").toLocaleDateString("pt-BR");
+
+    return `<div class="mov-item ${pend ? "mov-pendente" : ""}">
+      ${b ? marcaConta(b, "sm") : `<span class="marca-conta marca-conta-sm marca-vazia">?</span>`}
+
+      <div class="mov-info">
+        <div class="mov-desc">
+          ${esc(m.descricao)}
+          ${pend ? `<span class="tag-status ${atras ? "tag-atrasado" : "tag-pendente"}">${atras ? "Atrasado" : "Pendente"}</span>` : ""}
+        </div>
+        <div class="mov-meta">
+          <span class="badge">${esc(m.categoria)}</span>
+          <span class="mov-sep">·</span>
+          <span>${b ? esc(b.nome) : "Conta removida"}</span>
+          <span class="mov-sep">·</span>
+          <span>${pend ? "vence " : ""}${dataFmt}</span>
+        </div>
       </div>
-      <div class="item-meta">
-        <span>Categoria: ${badge(m.categoria)}</span><br>
-        <span>Conta: ${bMap[m.bancoId]||"Conta removida"}</span><br>
-        <span>${pend ? "Vence" : "Data"}: ${new Date(vencDe(m)+"T00:00:00").toLocaleDateString("pt-BR")}</span>
-      </div>
-      <div class="item-actions">
-        ${pend ? `<button class="btn-icon btn-icon-ok" onclick="marcarComoPago('${m.id}')">✓ ${m.tipo==="entrada"?"Recebi":"Paguei"}</button>` : ""}
-        <button class="btn-icon" onclick="abrirEditarMovimento('${m.id}')">✏️ Editar</button>
-        <button class="btn-icon btn-icon-danger" onclick="excluirMovimento('${m.id}')">🗑 Excluir</button>
+
+      <div class="mov-valor ${cls}">${sig} ${fmtMoeda(m.valor)}</div>
+
+      <div class="mov-acoes">
+          ${pend ? `<button class="btn-acao btn-acao-ok" onclick="marcarComoPago('${m.id}')" title="${ehEntrada ? "Recebi" : "Paguei"}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>` : ""}
+          <button class="btn-acao" onclick="abrirEditarMovimento('${m.id}')" title="Editar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          </button>
+          <button class="btn-acao btn-acao-danger" onclick="excluirMovimento('${m.id}')" title="Excluir">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
       </div>
     </div>`;
   }).join("");
 
-  // Rodapé com contador e botão de carregar mais
+  // Paginação
   if (total > mostrando) {
     listaMovimentosEl.innerHTML += `
       <div class="paginacao-rodape">
@@ -1077,7 +1150,6 @@ function renderMovimentos() {
         <button class="btn-ghost btn-carregar-mais" onclick="recolherMovimentos()">Recolher</button>
       </div>`;
   }
-
 }
 
 function renderTransferencias() {
@@ -1095,8 +1167,8 @@ function renderTransferencias() {
       </div>
       <div class="trans-meta">${t.descricao?t.descricao+" · ":""}${new Date(t.data+"T00:00:00").toLocaleDateString("pt-BR")}</div>
       <div class="item-actions">
-        <button class="btn-icon" onclick="abrirEditarTransferencia('${t.id}')">✏️ Editar</button>
-        <button class="btn-icon btn-icon-danger" onclick="excluirTransferencia('${t.id}')">🗑 Excluir</button>
+        <button class="btn-icon" onclick="abrirEditarTransferencia('${t.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>Editar</button>
+        <button class="btn-icon btn-icon-danger" onclick="excluirTransferencia('${t.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></span>Excluir</button>
       </div>
     </div>`).join("");
 }
@@ -1104,6 +1176,13 @@ function renderTransferencias() {
 function renderRecorrencias() {
   if (!listaRecorrenciasEl) return;
   renderOcorrencias();
+
+  // Contador no cabeçalho do painel
+  const cont = document.getElementById("contadorRegras");
+  if (cont) {
+    const n = state.recorrencias.length;
+    cont.textContent = n ? `${n} regra${n === 1 ? "" : "s"}` : "";
+  }
 
   if (!state.recorrencias.length) {
     listaRecorrenciasEl.innerHTML = vazio(
@@ -1113,28 +1192,46 @@ function renderRecorrencias() {
     );
     return;
   }
-  const bMap = Object.fromEntries(state.bancos.map(b=>[b.id, b.nome]));
 
   listaRecorrenciasEl.innerHTML = state.recorrencias.map(r => {
-    const cls = r.tipo==="entrada" ? "valor-positivo" : "valor-negativo";
-    const sig = r.tipo==="entrada" ? "+" : "−";
+    const b = state.bancos.find(x => x.id === r.contaId);
+    const ehEntrada = r.tipo === "entrada";
     const pagos = state.recPagamentos.filter(p => p.recorrenciaId === r.id).length;
-    const fimTxt = r.fim
-      ? `até ${new Date(r.fim+"T00:00:00").toLocaleDateString("pt-BR")}`
-      : "sem prazo final";
-    return `<div class="movimento-item ${!r.ativa ? "regra-pausada" : ""}">
-      <div class="item-top">
-        <div class="item-title">${esc(r.descricao)} ${!r.ativa ? '<span class="tag-status tag-pendente">Pausada</span>' : ""}</div>
-        <div class="${cls}">${sig} ${fmtMoeda(r.valor)}</div>
+    const fim = r.fim
+      ? `até ${new Date(r.fim+"T00:00:00").toLocaleDateString("pt-BR", { month:"short", year:"numeric" })}`
+      : "sem prazo";
+
+    return `<div class="regra-item ${!r.ativa ? "regra-pausada" : ""}">
+      ${b ? marcaConta(b, "sm") : `<span class="marca-conta marca-conta-sm marca-vazia">?</span>`}
+
+      <div class="regra-info">
+        <div class="regra-desc">
+          ${esc(r.descricao)}
+          ${!r.ativa ? '<span class="tag-status tag-pendente">Pausada</span>' : ""}
+        </div>
+        <div class="regra-meta">
+          <span class="regra-freq">${textoFrequencia(r)}</span>
+          <span class="mov-sep">·</span>
+          <span>${fim}</span>
+          <span class="mov-sep">·</span>
+          <span>${pagos} pago${pagos === 1 ? "" : "s"}</span>
+        </div>
       </div>
-      <div class="item-meta">
-        <span>🔁 <strong>${textoFrequencia(r)}</strong> · ${fimTxt}</span><br>
-        <span>Categoria: ${badge(r.categoria)} · Conta: ${bMap[r.contaId]||"—"}</span><br>
-        <span>${pagos} ${pagos===1?"pagamento registrado":"pagamentos registrados"}</span>
+
+      <div class="regra-valor ${ehEntrada ? "valor-positivo" : "valor-negativo"}">
+        ${ehEntrada ? "+" : "−"}${fmtMoeda(r.valor)}
       </div>
-      <div class="item-actions">
-        <button class="btn-icon" onclick="alternarAtivaRec('${r.id}')">${r.ativa ? "⏸ Pausar" : "▶ Retomar"}</button>
-        <button class="btn-icon btn-icon-danger" onclick="excluirRecorrencia('${r.id}')">🗑 Excluir</button>
+
+      <div class="regra-acoes">
+        <button class="btn-acao" onclick="alternarAtivaRec('${r.id}')" title="${r.ativa ? "Pausar" : "Retomar"}">
+          ${r.ativa
+            ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`
+            : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>`
+          }
+        </button>
+        <button class="btn-acao btn-acao-danger" onclick="excluirRecorrencia('${r.id}')" title="Excluir">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
       </div>
     </div>`;
   }).join("");
@@ -1177,8 +1274,8 @@ function renderMetas() {
           <span style="color:${resto>=0?"var(--green)":"var(--red)"}">
             ${resto>=0 ? "Restam "+fmtMoeda(resto) : "Excedido "+fmtMoeda(Math.abs(resto))}
           </span>
-          <button class="btn-icon" onclick="editarMeta('${meta.id}')">✏️</button>
-          <button class="btn-icon btn-icon-danger" onclick="excluirMeta('${meta.id}')">🗑</button>
+          <button class="btn-acao" onclick="editarMeta('${meta.id}')" title="Editar meta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+          <button class="btn-acao btn-acao-danger" onclick="excluirMeta('${meta.id}')" title="Excluir meta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
         </div>
       </div>
     </div>`;
@@ -1317,27 +1414,6 @@ const _normValor = s => {
   const n = Number(t); return isNaN(n) ? null : neg ? -Math.abs(n) : n;
 };
 
-function parseCSV(texto) {
-  const sep = ((texto.split(/\r?\n/)[0]||"").match(/;/g)||[]).length > ((texto.split(/\r?\n/)[0]||"").match(/,/g)||[]).length ? ";" : ",";
-  const linhas = texto.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  if (linhas.length<2) return [];
-  const H = linhas[0].split(sep).map(h=>h.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""));
-  const iD = H.findIndex(h=>["data","date"].includes(h));
-  const iE = H.findIndex(h=>["descricao","descrição","historico","histórico","lancamento","lançamento","memo"].includes(h));
-  const iV = H.findIndex(h=>["valor","amount","montante"].includes(h));
-  const iT = H.findIndex(h=>["tipo","type"].includes(h));
-  if (iD<0||iE<0||iV<0) throw new Error("CSV precisa ter colunas de data, descrição e valor.");
-  return linhas.slice(1).map(l=>{
-    const c = l.split(sep).map(x=>x.trim());
-    const data = _normData(c[iD]), desc = c[iE]||"", vBruto = _normValor(c[iV]);
-    if (!data||!desc||vBruto===null) return null;
-    const tipCol = iT>=0 ? c[iT].toLowerCase() : "";
-    let tipo = vBruto>=0 ? "entrada" : "gasto";
-    if (/entrada|credito|crédito/.test(tipCol)) tipo="entrada";
-    else if (/gasto|debito|débito|saida|saída/.test(tipCol)) tipo="gasto";
-    return { data, descricao:desc, valor:Math.abs(vBruto), tipo, categoria:classificarCategoria(desc) };
-  }).filter(Boolean);
-}
 
 /* ─── Render global ──────────────────────────────────────── */
 function renderTudo() {
@@ -1397,9 +1473,11 @@ formBanco?.addEventListener("submit", async e => {
   const nome = nomeBancoInput.value.trim(), tipo = tipoBancoInput.value, saldoInicial = Number(saldoBancoInput.value);
   if (!nome||!tipo) { toast("Preencha todos os campos.","error"); return; }
   try {
-    const novo = await dbInsert("contas", { nome, tipo, saldo_inicial: saldoInicial });
-    state.bancos.push({ id:novo.id, nome:novo.nome, tipo:novo.tipo, saldoInicial:Number(novo.saldo_inicial) });
-    formBanco.reset(); renderTudo();
+    const novo = await dbInsert("contas", { nome, tipo, saldo_inicial: saldoInicial, cor: _corEscolhida });
+    state.bancos.push({ id:novo.id, nome:novo.nome, tipo:novo.tipo, saldoInicial:Number(novo.saldo_inicial), cor: novo.cor || null });
+    formBanco.reset();
+    _corEscolhida = null;
+    atualizarAmostraCor(); renderTudo();
     toast(`Conta "${nome}" adicionada!`,"success");
   } catch(err) { tratarErro(err); }
 });
@@ -1444,20 +1522,119 @@ formTexto?.addEventListener("submit", async e => {
 formImportarExtrato?.addEventListener("submit", async e => {
   e.preventDefault();
   if (!state.bancos.length) { toast("Cadastre pelo menos uma conta antes.","warning"); return; }
-  const bancoId = contaExtratoSelect.value, arquivo = arquivoExtratoInput.files[0];
-  if (!bancoId||!arquivo) { toast("Selecione a conta e o arquivo CSV.","error"); return; }
+
+  const bancoId = contaExtratoSelect.value;
+  const arquivo = arquivoExtratoInput.files[0];
+  if (!bancoId || !arquivo) { toast("Selecione a conta e o arquivo.","error"); return; }
+
+  if (arquivo.size > 5 * 1024 * 1024) {
+    toast("Arquivo muito grande. O limite é 5 MB.", "error");
+    return;
+  }
+
+  mostrarLoading(true);
   try {
-    const movs = parseCSV(await arquivo.text());
-    if (!movs.length) { toast("Nenhum lançamento válido encontrado no CSV.","warning"); return; }
-    mostrarLoading(true);
-    for (const m of movs) {
-      const novo = await dbInsert("movimentos", { descricao:m.descricao, conta_id:bancoId, data:m.data, valor:m.valor, tipo:m.tipo, categoria:m.categoria });
-      state.movimentos.push({ id:novo.id, descricao:novo.descricao, bancoId:novo.conta_id, data:novo.data, valor:Number(novo.valor), tipo:novo.tipo, categoria:novo.categoria });
+    const texto = await arquivo.text();
+    const formato = detectarFormato(texto, arquivo.name);
+    const movs = formato === "ofx" ? parseOFX(texto) : parseCSVExtrato(texto);
+
+    if (!movs.length) {
+      toast(
+        formato === "ofx"
+          ? "Nenhuma transação encontrada no arquivo OFX."
+          : "Nenhum lançamento válido. O CSV precisa ter data, descrição e valor.",
+        "warning"
+      );
+      return;
     }
-    formImportarExtrato.reset(); renderTudo();
-    toast(`${movs.length} movimentações importadas!`,"success");
-  } catch(err) { toast(err.message||"Erro ao importar CSV.","error"); }
-  finally { mostrarLoading(false); }
+
+    // Evita importar o mesmo lançamento duas vezes
+    const jaExiste = (m) => state.movimentos.some(x =>
+      x.bancoId === bancoId &&
+      x.data === m.data &&
+      Math.abs(x.valor - m.valor) < 0.005 &&
+      x.descricao.toLowerCase() === m.descricao.toLowerCase()
+    );
+
+    const novos = movs.filter(m => !jaExiste(m));
+    const dup = movs.length - novos.length;
+
+    if (!novos.length) {
+      toast("Todos os lançamentos desse arquivo já foram importados.", "info");
+      return;
+    }
+
+    for (const m of novos) {
+      const novo = await dbInsert("movimentos", {
+        descricao: m.descricao, conta_id: bancoId, data: m.data,
+        valor: m.valor, tipo: m.tipo, categoria: m.categoria,
+        status: "pago", pago_em: m.data
+      });
+      state.movimentos.push({
+        id:novo.id, descricao:novo.descricao, bancoId:novo.conta_id, data:novo.data,
+        valor:Number(novo.valor), tipo:novo.tipo, categoria:novo.categoria,
+        status:"pago", vencimento:null, pagoEm:novo.data
+      });
+    }
+
+    formImportarExtrato.reset();
+    resetarDropImport();
+    renderTudo();
+
+    const msg = dup > 0
+      ? `${novos.length} lançamento(s) importado(s). ${dup} já existia(m) e foram ignorados.`
+      : `${novos.length} lançamento(s) importado(s) do ${formato.toUpperCase()}.`;
+    toast(msg, "success");
+
+  } catch(err) {
+    tratarErro(err);
+  } finally { mostrarLoading(false); }
+});
+
+/* ─── Área de arrastar/soltar ────────────────────────────── */
+
+function resetarDropImport() {
+  const txt = document.getElementById("importDropTxt");
+  const drop = document.getElementById("importDrop");
+  if (txt) txt.textContent = "Escolher arquivo ou arrastar aqui";
+  drop?.classList.remove("tem-arquivo");
+}
+
+document.getElementById("arquivoExtrato")?.addEventListener("change", e => {
+  const arq = e.target.files?.[0];
+  const txt = document.getElementById("importDropTxt");
+  const drop = document.getElementById("importDrop");
+  if (arq && txt) {
+    const kb = (arq.size / 1024).toFixed(0);
+    txt.textContent = `${arq.name} (${kb} KB)`;
+    drop?.classList.add("tem-arquivo");
+  } else {
+    resetarDropImport();
+  }
+});
+
+/* Arrastar e soltar */
+const _drop = document.getElementById("importDrop");
+["dragenter","dragover"].forEach(ev => {
+  _drop?.addEventListener(ev, e => {
+    e.preventDefault();
+    _drop.classList.add("arrastando");
+  });
+});
+["dragleave","drop"].forEach(ev => {
+  _drop?.addEventListener(ev, e => {
+    e.preventDefault();
+    _drop.classList.remove("arrastando");
+  });
+});
+_drop?.addEventListener("drop", e => {
+  const arq = e.dataTransfer?.files?.[0];
+  if (!arq) return;
+  const input = document.getElementById("arquivoExtrato");
+  const dt = new DataTransfer();
+  dt.items.add(arq);
+  input.files = dt.files;
+  input.dispatchEvent(new Event("change"));
 });
 
 buscaMovimentoInput?.addEventListener("input", () => { movsVisiveis = PAGINA_TAM; renderMovimentos(); });
@@ -1542,7 +1719,8 @@ function ajustarFormRecorrencia() {
 function atualizarPreviewRec() {
   if (!previewRecEl) return;
   const inicio = document.getElementById("recInicio")?.value;
-  if (!inicio) { previewRecEl.textContent = ""; return; }
+  if (!inicio) { previewRecEl.innerHTML = ""; return; }
+
   const fake = {
     ativa: true,
     frequencia: document.getElementById("recFrequencia").value,
@@ -1551,10 +1729,18 @@ function atualizarPreviewRec() {
     inicio,
     fim: document.getElementById("recFim").value || null
   };
-  const proximas = ocorrenciasDe(fake, inicio, somarMeses(inicio, 14)).slice(0, 4);
-  if (!proximas.length) { previewRecEl.textContent = ""; return; }
+
+  const proximas = ocorrenciasDe(fake, inicio, somarMeses(inicio, 10)).slice(0, 3);
+  if (!proximas.length) { previewRecEl.innerHTML = ""; return; }
+
   const fmt = d => new Date(d+"T00:00:00").toLocaleDateString("pt-BR", { day:"2-digit", month:"short" });
-  previewRecEl.innerHTML = `📅 ${textoFrequencia(fake)} · Próximos: <strong>${proximas.map(fmt).join(" · ")}</strong>${fake.fim ? " · e para" : "..."}`;
+
+  previewRecEl.innerHTML = `
+    <svg class="rec-preview-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+    <span><strong>${textoFrequencia(fake)}</strong> · vence ${proximas.map(fmt).join(", ")}${fake.fim ? "" : "…"}</span>
+  `;
 }
 
 ["recFrequencia","recIntervalo","recIntervaloUnidade","recInicio","recFim"].forEach(id => {
@@ -1737,6 +1923,7 @@ function abrirEditarConta(id) {
   document.getElementById("editContaNome").value  = b.nome;
   document.getElementById("editContaTipo").value  = b.tipo;
   document.getElementById("editContaSaldo").value = b.saldoInicial;
+  iniciarCorPickerEdit(b.cor || null);
   abrirModal("conta");
 }
 document.getElementById("formEditarConta")?.addEventListener("submit", async e => {
@@ -1746,11 +1933,12 @@ document.getElementById("formEditarConta")?.addEventListener("submit", async e =
     nome:         document.getElementById("editContaNome").value.trim(),
     tipo:         document.getElementById("editContaTipo").value,
     saldo_inicial: Number(document.getElementById("editContaSaldo").value),
+    cor:          _corEscolhidaEdit,
   };
   try {
     const att = await dbUpdate("contas", id, dados);
     const idx = state.bancos.findIndex(b=>b.id===id);
-    if (idx>=0) state.bancos[idx] = { id:att.id, nome:att.nome, tipo:att.tipo, saldoInicial:Number(att.saldo_inicial) };
+    if (idx>=0) state.bancos[idx] = { id:att.id, nome:att.nome, tipo:att.tipo, saldoInicial:Number(att.saldo_inicial), cor: att.cor || null };
     fecharModal("conta"); renderTudo(); toast("Conta atualizada!","success");
   } catch(err) { tratarErro(err); }
 });
@@ -2123,9 +2311,9 @@ function renderObjetivos() {
       </div>
       ${sugestao ? `<div class="objetivo-sugestao">${sugestao} ${noPrazo}</div>` : ""}
       <div class="item-actions">
-        <button class="btn-icon" onclick="adicionarValorObjetivo('${o.id}')">➕ Guardar</button>
-        <button class="btn-icon" onclick="abrirEditarObjetivo('${o.id}')">✏️ Editar</button>
-        <button class="btn-icon btn-icon-danger" onclick="excluirObjetivo('${o.id}')">🗑 Excluir</button>
+        <button class="btn-icon" onclick="adicionarValorObjetivo('${o.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>Guardar</button>
+        <button class="btn-icon" onclick="abrirEditarObjetivo('${o.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>Editar</button>
+        <button class="btn-icon btn-icon-danger" onclick="excluirObjetivo('${o.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></span>Excluir</button>
       </div>
     </div>`;
   }).join("");
@@ -2505,8 +2693,8 @@ function cardInvestimento(i) {
 
   // Botões: renda fixa pode simular; renda variável atualiza valor
   const btnAcao = rf && i.taxa > 0
-    ? `<button class="btn-icon" onclick="simularDoInvestimento('${i.id}')">🧮 Simular</button>`
-    : `<button class="btn-icon" onclick="atualizarValorAtual('${i.id}')">💲 Atualizar valor</button>`;
+    ? `<button class="btn-icon" onclick="simularDoInvestimento('${i.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="12" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></span>Simular</button>`
+    : `<button class="btn-icon" onclick="atualizarValorAtual('${i.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>Atualizar valor</button>`;
 
   return `<div class="investimento-item">
     <div class="item-top">
@@ -2520,8 +2708,8 @@ function cardInvestimento(i) {
     </div>
     <div class="item-actions">
       ${btnAcao}
-      <button class="btn-icon" onclick="abrirEditarInvestimento('${i.id}')">✏️ Editar</button>
-      <button class="btn-icon btn-icon-danger" onclick="excluirInvestimento('${i.id}')">🗑 Excluir</button>
+      <button class="btn-icon" onclick="abrirEditarInvestimento('${i.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>Editar</button>
+      <button class="btn-icon btn-icon-danger" onclick="excluirInvestimento('${i.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></span>Excluir</button>
     </div>
   </div>`;
 }
@@ -2908,7 +3096,6 @@ function renderChartSimulador(serie, valorInicial, aporteMensal) {
    ============================================================ */
 
 const listaPendentesEl   = document.getElementById("listaPendentes");
-const filtroPendentesSel = document.getElementById("filtroPendentes");
 const totalAPagarEl      = document.getElementById("totalAPagar");
 const descAPagarEl       = document.getElementById("descAPagar");
 const alertaVencEl       = document.getElementById("alertaVencimentos");
@@ -2937,18 +3124,26 @@ function renderResumoCompromissos() {
   const t = totaisCompromissos();
 
   if (totalAPagarEl) totalAPagarEl.textContent = fmtMoeda(t.aPagar);
+
   if (descAPagarEl) {
+    const rotulo = {
+      mes:      "neste mês",
+      proximo:  "até o fim do mês que vem",
+      "3meses": "nos próximos 3 meses",
+      tudo:     "no próximo ano"
+    }[periodoDash] || "";
+
     if (t.qtdPendentes === 0) {
-      descAPagarEl.textContent = "Nenhuma conta pendente";
+      descAPagarEl.textContent = `Nada pendente ${rotulo}`;
     } else {
       const partes = [];
-      if (t.aPagar > 0)   partes.push(`${t.atrasados.length ? t.atrasados.length + " atrasada(s) · " : ""}sobra ${fmtMoeda(t.saldoProjetado)}`);
-      if (t.aReceber > 0) partes.push(`a receber ${fmtMoeda(t.aReceber)}`);
-      descAPagarEl.innerHTML = partes.join(" · ") || `${t.qtdPendentes} pendente(s)`;
+      if (t.atrasados.length) partes.push(`${t.atrasados.length} atrasada(s)`);
+      partes.push(`sobra ${fmtMoeda(t.saldoProjetado)}`);
+      descAPagarEl.textContent = partes.join(" · ");
     }
   }
 
-  // Alerta destacado no topo
+  // Alerta do topo — só considera o que é urgente (atrasado ou 7 dias)
   if (alertaVencEl) {
     const atras = t.atrasados.length;
     const prox  = t.proximos7.length;
@@ -2956,40 +3151,32 @@ function renderResumoCompromissos() {
     else {
       let msg = "", cls = "alerta-info";
       if (atras) {
-        const totalAtras = t.atrasados.reduce((a,m)=>a+m.valor,0);
-        msg = `<strong>${atras} conta${atras>1?"s":""} atrasada${atras>1?"s":""}</strong> — ${fmtMoeda(totalAtras)}`;
+        const total = t.atrasados.reduce((a,m)=>a+m.valor,0);
+        msg = `<strong>${atras} conta${atras>1?"s":""} atrasada${atras>1?"s":""}</strong> — ${fmtMoeda(total)}`;
         cls = "alerta-erro";
         if (prox) msg += ` · e ${prox} vence${prox>1?"m":""} nos próximos 7 dias`;
       } else {
-        const totalProx = t.proximos7.reduce((a,m)=>a+m.valor,0);
-        msg = `<strong>${prox} conta${prox>1?"s":""}</strong> vence${prox>1?"m":""} nos próximos 7 dias — ${fmtMoeda(totalProx)}`;
+        const total = t.proximos7.reduce((a,m)=>a+m.valor,0);
+        msg = `<strong>${prox} conta${prox>1?"s":""}</strong> vence${prox>1?"m":""} nos próximos 7 dias — ${fmtMoeda(total)}`;
         cls = "alerta-aviso";
       }
       alertaVencEl.className = `alerta-venc ${cls}`;
-      alertaVencEl.innerHTML = `<span class="alerta-icone">${atras ? "🔴" : "🔔"}</span><span>${msg}</span>`;
+      alertaVencEl.innerHTML = `<span class="alerta-icone">${atras ? "!" : "•"}</span><span>${msg}</span>`;
       alertaVencEl.style.display = "flex";
     }
   }
 }
 
-/* Renderiza a lista de contas pendentes (avulsas + recorrentes) */
+/* Renderiza os compromissos do período escolhido */
 function renderPendentes() {
   if (!listaPendentesEl) return;
   renderResumoCompromissos();
 
   const t = totaisCompromissos();
-  let pend = t.lista;
-  const filtro = filtroPendentesSel?.value || "todos";
-
-  if (filtro === "atrasados") pend = pend.filter(m => diasAte(m.vencimento) < 0);
-  else if (filtro === "semana") pend = pend.filter(m => { const d = diasAte(m.vencimento); return d >= 0 && d <= 7; });
-  else if (filtro === "mes") pend = pend.filter(m => m.vencimento.startsWith(mesAtualISO()));
+  const pend = t.lista;
 
   if (!pend.length) {
-    if (filtro !== "todos") {
-      listaPendentesEl.innerHTML = `<div class="empty-state">Nenhuma conta neste filtro.</div>`;
-    } else if (!state.recorrencias.length && !state.bancos.length) {
-      // App novo: nem faz sentido falar de pendências ainda
+    if (!state.recorrencias.length && !state.bancos.length) {
       listaPendentesEl.innerHTML = vazio(
         ICO.repetir,
         "Cadastre o que se repete",
@@ -2997,54 +3184,101 @@ function renderPendentes() {
         { texto: "Criar recorrência", onclick: "irParaRecorrencias()" }
       );
     } else {
-      listaPendentesEl.innerHTML = vazio(
-        ICO.check,
-        "Tudo em dia",
-        "Nenhuma conta pendente no momento."
-      );
+      const txt = {
+        mes:     "Nada pendente neste mês.",
+        proximo: "Nada pendente até o fim do mês que vem.",
+        "3meses":"Nada pendente nos próximos 3 meses.",
+        tudo:    "Nada pendente no próximo ano."
+      }[periodoDash] || "Nada pendente.";
+      listaPendentesEl.innerHTML = vazio(ICO.check, "Tudo em dia", txt);
     }
     return;
   }
 
-  listaPendentesEl.innerHTML = pend.map(m => {
-    const d = diasAte(m.vencimento);
-    const atrasado = d < 0;
-    let txt, cls;
-    if (atrasado)   { txt = `Atrasado ${Math.abs(d)} ${Math.abs(d)===1?"dia":"dias"}`; cls = "prazo-atrasado"; }
-    else if (d===0) { txt = "Vence hoje"; cls = "prazo-hoje"; }
-    else if (d===1) { txt = "Vence amanhã"; cls = "prazo-perto"; }
-    else if (d<=7)  { txt = `Vence em ${d} dias`; cls = "prazo-perto"; }
-    else {
-      const dt = new Date(m.vencimento+"T00:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
-      txt = `Vence ${dt}`; cls = "prazo-longe";
-    }
+  // Agrupar por mês quando o período abrange mais de um
+  const porMes = {};
+  pend.forEach(m => {
+    const chave = m.vencimento.slice(0, 7);
+    (porMes[chave] = porMes[chave] || []).push(m);
+  });
 
-    const conta = state.bancos.find(b => b.id === m.contaId);
-    const ehEntrada = m.tipo === "entrada";
-    const acao = m.origem === "recorrente"
-      ? `pagarOcorrencia('${m.recId}','${m.vencimento}')`
-      : `marcarComoPago('${m.id}')`;
+  const meses = Object.keys(porMes).sort();
+  const varios = meses.length > 1;
 
-    return `<div class="pendente-item ${atrasado ? "atrasado" : ""}">
-      <div class="pend-esq">
-        <div class="pend-desc">${ehEntrada ? "↓" : "↑"} ${esc(m.descricao)} ${m.origem==="recorrente" ? '<span class="tag-recorrente">🔁</span>' : ""}</div>
-        <div class="pend-meta">
-          <span class="prazo ${cls}">${txt}</span>
-          <span class="badge">${esc(m.categoria)}</span>
-          ${conta ? `<span class="pend-conta">${esc(conta.nome)}</span>` : ""}
-        </div>
-      </div>
-      <div class="pend-dir">
-        <div class="${ehEntrada ? "valor-positivo" : "valor-negativo"}">${ehEntrada ? "+" : "−"}${fmtMoeda(m.valor)}</div>
-        <div class="pend-acoes">
-          <button class="btn-pagar" onclick="${acao}">${ehEntrada ? "✓ Recebi" : "✓ Paguei"}</button>
-        </div>
-      </div>
-    </div>`;
+  listaPendentesEl.innerHTML = meses.map(mes => {
+    const itens = porMes[mes];
+    const [a, mm] = mes.split("-").map(Number);
+    const rotulo = `${MESES_PT[mm-1]} ${a}`;
+    const totalMes = itens.reduce((s, i) => s + (i.tipo === "gasto" ? i.valor : -i.valor), 0);
+
+    const cabecalho = varios
+      ? `<div class="pend-mes">
+           <span class="pend-mes-nome">${rotulo}</span>
+           <span class="pend-mes-total">${totalMes >= 0 ? "−" : "+"}${fmtMoeda(Math.abs(totalMes))}</span>
+         </div>`
+      : "";
+
+    return cabecalho + itens.map(m => cardPendente(m)).join("");
   }).join("");
 }
 
-filtroPendentesSel?.addEventListener("change", renderPendentes);
+/* Card de um compromisso */
+function cardPendente(m) {
+  const d = diasAte(m.vencimento);
+  const atrasado = d < 0;
+  const ehEntrada = m.tipo === "entrada";
+  const b = state.bancos.find(x => x.id === m.contaId);
+
+  let txt, cls;
+  if (atrasado)   { txt = `Atrasado ${Math.abs(d)} ${Math.abs(d)===1?"dia":"dias"}`; cls = "atrasado"; }
+  else if (d===0) { txt = "Vence hoje"; cls = "hoje"; }
+  else if (d===1) { txt = "Vence amanhã"; cls = "perto"; }
+  else if (d<=7)  { txt = `Vence em ${d} dias`; cls = "perto"; }
+  else {
+    const dt = new Date(m.vencimento+"T00:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
+    txt = `Vence ${dt}`; cls = "futuro";
+  }
+
+  const acao = m.origem === "recorrente"
+    ? `pagarOcorrencia('${m.recId}','${m.vencimento}')`
+    : `marcarComoPago('${m.id}')`;
+
+  return `<div class="pend-item ${cls}">
+    ${b ? marcaConta(b, "sm") : `<span class="marca-conta marca-conta-sm marca-vazia">?</span>`}
+
+    <div class="pend-info">
+      <div class="pend-desc">
+        ${esc(m.descricao)}
+        ${m.origem === "recorrente" ? `<span class="pend-tag-rec" title="Recorrente">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/></svg>
+        </span>` : ""}
+      </div>
+      <div class="pend-meta">
+        <span class="pend-prazo ${cls}">${txt}</span>
+        <span class="mov-sep">·</span>
+        <span class="badge">${esc(m.categoria)}</span>
+      </div>
+    </div>
+
+    <div class="pend-valor ${ehEntrada ? "valor-positivo" : "valor-negativo"}">
+      ${ehEntrada ? "+" : "−"}${fmtMoeda(m.valor)}
+    </div>
+
+    <button class="btn-pagar" onclick="${acao}">${ehEntrada ? "Recebi" : "Paguei"}</button>
+  </div>`;
+}
+
+/* Seletor de período */
+document.querySelectorAll("#periodoSeletor .periodo-opcao").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#periodoSeletor .periodo-opcao").forEach(b => b.classList.remove("ativo"));
+    btn.classList.add("ativo");
+    periodoDash = btn.dataset.p;
+    renderPendentes();
+    renderResumoCompromissos();
+  });
+});
+
 
 /* Marca um compromisso como pago — aí sim afeta o saldo */
 async function marcarComoPago(id) {
@@ -3236,7 +3470,11 @@ function renderOcorrencias() {
   if (periodoLabelEl) periodoLabelEl.textContent = labelMes(mesVisao);
 
   if (!state.recorrencias.length) {
-    listaOcorrenciasEl.innerHTML = `<div class="empty-state">Nenhuma conta recorrente cadastrada.</div>`;
+    listaOcorrenciasEl.innerHTML = vazio(
+      ICO.repetir,
+      "Nenhuma conta recorrente",
+      "Cadastre acima e os vencimentos aparecem aqui automaticamente."
+    );
     return;
   }
 
@@ -3246,37 +3484,36 @@ function renderOcorrencias() {
 
   let itens = ocorrenciasNaJanela(de, ate);
 
-  // Filtros
-  if (filtroOcor === "pendentes")  itens = itens.filter(o => !o.pago);
-  else if (filtroOcor === "pagos") itens = itens.filter(o => o.pago);
+  if (filtroOcor === "pendentes")      itens = itens.filter(o => !o.pago);
+  else if (filtroOcor === "pagos")     itens = itens.filter(o => o.pago);
   else if (filtroOcor === "atrasados") itens = itens.filter(o => !o.pago && o.vencimento < hojeISO());
 
   if (!itens.length) {
     const msgs = {
-      todos: "Nenhum vencimento neste mês.",
-      pendentes: "Tudo pago neste mês",
-      pagos: "Nenhuma conta paga neste mês ainda.",
-      atrasados: "Nenhuma conta atrasada"
+      todos:     "Nenhum vencimento neste mês.",
+      pendentes: "Nada pendente neste mês.",
+      pagos:     "Nada foi pago ainda neste mês.",
+      atrasados: "Nenhuma conta atrasada."
     };
     listaOcorrenciasEl.innerHTML = `<div class="empty-state">${msgs[filtroOcor]}</div>`;
     return;
   }
 
-  // Resumo do mês
-  const total    = itens.reduce((s,o) => s + o.valor, 0);
-  const pagos    = itens.filter(o => o.pago);
-  const totalPago = pagos.reduce((s,o) => s + o.valor, 0);
-  const pend     = itens.filter(o => !o.pago);
-  const totalPend = pend.reduce((s,o) => s + o.valor, 0);
+  // Resumo enxuto: só o que importa — quanto falta pagar
+  const pend = itens.filter(o => !o.pago);
+  const totalPend = pend.reduce((s,o) => s + (o.rec.tipo === "gasto" ? o.valor : 0), 0);
 
-  const resumo = `<div class="ocor-resumo">
-    <span>${itens.length} vencimento${itens.length>1?"s":""}</span>
-    ${pagos.length ? `<span class="valor-positivo">${pagos.length} pago${pagos.length>1?"s":""} · ${fmtMoeda(totalPago)}</span>` : ""}
-    ${pend.length  ? `<span class="valor-pendente-forte">${pend.length} pendente${pend.length>1?"s":""} · ${fmtMoeda(totalPend)}</span>` : ""}
-  </div>`;
+  const resumo = pend.length
+    ? `<div class="venc-resumo venc-resumo-pend">
+         <span>${pend.length} pendente${pend.length > 1 ? "s" : ""}</span>
+         <strong>${fmtMoeda(totalPend)}</strong>
+       </div>`
+    : `<div class="venc-resumo venc-resumo-ok">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+         <span>Tudo pago neste mês</span>
+       </div>`;
 
-  const cards = itens.map(o => cardOcorrencia(o)).join("");
-  listaOcorrenciasEl.innerHTML = resumo + `<div class="ocor-lista">${cards}</div>`;
+  listaOcorrenciasEl.innerHTML = resumo + itens.map(o => cardOcorrencia(o)).join("");
 }
 
 /* Card de uma ocorrência */
@@ -3287,51 +3524,55 @@ function cardOcorrencia(o) {
   const dias = Math.round((new Date(vencimento+"T00:00:00") - new Date(hoje+"T00:00:00")) / 86400000);
   const ehEntrada = rec.tipo === "entrada";
   const conta = state.bancos.find(b => b.id === rec.contaId);
-  const dataFmt = new Date(vencimento+"T00:00:00").toLocaleDateString("pt-BR", { day:"2-digit", month:"2-digit" });
 
   let estado, cls;
   if (pago) {
-    const pgFmt = new Date(pagamento.pagoEm+"T00:00:00").toLocaleDateString("pt-BR", { day:"2-digit", month:"2-digit" });
-    estado = `<span class="ocor-estado pago">✓ Pago em ${pgFmt}</span>`;
+    const pg = new Date(pagamento.pagoEm+"T00:00:00").toLocaleDateString("pt-BR", { day:"2-digit", month:"2-digit" });
+    estado = `Pago em ${pg}`;
     cls = "pago";
   } else if (atrasado) {
     const d = Math.abs(dias);
-    estado = `<span class="ocor-estado atrasado">Atrasado ${d} ${d===1?"dia":"dias"}</span>`;
+    estado = `Atrasado ${d} ${d===1?"dia":"dias"}`;
     cls = "atrasado";
   } else if (dias === 0) {
-    estado = `<span class="ocor-estado hoje">Vence hoje</span>`;
-    cls = "hoje";
+    estado = "Vence hoje"; cls = "hoje";
+  } else if (dias === 1) {
+    estado = "Vence amanhã"; cls = "perto";
   } else if (dias <= 7) {
-    estado = `<span class="ocor-estado perto">Vence em ${dias} ${dias===1?"dia":"dias"}</span>`;
-    cls = "perto";
+    estado = `Vence em ${dias} dias`; cls = "perto";
   } else {
-    estado = `<span class="ocor-estado futuro">Vence dia ${dataFmt}</span>`;
-    cls = "futuro";
+    estado = `Vence dia ${vencimento.slice(8,10)}`; cls = "futuro";
   }
 
   const acao = pago
-    ? `<button class="btn-icon" onclick="desfazerPagamento('${rec.id}','${vencimento}')">↩ Desfazer</button>`
-    : `<button class="btn-pagar" onclick="pagarOcorrencia('${rec.id}','${vencimento}')">${ehEntrada ? "✓ Recebi" : "✓ Paguei"}</button>`;
+    ? `<button class="btn-acao" onclick="desfazerPagamento('${rec.id}','${vencimento}')" title="Desfazer">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+       </button>`
+    : `<button class="btn-pagar" onclick="pagarOcorrencia('${rec.id}','${vencimento}')">
+         ${ehEntrada ? "Recebi" : "Paguei"}
+       </button>`;
 
   return `<div class="ocor-item ${cls}">
     <div class="ocor-dia">
       <span class="ocor-dia-num">${vencimento.slice(8,10)}</span>
       <span class="ocor-dia-mes">${MESES_PT[Number(vencimento.slice(5,7))-1].slice(0,3)}</span>
     </div>
+
     <div class="ocor-info">
-      <div class="ocor-desc">${ehEntrada ? "↓" : "↑"} ${esc(rec.descricao)}</div>
+      <div class="ocor-desc">${esc(rec.descricao)}</div>
       <div class="ocor-meta">
-        ${estado}
+        <span class="ocor-estado ${cls}">${estado}</span>
+        <span class="mov-sep">·</span>
         <span class="badge">${esc(rec.categoria)}</span>
-        ${conta ? `<span class="ocor-conta">${esc(conta.nome)}</span>` : ""}
+        ${conta ? `<span class="mov-sep">·</span><span>${esc(conta.nome)}</span>` : ""}
       </div>
     </div>
-    <div class="ocor-dir">
-      <div class="ocor-valor ${pago ? (ehEntrada?"valor-positivo":"valor-negativo") : "valor-pendente"}">
-        ${ehEntrada ? "+" : "−"}${fmtMoeda(valor)}
-      </div>
-      <div class="ocor-acoes">${acao}</div>
+
+    <div class="ocor-valor ${pago ? (ehEntrada?"valor-positivo":"valor-negativo") : "valor-pendente"}">
+      ${ehEntrada ? "+" : "−"}${fmtMoeda(valor)}
     </div>
+
+    <div class="ocor-acoes">${acao}</div>
   </div>`;
 }
 
@@ -4417,7 +4658,421 @@ function irParaContas()       { trocarTela("contas"); }
 function irParaLancamentos()  { trocarTela("lancamentos"); }
 function irParaRecorrencias() { trocarTela("recorrencias"); }
 
+
+/* Botões de pausar/retomar (evita aspas aninhadas no template) */
+function btnPausar() {
+  return `<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></span>Pausar`;
+}
+function btnRetomar() {
+  return `<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg></span>Retomar`;
+}
+
+
+/* ============================================================
+   IDENTIDADE VISUAL DAS CONTAS (v16)
+   Sem logos de banco (marcas registradas — risco jurídico).
+   Cada conta ganha uma cor derivada do nome + a inicial.
+   O usuário pode trocar a cor se quiser.
+   ============================================================ */
+
+const CORES_CONTA = [
+  "#8B5CF6",  // roxo
+  "#EC4899",  // rosa
+  "#F97316",  // laranja
+  "#EAB308",  // amarelo
+  "#22C55E",  // verde
+  "#14B8A6",  // teal
+  "#0EA5E9",  // azul
+  "#6366F1",  // índigo
+  "#EF4444",  // vermelho
+  "#84CC16",  // lima
+];
+
+/* Deriva uma cor estável a partir do nome.
+   O mesmo nome sempre dá a mesma cor — não muda a cada render. */
+function corDoNome(nome) {
+  let h = 0;
+  const s = (nome || "").trim().toLowerCase();
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return CORES_CONTA[h % CORES_CONTA.length];
+}
+
+/* A cor efetiva: a escolhida pelo usuário, ou a derivada do nome */
+function corDaConta(b) {
+  return b?.cor || corDoNome(b?.nome);
+}
+
+/* Escolhe preto ou branco para a inicial, conforme o contraste.
+   Sem isso, a letra some em cores claras (amarelo, lima). */
+function textoSobre(hex) {
+  const h = hex.replace("#","");
+  const r = parseInt(h.slice(0,2),16);
+  const g = parseInt(h.slice(2,4),16);
+  const b = parseInt(h.slice(4,6),16);
+  // Luminância percebida (fórmula do WCAG, simplificada)
+  const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+  return lum > 0.6 ? "#0A0F1A" : "#FFFFFF";
+}
+
+/* A "marca" da conta: quadrado colorido com a inicial */
+function marcaConta(b, tam) {
+  const cor = corDaConta(b);
+  const letra = (b?.nome || "?").trim()[0]?.toUpperCase() || "?";
+  const classe = tam === "sm" ? "marca-conta marca-conta-sm" : "marca-conta";
+  return `<span class="${classe}" style="background:${cor};color:${textoSobre(cor)}">${esc(letra)}</span>`;
+}
+
+
+
+/* ─── Seletor de cor ─────────────────────────────────────
+   No formulário é um botão discreto que abre um popover.
+   Cor é detalhe cosmético — não deve competir com nome e saldo. */
+
+let _corEscolhida = null;      // null = automática (derivada do nome)
+let _corEscolhidaEdit = null;
+
+/* Monta a grade de cores */
+function montarCorPicker(elId, corAtual, onPick) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+
+  const nomeInput = elId === "corPicker" ? "nomeBanco" : "editContaNome";
+  const auto = corDoNome(document.getElementById(nomeInput)?.value || "");
+
+  el.innerHTML = `
+    <button type="button" class="cor-opcao cor-auto ${!corAtual ? "ativa" : ""}"
+            data-cor="" title="Automática" style="background:${auto}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="${textoSobre(auto)}" stroke-width="2.6" stroke-linecap="round">
+        <path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4"/>
+      </svg>
+    </button>
+    ${CORES_CONTA.map(c => `
+      <button type="button" class="cor-opcao ${corAtual === c ? "ativa" : ""}"
+              data-cor="${c}" style="background:${c}"></button>
+    `).join("")}
+  `;
+
+  el.querySelectorAll(".cor-opcao").forEach(b => {
+    b.addEventListener("click", () => {
+      const cor = b.dataset.cor || null;
+      onPick(cor);
+      el.querySelectorAll(".cor-opcao").forEach(x => x.classList.remove("ativa"));
+      b.classList.add("ativa");
+      if (elId === "corPicker") {
+        atualizarAmostraCor();
+        fecharCorPop();
+      }
+    });
+  });
+}
+
+/* A amostra no botão do formulário */
+function atualizarAmostraCor() {
+  const am = document.getElementById("corAmostra");
+  if (!am) return;
+  const nome = document.getElementById("nomeBanco")?.value || "";
+  const cor = _corEscolhida || corDoNome(nome);
+  am.style.background = cor;
+  am.classList.toggle("auto", !_corEscolhida);
+}
+
+/* Popover */
+function abrirCorPop() {
+  const pop = document.getElementById("corPop");
+  if (!pop) return;
+  const abrindo = !pop.classList.contains("aberto");
+  pop.classList.toggle("aberto", abrindo);
+
+  // O painel precisa subir na pilha, senão o popover fica cortado
+  pop.closest(".form-panel")?.classList.toggle("tem-pop-aberto", abrindo);
+
+  if (abrindo) montarCorPicker("corPicker", _corEscolhida, c => { _corEscolhida = c; });
+}
+function fecharCorPop() {
+  const pop = document.getElementById("corPop");
+  pop?.classList.remove("aberto");
+  pop?.closest(".form-panel")?.classList.remove("tem-pop-aberto");
+}
+
+/* Fecha ao clicar fora */
+document.addEventListener("click", e => {
+  const pop = document.getElementById("corPop");
+  const btn = document.getElementById("btnCor");
+  if (!pop?.classList.contains("aberto")) return;
+  if (!pop.contains(e.target) && !btn?.contains(e.target)) fecharCorPop();
+});
+
+/* A cor automática muda conforme o nome */
+function iniciarCorPicker() {
+  atualizarAmostraCor();
+  document.getElementById("nomeBanco")?.addEventListener("input", () => {
+    atualizarAmostraCor();
+    // se o popover estiver aberto, atualiza a opção "auto"
+    const pop = document.getElementById("corPop");
+    if (pop?.classList.contains("aberto")) {
+      montarCorPicker("corPicker", _corEscolhida, c => { _corEscolhida = c; });
+    }
+  });
+}
+
+/* Modal de edição — ali a grade fica aberta (tem espaço) */
+function iniciarCorPickerEdit(corAtual) {
+  _corEscolhidaEdit = corAtual;
+  montarCorPicker("editCorPicker", corAtual, c => { _corEscolhidaEdit = c; });
+  document.getElementById("editContaNome")?.addEventListener("input", () => {
+    montarCorPicker("editCorPicker", _corEscolhidaEdit, c => { _corEscolhidaEdit = c; });
+  });
+}
+
+
+
+/* ============================================================
+   IMPORTAÇÃO DE EXTRATO (v19)
+   Suporta CSV e OFX/QFX — o formato padrão dos bancos.
+   PDF não é possível sem servidor (cada banco tem layout próprio).
+   ============================================================ */
+
+/* Detecta o formato pelo conteúdo, não só pela extensão */
+function detectarFormato(texto, nomeArquivo) {
+  const t = texto.slice(0, 2000).toUpperCase();
+  if (t.includes("<OFX>") || t.includes("OFXHEADER") || t.includes("<STMTTRN>")) return "ofx";
+  if (/\.ofx$|\.qfx$/i.test(nomeArquivo)) return "ofx";
+  return "csv";
+}
+
+/* ─── OFX ─────────────────────────────────────────────────
+   O OFX é um XML (ou SGML nas versões antigas). Cada transação
+   vem num bloco <STMTTRN>. */
+function parseOFX(texto) {
+  const movs = [];
+
+  // Pega cada bloco de transação
+  const blocos = texto.match(/<STMTTRN>[\s\S]*?<\/STMTTRN>/gi) || [];
+
+  for (const bloco of blocos) {
+    const campo = (tag) => {
+      // Aceita tanto <TAG>valor</TAG> quanto <TAG>valor (SGML antigo)
+      const re = new RegExp(`<${tag}>\\s*([^<\\r\\n]*)`, "i");
+      const m = bloco.match(re);
+      return m ? m[1].trim() : "";
+    };
+
+    const dataRaw = campo("DTPOSTED");       // 20260714120000[-3:BRT]
+    const valorRaw = campo("TRNAMT");        // -200.00
+    const memo = campo("MEMO") || campo("NAME") || "Lançamento importado";
+    const tipoOfx = campo("TRNTYPE");        // DEBIT | CREDIT
+
+    if (!dataRaw || !valorRaw) continue;
+
+    // Data: os 8 primeiros dígitos são AAAAMMDD
+    const d = dataRaw.replace(/[^0-9]/g, "").slice(0, 8);
+    if (d.length !== 8) continue;
+    const data = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
+
+    const valor = Math.abs(parseFloat(valorRaw.replace(",", ".")));
+    if (!valor || isNaN(valor)) continue;
+
+    // O sinal do valor é a fonte da verdade; TRNTYPE é reforço
+    const negativo = parseFloat(valorRaw.replace(",", ".")) < 0;
+    const tipo = negativo || /DEBIT|PAYMENT|FEE/i.test(tipoOfx) ? "gasto" : "entrada";
+
+    movs.push({
+      data,
+      descricao: limparDescricao(memo),
+      valor,
+      tipo,
+      categoria: classificarCategoria(memo)
+    });
+  }
+
+  return movs;
+}
+
+/* Limpa a descrição do banco (que costuma vir suja) */
+function limparDescricao(s) {
+  return String(s)
+    .replace(/\s+/g, " ")
+    .replace(/^(COMPRA|PAGAMENTO|DEBITO|CREDITO|TED|PIX|DOC)\s+(CARTAO|ELETRONICO|RECEBIDO|ENVIADO)?\s*/i, m => m.trim() + " ")
+    .trim()
+    .slice(0, 120);
+}
+
+/* ─── CSV (mais tolerante que antes) ────────────────────── */
+function parseCSVExtrato(texto) {
+  const linhas = texto.split(/\r?\n/).filter(l => l.trim());
+  if (!linhas.length) return [];
+
+  // Detecta o separador: ; é comum no Brasil, , no exterior
+  const sep = (linhas[0].match(/;/g) || []).length > (linhas[0].match(/,/g) || []).length ? ";" : ",";
+
+  // A primeira linha é cabeçalho?
+  const primeira = linhas[0].toLowerCase();
+  const temCabecalho = /data|date|descri|hist|valor|value|amount/i.test(primeira);
+  const corpo = temCabecalho ? linhas.slice(1) : linhas;
+
+  // Descobre a posição das colunas pelo cabeçalho
+  let iData = 0, iDesc = 1, iValor = 2;
+  if (temCabecalho) {
+    const cols = primeira.split(sep).map(c => c.trim().replace(/^["']|["']$/g, ""));
+    const acha = (...termos) => cols.findIndex(c => termos.some(t => c.includes(t)));
+    const d = acha("data", "date");
+    const s = acha("descri", "hist", "lanc", "memo", "detalhe");
+    const v = acha("valor", "value", "amount", "montante");
+    if (d >= 0) iData = d;
+    if (s >= 0) iDesc = s;
+    if (v >= 0) iValor = v;
+  }
+
+  const movs = [];
+  for (const linha of corpo) {
+    const cols = dividirCSV(linha, sep);
+    if (cols.length < 2) continue;
+
+    const data = normalizarData(cols[iData]);
+    if (!data) continue;
+
+    const valorStr = (cols[iValor] || "").replace(/[R$\s]/g, "");
+    const negativo = valorStr.trim().startsWith("-");
+    const valor = Math.abs(parseValorBR(valorStr));
+    if (!valor || isNaN(valor)) continue;
+
+    const desc = (cols[iDesc] || "Lançamento importado").replace(/^["']|["']$/g, "").trim();
+
+    movs.push({
+      data,
+      descricao: limparDescricao(desc),
+      valor,
+      tipo: negativo ? "gasto" : "entrada",
+      categoria: classificarCategoria(desc)
+    });
+  }
+  return movs;
+}
+
+/* Divide respeitando aspas */
+function dividirCSV(linha, sep) {
+  const out = [];
+  let atual = "", dentroAspas = false;
+  for (let i = 0; i < linha.length; i++) {
+    const c = linha[i];
+    if (c === '"') { dentroAspas = !dentroAspas; continue; }
+    if (c === sep && !dentroAspas) { out.push(atual); atual = ""; continue; }
+    atual += c;
+  }
+  out.push(atual);
+  return out.map(s => s.trim());
+}
+
+/* Aceita DD/MM/AAAA, AAAA-MM-DD, DD-MM-AAAA */
+function normalizarData(s) {
+  if (!s) return null;
+  s = s.trim().replace(/^["']|["']$/g, "");
+
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
+  if (m) return `20${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+
+  return null;
+}
+
+/* Valor no formato brasileiro: 1.234,56 → 1234.56 */
+function parseValorBR(s) {
+  if (!s) return NaN;
+  s = String(s).trim();
+  // Se tem vírgula E ponto, o ponto é separador de milhar
+  if (s.includes(",") && s.includes(".")) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (s.includes(",")) {
+    s = s.replace(",", ".");
+  }
+  return parseFloat(s.replace(/[^0-9.\-]/g, ""));
+}
+
+
+
+/* Acordeão do painel de importação */
+function abrirImportar(abrir) {
+  const painel = document.getElementById("painelImportar");
+  const corpo  = document.getElementById("conteudoImportar");
+  const btn    = document.getElementById("toggleImportar");
+  if (!painel || !corpo) return;
+
+  // Mesma convenção do simulador: .open no corpo, .aberto no painel
+  // (o painel controla o giro do chevron).
+  corpo.classList.toggle("open", abrir);
+  painel.classList.toggle("aberto", abrir);
+  btn?.setAttribute("aria-expanded", String(abrir));
+}
+
+document.getElementById("toggleImportar")?.addEventListener("click", () => {
+  const aberto = document.getElementById("painelImportar")?.classList.contains("aberto");
+  abrirImportar(!aberto);
+});
+
+
+
+
+/* ============================================================
+   DICAS DISPENSÁVEIS (v25)
+   A dica ajuda quem chega, mas incomoda quem já sabe.
+   Uma vez dispensada, não volta.
+   ============================================================ */
+function dispensarDica(chave) {
+  const el = document.getElementById(`dica${chave.charAt(0).toUpperCase()}${chave.slice(1)}`);
+  if (!el) return;
+  el.style.height = el.offsetHeight + "px";
+  requestAnimationFrame(() => {
+    el.classList.add("dica-saindo");
+    setTimeout(() => el.remove(), 240);
+  });
+  localStorage.setItem(`fp_dica_${chave}`, "1");
+}
+
+function restaurarDicas() {
+  ["recorrencias"].forEach(chave => {
+    if (localStorage.getItem(`fp_dica_${chave}`) === "1") {
+      document.getElementById(`dica${chave.charAt(0).toUpperCase()}${chave.slice(1)}`)?.remove();
+    }
+  });
+}
+
+/* ─── Painel recolhível (regras) ─── */
+function alternarPainel(painelId, corpoId, btnId) {
+  const painel = document.getElementById(painelId);
+  const corpo  = document.getElementById(corpoId);
+  const btn    = document.getElementById(btnId);
+  if (!painel || !corpo) return;
+
+  const aberto = corpo.classList.toggle("open");
+  painel.classList.toggle("recolhido", !aberto);
+  btn?.setAttribute("aria-expanded", String(aberto));
+  localStorage.setItem(`fp_painel_${painelId}`, aberto ? "1" : "0");
+}
+
+document.getElementById("toggleRegras")?.addEventListener("click", () => {
+  alternarPainel("painelRegras", "corpoRegras", "toggleRegras");
+});
+
+/* Restaura o estado salvo */
+function restaurarPaineis() {
+  if (localStorage.getItem("fp_painel_painelRegras") === "0") {
+    document.getElementById("corpoRegras")?.classList.remove("open");
+    document.getElementById("painelRegras")?.classList.add("recolhido");
+    document.getElementById("toggleRegras")?.setAttribute("aria-expanded", "false");
+  }
+}
+
 async function iniciar() {
+  restaurarDicas();
+  restaurarPaineis();
+  iniciarCorPicker();
   const ri = document.getElementById("recInicio");
   if (ri && !ri.value) ri.value = hojeISO();
   const tema = localStorage.getItem("fp_tema") || "dark";
