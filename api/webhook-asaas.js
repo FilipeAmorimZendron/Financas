@@ -33,15 +33,36 @@ const EVENTOS_INATIVA = [
 ];
 
 export default async function handler(req, res) {
+  // Log de entrada: confirma que o Asaas chamou o webhook
+  console.log("Webhook chamado:", req.method, "| evento:", req.body?.event || "?");
+
   // Só aceita POST
   if (req.method !== "POST") {
     return res.status(405).json({ erro: "Método não permitido" });
   }
 
-  // Validação opcional de token (se você configurou no Asaas)
+  // Validação de token (se você configurou no Asaas)
   if (WEBHOOK_TOKEN) {
-    const tokenRecebido = req.headers["asaas-access-token"];
-    if (tokenRecebido !== WEBHOOK_TOKEN) {
+    // O Asaas pode enviar o token em cabeçalhos com nomes ligeiramente diferentes.
+    const tokenRecebido =
+      req.headers["asaas-access-token"] ||
+      req.headers["asaas-access-token".toLowerCase()] ||
+      req.headers["access-token"] ||
+      req.headers["asaas_access_token"] ||
+      null;
+
+    const bateu = tokenRecebido && tokenRecebido.trim() === WEBHOOK_TOKEN.trim();
+
+    // Log de diagnóstico (aparece nos Logs da Vercel)
+    console.log(
+      "Webhook token check:",
+      "recebido?", tokenRecebido ? "sim" : "não",
+      "| bateu?", bateu ? "sim" : "não"
+    );
+
+    if (!bateu) {
+      // Loga o evento mesmo assim, mas recusa por segurança
+      console.error("Webhook recusado: token não confere");
       return res.status(401).json({ erro: "Token inválido" });
     }
   }
