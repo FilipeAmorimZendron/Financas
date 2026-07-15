@@ -83,7 +83,7 @@ export default async function handler(req, res) {
       method: "POST",
       headers,
       body: JSON.stringify({
-        billingTypes: ["CREDIT_CARD", "PIX"],
+        billingTypes: ["CREDIT_CARD"],
         chargeTypes: ["RECURRENT"],
         minutesToExpire: 60,
         callback: {
