@@ -38,21 +38,28 @@ let chartEvolucao           = null;
 let _undoSnapshot           = null;
 
 /* ─── Ícones por categoria ───────────────────────────────── */
+/* SVGs inline (stroke, herdam cor via currentColor). Classe .cat-icone controla o tamanho. */
+const _sv = p => `<svg class="cat-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const ICONE_CAT = {
-  "Entrada":          "💰",
-  "Gasto importante": "🏠",
-  "Lazer":            "🎬",
-  "Transporte":       "🚗",
-  "Compras":          "🛒",
-  "Outros":           "📦"
+  "Entrada":          _sv('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
+  "Gasto importante": _sv('<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><rect x="9.5" y="13" width="5" height="8"/>'),
+  "Lazer":            _sv('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v16M17 4v16M2 9h5M2 15h5M17 9h5M17 15h5"/>'),
+  "Transporte":       _sv('<path d="M5 13l1.5-5A2 2 0 0 1 8.4 6.5h7.2a2 2 0 0 1 1.9 1.5L19 13"/><path d="M5 13h14v4a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H8v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="15.5" r="0.6"/><circle cx="16.5" cy="15.5" r="0.6"/>'),
+  "Compras":          _sv('<circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.5 3h2l2.2 12.4a1.5 1.5 0 0 0 1.5 1.2h9.3a1.5 1.5 0 0 0 1.5-1.2L21 7H6"/>'),
+  "Outros":           _sv('<path d="M21 8v13H3V8"/><rect x="1" y="3" width="22" height="5" rx="1"/><line x1="12" y1="3" x2="12" y2="21"/>')
 };
+const ICONE_CAT_FALLBACK = _sv('<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/>');
 
 /* ─── Tema claro / escuro ────────────────────────────────── */
+const SVG_SOL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+const SVG_LUA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>';
+
 function aplicarTema(tema) {
   document.documentElement.setAttribute("data-theme", tema);
   localStorage.setItem("fp_tema", tema);
-  const btn = document.getElementById("btnTema");
-  if (btn) btn.textContent = tema === "dark" ? "☀️" : "🌙";
+  const ic = document.getElementById("temaIcone");
+  // Mostra o ícone do que a pessoa vai ATIVAR ao clicar (no escuro, oferece o sol)
+  if (ic) ic.innerHTML = tema === "dark" ? SVG_SOL : SVG_LUA;
 }
 
 /* ============================================================
@@ -598,7 +605,7 @@ const hojeISO  = () => new Date().toISOString().split("T")[0];
 const mesAtualISO = () => hojeISO().slice(0,7);
 
 function badge(cat) {
-  return `<span class="badge">${ICONE_CAT[cat] ?? "📋"} ${esc(cat)}</span>`;
+  return `<span class="badge badge-cat">${ICONE_CAT[cat] ?? ICONE_CAT_FALLBACK}<span>${esc(cat)}</span></span>`;
 }
 
 /* ─── Classificação ─────────────────────────────────────── */
@@ -857,7 +864,12 @@ function renderContasDashboard() {
       const cls = s > 0 ? "positivo" : s < 0 ? "negativo" : "";
       return `<div class="banco-card">
         <div class="banco-card-top">
-          <span class="banco-card-nome">${marcaConta(b, "sm")}${esc(b.nome)}</span>
+          <span class="banco-card-nome">${marcaConta(b, "sm")}${(() => {
+            const nc = nomeConta(b);
+            return esc(nc.base) + (nc.apelido
+              ? ` <span class="conta-apelido">${esc(nc.apelido)}</span>`
+              : "");
+          })()}</span>
           <span class="banco-card-tipo">${esc(b.tipo)}</span>
         </div>
         <div class="banco-card-divider"></div>
@@ -868,45 +880,89 @@ function renderContasDashboard() {
 }
 
 let _periodoEvolucao = 6;   // meses; 0 = tudo
+let _periodoDatas = null;   // {de:'YYYY-MM-DD', ate:'YYYY-MM-DD'} quando customizado
 
 function renderGraficoEvolucao() {
   if (chartEvolucao) chartEvolucao.destroy();
 
   const PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
   const hoje = new Date();
+  const pad2 = n => String(n).padStart(2, "0");
+  const isoDe = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
 
-  // Quantos meses mostrar. "Tudo" = desde o primeiro movimento.
-  let qtdMeses = _periodoEvolucao;
-  if (qtdMeses === 0) {
+  // Define o intervalo [dataIni, dataFim] em datas reais e escolhe a granularidade.
+  let dataIni, dataFim;
+  if (_periodoDatas) {
+    dataIni = new Date(_periodoDatas.de + "T00:00:00");
+    dataFim = new Date(_periodoDatas.ate + "T00:00:00");
+  } else if (_periodoEvolucao === 1) {
+    dataFim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    dataIni = new Date(hoje.getFullYear(), hoje.getMonth()-1, hoje.getDate());
+  } else if (_periodoEvolucao === 0) {
+    // Tudo: desde o primeiro movimento
+    dataFim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
     if (state.movimentos.length) {
       const datas = state.movimentos.map(m => m.data).filter(Boolean).sort();
-      const primeira = datas[0];
-      if (primeira) {
-        const anoP = Number(primeira.slice(0,4)), mesP = Number(primeira.slice(5,7));
-        qtdMeses = (hoje.getFullYear() - anoP) * 12 + (hoje.getMonth()+1 - mesP) + 1;
-      }
+      dataIni = datas[0] ? new Date(datas[0] + "T00:00:00") : new Date(hoje.getFullYear(), hoje.getMonth()-5, 1);
+    } else {
+      dataIni = new Date(hoje.getFullYear(), hoje.getMonth()-5, 1);
     }
-    qtdMeses = Math.min(Math.max(qtdMeses || 6, 3), 36);   // entre 3 e 36 meses
+  } else {
+    dataFim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    dataIni = new Date(hoje.getFullYear(), hoje.getMonth()-(_periodoEvolucao-1), 1);
   }
 
-  const meses = Array.from({length:qtdMeses},(_,i)=>{
-    const d = new Date(hoje.getFullYear(), hoje.getMonth()-(qtdMeses-1-i), 1);
-    return { ano:d.getFullYear(), mes:d.getMonth()+1, label:PT[d.getMonth()], ano2:String(d.getFullYear()).slice(2) };
-  });
+  // Granularidade diária quando o intervalo é curto (≤ ~62 dias), senão mensal.
+  const diasIntervalo = Math.round((dataFim - dataIni) / 86400000) + 1;
+  const porDia = diasIntervalo <= 62;
+
+  // Monta os "pontos" do gráfico. Cada ponto tem uma data-limite (lim) e um rótulo.
+  let pontos;
+  if (porDia) {
+    const n = Math.min(diasIntervalo, 62);
+    pontos = Array.from({length:n}, (_,i) => {
+      const d = new Date(dataIni.getFullYear(), dataIni.getMonth(), dataIni.getDate()+i);
+      return {
+        limNum: Number(isoDe(d).replace(/-/g,"")),   // AAAAMMDD para comparação
+        label: `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`,
+        tooltip: `${d.getDate()} ${PT[d.getMonth()]} ${d.getFullYear()}`
+      };
+    });
+  } else {
+    const mesesTotal = (dataFim.getFullYear()-dataIni.getFullYear())*12 + (dataFim.getMonth()-dataIni.getMonth()) + 1;
+    const n = Math.min(Math.max(mesesTotal, 1), 120);
+    pontos = Array.from({length:n}, (_,i) => {
+      const d = new Date(dataIni.getFullYear(), dataIni.getMonth()+i, 1);
+      // Último dia do mês desse ponto, para acumular o saldo até o fim do mês
+      const fimMes = new Date(d.getFullYear(), d.getMonth()+1, 0);
+      return {
+        limNum: Number(`${fimMes.getFullYear()}${pad2(fimMes.getMonth()+1)}${pad2(fimMes.getDate())}`),
+        label: PT[d.getMonth()],
+        tooltip: `${PT[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
+      };
+    });
+  }
 
   // Atualiza o título com o período
   const tit = document.getElementById("tituloEvolucao");
   if (tit) {
-    tit.textContent = _periodoEvolucao === 0
-      ? "Evolução do saldo (todo o histórico)"
-      : `Evolução do saldo (últimos ${_periodoEvolucao} meses)`;
+    if (_periodoDatas) {
+      const fmtBR = s => `${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(0,4)}`;
+      tit.textContent = `Evolução do saldo (${fmtBR(_periodoDatas.de)} — ${fmtBR(_periodoDatas.ate)})`;
+    } else {
+      tit.textContent = _periodoEvolucao === 0
+        ? "Evolução do saldo (todo o histórico)"
+        : _periodoEvolucao === 1
+          ? "Evolução do saldo (último mês, por dia)"
+          : `Evolução do saldo (últimos ${_periodoEvolucao} meses)`;
+    }
   }
 
-  const dados = meses.map(({ano,mes}) => {
-    const lim = ano*100+mes;
+  // Saldo acumulado até a data-limite de cada ponto
+  const dados = pontos.map(({limNum}) => {
     const base = state.bancos.reduce((a,b)=>a+b.saldoInicial, 0);
     const mov  = state.movimentos
-      .filter(m => ehPago(m) && Number(m.data.slice(0,4))*100+Number(m.data.slice(5,7)) <= lim)
+      .filter(m => ehPago(m) && Number(m.data.slice(0,10).replace(/-/g,"")) <= limNum)
       .reduce((a,m) => m.tipo==="entrada" ? a+m.valor : a-m.valor, 0);
     return base + mov;
   });
@@ -933,7 +989,7 @@ function renderGraficoEvolucao() {
   chartEvolucao = new Chart(canvas, {
     type: "line",
     data: {
-      labels: meses.map(m => m.label),
+      labels: pontos.map(p => p.label),
       datasets: [{
         label: "Saldo",
         data: dados,
@@ -973,7 +1029,7 @@ function renderGraficoEvolucao() {
           callbacks: {
             title: it => {
               const i = it[0].dataIndex;
-              return `${meses[i].label}/${meses[i].ano2}`;
+              return pontos[i]?.tooltip || "";
             },
             label: c => fmtMoeda(c.raw)
           }
@@ -986,7 +1042,10 @@ function renderGraficoEvolucao() {
           ticks: {
             color: txt,
             font: { family: "Inter", size: 11 },
-            padding: 8
+            padding: 8,
+            maxRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: porDia ? 8 : 12
           }
         },
         y: {
@@ -1050,7 +1109,14 @@ function renderBancos() {
         ${marcaConta(b)}
 
         <div class="conta-box-info">
-          <div class="conta-box-nome">${esc(b.nome)}</div>
+          <div class="conta-box-nome">
+            ${(() => {
+              const nc = nomeConta(b);
+              return esc(nc.base) + (nc.apelido
+                ? ` <span class="conta-apelido">${esc(nc.apelido)}</span>`
+                : "");
+            })()}
+          </div>
           <div class="conta-box-meta">
             <span class="badge">${esc(b.tipo)}</span>
             ${temMovimento
@@ -1365,7 +1431,7 @@ function renderPlanilha() {
   if(resumoCategoriasEl) resumoCategoriasEl.innerHTML = Object.entries(res).sort((a,b)=>a[0].localeCompare(b[0])).map(([cat,v])=>{
     const s = v.entrada-v.gasto;
     return `<div class="categoria-item">
-      <div class="item-top"><div class="item-title">${ICONE_CAT[cat]||"📋"} ${cat}</div><div class="${s>=0?"valor-positivo":"valor-negativo"}">${fmtMoeda(s)}</div></div>
+      <div class="item-top"><div class="item-title item-title-cat">${ICONE_CAT[cat]||ICONE_CAT_FALLBACK}<span>${esc(cat)}</span></div><div class="${s>=0?"valor-positivo":"valor-negativo"}">${fmtMoeda(s)}</div></div>
       <div class="item-meta">
         <span>Entradas: <span class="valor-positivo">${fmtMoeda(v.entrada)}</span></span><br>
         <span>Gastos: <span class="valor-negativo">${fmtMoeda(v.gasto)}</span></span>
@@ -1374,7 +1440,14 @@ function renderPlanilha() {
   }).join("");
   renderResumoContasFiltrado(filtrados);
   const top = Object.entries(res).map(([c,v])=>({c,g:v.gasto})).sort((a,b)=>b.g-a.g);
-  if(maiorCategoriaGastoEl) maiorCategoriaGastoEl.textContent = top.length && top[0].g>0 ? `${ICONE_CAT[top[0].c]||""} ${top[0].c}` : "—";
+  if (maiorCategoriaGastoEl) {
+    if (top.length && top[0].g > 0) {
+      const ic = ICONE_CAT[top[0].c] || ICONE_CAT_FALLBACK;
+      maiorCategoriaGastoEl.innerHTML = `<span class="item-title-cat">${ic}<span>${esc(top[0].c)}</span></span>`;
+    } else {
+      maiorCategoriaGastoEl.textContent = "—";
+    }
+  }
   tabelaMovimentosBody.innerHTML = !tabela.length
     ? `<tr><td colspan="6" class="table-empty">Nenhuma movimentação para a categoria selecionada.</td></tr>`
     : [...tabela].sort((a,b)=>new Date(b.data)-new Date(a.data)).slice(0, 200).map(m => {
@@ -4593,9 +4666,11 @@ function renderConta() {
 
   // Rótulo do tema
   const tl = document.getElementById("temaLabel");
-  if (tl) {
+  const ti = document.getElementById("temaIcone");
+  if (tl || ti) {
     const escuro = document.documentElement.getAttribute("data-theme") === "dark";
-    tl.textContent = escuro ? "Escuro" : "Claro";
+    if (tl) tl.textContent = escuro ? "Escuro" : "Claro";
+    if (ti) ti.innerHTML = escuro ? SVG_SOL : SVG_LUA;
   }
 }
 
@@ -4938,6 +5013,30 @@ function marcaConta(b, tam) {
   const letra = (b?.nome || "?").trim()[0]?.toUpperCase() || "?";
   const classe = tam === "sm" ? "marca-conta marca-conta-sm" : "marca-conta";
   return `<span class="${classe}" style="background:${cor};color:${textoSobre(cor)}">${esc(letra)}</span>`;
+}
+
+/* ─── Diferenciação de contas do mesmo banco (v39) ───────────
+   Quando 2+ contas começam com a mesma primeira palavra (ex: dois
+   "Nubank"), separamos o nome-base do apelido para exibir o apelido
+   como badge. Se o banco não se repete, mostra o nome inteiro. */
+function _bancoBase(nome) {
+  return (nome || "").trim().split(/\s+/)[0].toLowerCase();
+}
+
+/* Retorna {base, apelido} para exibição. apelido pode ser "".
+   Só separa quando existe outra conta com o mesmo banco-base. */
+function nomeConta(b) {
+  const nome = (b?.nome || "").trim();
+  const base = _bancoBase(nome);
+  const repetido = state.bancos.filter(x => _bancoBase(x.nome) === base).length > 1;
+  if (!repetido) return { base: nome, apelido: "" };
+
+  const partes = nome.split(/\s+/);
+  const primeiraPalavra = partes[0];
+  const resto = partes.slice(1).join(" ").trim();
+  // Se a pessoa deu um apelido (ex: "Nubank Salário"), separa.
+  // Se são só dois "Nubank" iguais, não há apelido — mantém o nome.
+  return { base: primeiraPalavra, apelido: resto };
 }
 
 
@@ -5799,12 +5898,59 @@ function parseMultiplosLancamentos(texto) {
 /* Chips de período do gráfico de evolução */
 document.getElementById("periodoEvolucao")?.addEventListener("click", e => {
   const btn = e.target.closest(".periodo-chip");
-  if (!btn) return;
+  if (!btn || btn.id === "btnPeriodoDatas") return;
+  _periodoDatas = null;                       // sai do modo datas
   _periodoEvolucao = Number(btn.dataset.meses);
   document.querySelectorAll("#periodoEvolucao .periodo-chip").forEach(c =>
     c.classList.toggle("ativo", c === btn));
   renderGraficoEvolucao();
 });
+
+/* Popover de datas customizadas do gráfico (v39) */
+(function initPeriodoDatas() {
+  const btn = document.getElementById("btnPeriodoDatas");
+  const pop = document.getElementById("periodoDatasPopover");
+  const inpDe = document.getElementById("periodoDataDe");
+  const inpAte = document.getElementById("periodoDataAte");
+  const btnAplicar = document.getElementById("periodoDatasAplicar");
+  const btnCancelar = document.getElementById("periodoDatasCancelar");
+  if (!btn || !pop) return;
+
+  const fechar = () => { pop.hidden = true; };
+  const abrir = () => {
+    // Pré-preenche com um padrão sensato se estiver vazio
+    if (!inpDe.value || !inpAte.value) {
+      const hoje = new Date();
+      const seis = new Date(hoje.getFullYear(), hoje.getMonth()-5, 1);
+      inpAte.value = hoje.toISOString().slice(0,10);
+      inpDe.value  = seis.toISOString().slice(0,10);
+    }
+    pop.hidden = false;
+  };
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    pop.hidden ? abrir() : fechar();
+  });
+  btnCancelar?.addEventListener("click", fechar);
+
+  btnAplicar?.addEventListener("click", () => {
+    let de = inpDe.value, ate = inpAte.value;
+    if (!de || !ate) return;
+    if (de > ate) [de, ate] = [ate, de];       // inverte se digitou trocado
+    _periodoDatas = { de, ate };
+    document.querySelectorAll("#periodoEvolucao .periodo-chip").forEach(c =>
+      c.classList.toggle("ativo", c === btn));
+    fechar();
+    renderGraficoEvolucao();
+  });
+
+  // Fecha ao clicar fora
+  document.addEventListener("click", (e) => {
+    if (pop.hidden) return;
+    if (!pop.contains(e.target) && e.target !== btn && !btn.contains(e.target)) fechar();
+  });
+})();
 
 
 /* ============================================================
@@ -6017,3 +6163,69 @@ async function iniciar() {
 }
 
 iniciar();
+/* ============================================================
+   TELA DE PLANOS (v40)
+   Toggle mensal/anual troca os valores via data-attributes.
+   A cobrança real (Asaas) será ligada depois.
+   ============================================================ */
+(function initPlanos() {
+  const toggle = document.getElementById("planosToggle");
+  if (!toggle) return;
+
+  function aplicarCiclo(ciclo) {
+    // Atualiza cada elemento que tem data-mensal / data-anual
+    document.querySelectorAll("#screen-planos [data-mensal]").forEach(el => {
+      const val = el.dataset[ciclo];
+      if (val !== undefined) el.textContent = val;
+    });
+    // Marca o botão ativo
+    toggle.querySelectorAll(".planos-toggle-opt").forEach(b =>
+      b.classList.toggle("ativo", b.dataset.ciclo === ciclo));
+  }
+
+  toggle.addEventListener("click", e => {
+    const btn = e.target.closest(".planos-toggle-opt");
+    if (!btn) return;
+    aplicarCiclo(btn.dataset.ciclo);
+  });
+})();
+
+/* Chamada ao assinar — placeholder até integrar o Asaas */
+async function assinarPlano(plano) {
+  const ciclo = document.querySelector("#planosToggle .planos-toggle-opt.ativo")?.dataset.ciclo || "mensal";
+
+  // Precisa estar logado
+  if (!state.user || !state.user.id) {
+    toast("Faça login para assinar.", "error");
+    return;
+  }
+
+  toast("Preparando pagamento...", "info");
+
+  try {
+    const resp = await fetch("/api/criar-checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        plano: plano,
+        ciclo: ciclo,
+        email: state.user.email,
+        nome: state.perfil?.nome || null,
+        userId: state.user.id
+      })
+    });
+
+    const dados = await resp.json();
+
+    if (!resp.ok || !dados.url) {
+      toast(dados.erro || "Não foi possível iniciar o pagamento. Tente de novo.", "error");
+      return;
+    }
+
+    // Redireciona para a página de pagamento do Asaas
+    window.location.href = dados.url;
+
+  } catch (e) {
+    toast("Erro de conexão. Tente novamente.", "error");
+  }
+}

@@ -82,7 +82,7 @@
           </span>
           <svg class="perfil-seta" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
-        <div class="sidebar-footer-text">Dados sincronizados ☁️</div>
+        <div class="sidebar-footer-text"><svg class="footer-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6-1.5A4 4 0 0 0 6 18.9"/><polyline points="9 15 11 17 15 12.5"/></svg> Dados sincronizados</div>
       </div>
     </aside>
 
@@ -111,6 +111,10 @@
       <button class="bnav-item" data-screen="investimentos">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>
         <span>Investir</span>
+      </button>
+      <button class="bnav-item bnav-item-config" data-screen="conta">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        <span>Config</span>
       </button>
     </nav>
 
@@ -160,10 +164,30 @@
           <div class="panel-header panel-header-stack">
             <h3 class="panel-title" id="tituloEvolucao">Evolução do saldo</h3>
             <div class="periodo-chips" id="periodoEvolucao">
+              <button type="button" class="periodo-chip" data-meses="1">1 mês</button>
               <button type="button" class="periodo-chip" data-meses="3">3 meses</button>
               <button type="button" class="periodo-chip ativo" data-meses="6">6 meses</button>
               <button type="button" class="periodo-chip" data-meses="12">12 meses</button>
               <button type="button" class="periodo-chip" data-meses="0">Tudo</button>
+              <button type="button" class="periodo-chip periodo-chip-datas" id="btnPeriodoDatas" title="Escolher datas">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="periodo-datas-popover" id="periodoDatasPopover" hidden>
+            <div class="periodo-datas-campos">
+              <label class="periodo-datas-campo">
+                <span>De</span>
+                <input type="date" id="periodoDataDe">
+              </label>
+              <label class="periodo-datas-campo">
+                <span>Até</span>
+                <input type="date" id="periodoDataAte">
+              </label>
+            </div>
+            <div class="periodo-datas-acoes">
+              <button type="button" class="periodo-datas-cancelar" id="periodoDatasCancelar">Cancelar</button>
+              <button type="button" class="periodo-datas-aplicar" id="periodoDatasAplicar">Aplicar</button>
             </div>
           </div>
           <div style="height:220px;position:relative;">
@@ -1015,18 +1039,19 @@
 
             <div class="conta-linha conta-linha-toggle">
               <div class="conta-linha-esq">
-                <span class="conta-linha-icone">🌓</span>
+                <span class="conta-linha-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg></span>
                 <div>
                   <div class="conta-linha-titulo">Tema</div>
                   <div class="conta-linha-desc">Claro ou escuro</div>
                 </div>
               </div>
               <button id="btnTema" class="conta-toggle" title="Alternar tema">
+                <span class="conta-toggle-icone" id="temaIcone"></span>
                 <span class="conta-toggle-txt" id="temaLabel">Escuro</span>
               </button>
             </div>
 
-            <button class="conta-linha" onclick="abrirDocumento('assinatura')">
+            <button class="conta-linha" onclick="trocarTela('planos')">
               <div class="conta-linha-esq">
                 <span class="conta-linha-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span>
                 <div>
@@ -1104,7 +1129,7 @@
 
             <button class="conta-linha conta-linha-perigo" onclick="iniciarExclusaoConta()">
               <div class="conta-linha-esq">
-                <span class="conta-linha-icone">🗑</span>
+                <span class="conta-linha-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></span>
                 <div>
                   <div class="conta-linha-titulo">Excluir minha conta</div>
                   <div class="conta-linha-desc">Apaga tudo permanentemente</div>
@@ -1120,6 +1145,91 @@
             Sair da conta
           </button>
 
+        </div>
+      </section>
+
+      <!-- PLANOS -->
+      <section class="screen" id="screen-planos">
+        <div class="planos-wrap">
+          <button class="planos-voltar" onclick="trocarTela('conta')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Voltar
+          </button>
+
+          <div class="planos-topo">
+            <h2 class="planos-titulo">Escolha seu plano</h2>
+            <p class="planos-sub">Comece grátis. Suba de nível quando quiser.</p>
+
+            <div class="planos-toggle" id="planosToggle">
+              <button type="button" class="planos-toggle-opt ativo" data-ciclo="mensal">Mensal</button>
+              <button type="button" class="planos-toggle-opt" data-ciclo="anual">Anual <span class="planos-toggle-badge">economize</span></button>
+            </div>
+          </div>
+
+          <div class="planos-grid">
+
+            <!-- Básico -->
+            <div class="plano-card">
+              <div class="plano-nome">Básico</div>
+              <div class="plano-preco"><span class="plano-preco-valor">Grátis</span></div>
+              <div class="plano-preco-nota">para sempre</div>
+              <button class="plano-btn plano-btn-atual" disabled>Plano atual</button>
+              <ul class="plano-lista">
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Até 3 contas</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Lançamentos manuais</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Dashboard e categorias</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Metas básicas</li>
+                <li class="plano-item-off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Cripto ao vivo</li>
+                <li class="plano-item-off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Importar extrato</li>
+              </ul>
+            </div>
+
+            <!-- Premium -->
+            <div class="plano-card plano-card-destaque">
+              <div class="plano-selo">Mais popular</div>
+              <div class="plano-nome">Premium</div>
+              <div class="plano-preco">
+                <span class="plano-preco-cheio" data-mensal="" data-anual="R$ 19,90"></span>
+                <span class="plano-preco-moeda">R$</span>
+                <span class="plano-preco-valor" data-mensal="19,90" data-anual="17,90">19,90</span>
+                <span class="plano-preco-ciclo">/mês</span>
+              </div>
+              <div class="plano-preco-nota" data-mensal="cobrado mensalmente" data-anual="R$ 214,80/ano — economize R$ 24">cobrado mensalmente</div>
+              <button class="plano-btn plano-btn-primario" onclick="assinarPlano('premium')">Assinar Premium</button>
+              <ul class="plano-lista">
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Contas ilimitadas</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Cripto ao vivo</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Importar OFX/CSV</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Metas e recorrências ilimitadas</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Gráfico diário e por data</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Exportar relatórios</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Suporte priorizado</li>
+              </ul>
+            </div>
+
+            <!-- Master -->
+            <div class="plano-card plano-card-master">
+              <div class="plano-selo plano-selo-master">Topo</div>
+              <div class="plano-nome">Master</div>
+              <div class="plano-preco">
+                <span class="plano-preco-moeda">R$</span>
+                <span class="plano-preco-valor" data-mensal="29,90" data-anual="25,90">29,90</span>
+                <span class="plano-preco-ciclo">/mês</span>
+              </div>
+              <div class="plano-preco-nota" data-mensal="cobrado mensalmente" data-anual="R$ 310,80/ano — economize R$ 48">cobrado mensalmente</div>
+              <button class="plano-btn plano-btn-primario" onclick="assinarPlano('master')">Assinar Master</button>
+              <ul class="plano-lista">
+                <li class="plano-item-tudo">Tudo do Premium, mais:</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> IA financeira tirando dúvidas</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Análise dos seus gastos com IA</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Dicas personalizadas</li>
+                <li class="plano-item-embreve"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg> Conectar bancos <span class="plano-badge-breve">em breve</span></li>
+              </ul>
+            </div>
+
+          </div>
+
+          <p class="planos-rodape">Cancele quando quiser. Pagamento seguro processado pelo Asaas.</p>
         </div>
       </section>
 
@@ -1419,6 +1529,7 @@
       <div class="lp-nav-links">
         <a href="#recursos">Recursos</a>
         <a href="#como">Como funciona</a>
+        <a href="#planos">Planos</a>
         <a href="#faq">Dúvidas</a>
       </div>
       <button class="lp-btn-nav" onclick="abrirAuth('login')">Entrar</button>
@@ -1430,18 +1541,19 @@
     <div class="lp-hero-content reveal">
       <p class="lp-eyebrow">Controle financeiro pessoal</p>
       <h1 class="lp-title">
-        Seu dinheiro,<br>
-        <span class="lp-title-accent">sem surpresa</span> no fim do mês.
+        Você trabalha o mês todo.<br>
+        <span class="lp-title-accent">Cadê o dinheiro?</span>
       </h1>
       <p class="lp-sub">
-        Registre o que entra e o que sai. Veja o que já está comprometido.
-        Saiba quanto realmente sobra — antes de gastar.
+        Chega de abrir o app do banco e não entender pra onde foi. O FAZ organiza
+        sua vida financeira sem planilha, sem complicação — e mostra, em segundos,
+        quanto você <strong>realmente</strong> pode gastar hoje.
       </p>
       <div class="lp-cta-row">
-        <button class="lp-btn-primary" onclick="abrirAuth('cadastro')">Criar conta grátis</button>
+        <button class="lp-btn-primary" onclick="abrirAuth('cadastro')">Começar grátis agora</button>
         <button class="lp-btn-ghost" onclick="rolarPara('como')">Ver como funciona</button>
       </div>
-      <p class="lp-nota">Sem cartão de crédito. Seus dados são só seus.</p>
+      <p class="lp-nota">Grátis pra sempre no plano básico. Sem cartão de crédito.</p>
     </div>
 
     <!-- SIGNATURE: o painel que se recalcula ao vivo -->
@@ -1475,6 +1587,38 @@
       </div>
     </div>
   </header>
+
+  <!-- FAIXA DE BENEFÍCIOS RÁPIDOS -->
+  <section class="lp-tira reveal">
+    <div class="lp-tira-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+      <div>
+        <div class="lp-tira-t">2 minutos pra começar</div>
+        <div class="lp-tira-d">Sem configuração chata</div>
+      </div>
+    </div>
+    <div class="lp-tira-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8l7-5 7 5"/></svg>
+      <div>
+        <div class="lp-tira-t">Lançamento em texto</div>
+        <div class="lp-tira-d">"gastei 50 no mercado"</div>
+      </div>
+    </div>
+    <div class="lp-tira-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+      <div>
+        <div class="lp-tira-t">O fixo se repete sozinho</div>
+        <div class="lp-tira-d">Cadastra uma vez só</div>
+      </div>
+    </div>
+    <div class="lp-tira-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+      <div>
+        <div class="lp-tira-t">Sem senha do banco</div>
+        <div class="lp-tira-d">Seus dados são só seus</div>
+      </div>
+    </div>
+  </section>
 
   <!-- O PROBLEMA -->
   <section class="lp-secao lp-problema">
@@ -1593,6 +1737,59 @@
     </div>
   </section>
 
+  <!-- PLANOS -->
+  <section class="lp-secao lp-planos-secao" id="planos">
+    <div class="lp-secao-head reveal">
+      <p class="lp-eyebrow">Planos</p>
+      <h2 class="lp-h2">Comece de graça.<br>Cresça quando quiser.</h2>
+    </div>
+
+    <div class="lp-planos-grid">
+      <div class="lp-plano reveal">
+        <div class="lp-plano-nome">Básico</div>
+        <div class="lp-plano-preco"><span class="lp-plano-valor">Grátis</span></div>
+        <div class="lp-plano-nota">para sempre</div>
+        <button class="lp-plano-btn lp-plano-btn-ghost" onclick="abrirAuth('cadastro')">Criar conta grátis</button>
+        <ul class="lp-plano-lista">
+          <li>Até 3 contas</li>
+          <li>Lançamentos manuais</li>
+          <li>Dashboard e categorias</li>
+          <li>Metas básicas</li>
+        </ul>
+      </div>
+
+      <div class="lp-plano lp-plano-destaque reveal">
+        <div class="lp-plano-selo">Mais popular</div>
+        <div class="lp-plano-nome">Premium</div>
+        <div class="lp-plano-preco"><span class="lp-plano-moeda">R$</span><span class="lp-plano-valor">19,90</span><span class="lp-plano-ciclo">/mês</span></div>
+        <div class="lp-plano-nota">ou R$ 17,90/mês no anual</div>
+        <button class="lp-plano-btn lp-plano-btn-primary" onclick="abrirAuth('cadastro')">Assinar Premium</button>
+        <ul class="lp-plano-lista">
+          <li>Contas ilimitadas</li>
+          <li>Cripto ao vivo</li>
+          <li>Importar OFX/CSV</li>
+          <li>Metas e recorrências ilimitadas</li>
+          <li>Suporte priorizado</li>
+        </ul>
+      </div>
+
+      <div class="lp-plano lp-plano-master reveal">
+        <div class="lp-plano-selo lp-plano-selo-master">Topo</div>
+        <div class="lp-plano-nome">Master</div>
+        <div class="lp-plano-preco"><span class="lp-plano-moeda">R$</span><span class="lp-plano-valor">29,90</span><span class="lp-plano-ciclo">/mês</span></div>
+        <div class="lp-plano-nota">ou R$ 25,90/mês no anual</div>
+        <button class="lp-plano-btn lp-plano-btn-master" onclick="abrirAuth('cadastro')">Assinar Master</button>
+        <ul class="lp-plano-lista">
+          <li class="lp-plano-tudo">Tudo do Premium, mais:</li>
+          <li>IA financeira tirando dúvidas</li>
+          <li>Análise dos seus gastos com IA</li>
+          <li>Dicas personalizadas</li>
+        </ul>
+      </div>
+    </div>
+    <p class="lp-planos-rodape">Todos os planos começam com a conta grátis. Você faz o upgrade dentro do app quando quiser.</p>
+  </section>
+
   <!-- FAQ -->
   <section class="lp-secao" id="faq">
     <div class="lp-secao-head reveal">
@@ -1628,7 +1825,7 @@
 
       <details class="lp-faq-item reveal">
         <summary>É grátis?</summary>
-        <p>Você pode criar sua conta e usar sem custo. Se no futuro houver planos pagos, quem já usa será avisado com antecedência.</p>
+        <p>O plano Básico é grátis pra sempre e já resolve o essencial. Se quiser cripto ao vivo, contas ilimitadas e recursos avançados, tem o Premium e o Master — mas você só paga se quiser, e faz o upgrade dentro do app.</p>
       </details>
     </div>
   </section>
