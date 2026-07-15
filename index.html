@@ -19,6 +19,9 @@
   <div class="layout" id="appLayout" style="display:none">
 
     <aside class="sidebar">
+      <button class="sidebar-toggle" id="sidebarToggle" title="Recolher menu" aria-label="Recolher menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
       <div class="brand">
         <div class="brand-icon brand-icon-logo">
           <svg class="faz-setas" viewBox="0 0 26 28" fill="none" aria-hidden="true">
@@ -154,8 +157,14 @@
         <!-- Alerta de contas próximas/atrasadas -->
         <div id="alertaVencimentos" class="alerta-venc" style="display:none"></div>
         <div class="panel" style="margin-bottom:16px">
-          <div class="panel-header">
-            <h3 class="panel-title">Evolução do saldo (últimos 6 meses)</h3>
+          <div class="panel-header panel-header-stack">
+            <h3 class="panel-title" id="tituloEvolucao">Evolução do saldo</h3>
+            <div class="periodo-chips" id="periodoEvolucao">
+              <button type="button" class="periodo-chip" data-meses="3">3 meses</button>
+              <button type="button" class="periodo-chip ativo" data-meses="6">6 meses</button>
+              <button type="button" class="periodo-chip" data-meses="12">12 meses</button>
+              <button type="button" class="periodo-chip" data-meses="0">Tudo</button>
+            </div>
           </div>
           <div style="height:220px;position:relative;">
             <canvas id="chartEvolucao"></canvas>
@@ -250,8 +259,8 @@
           <form id="formTexto" class="lanc-form">
             <div class="lanc-linha-texto">
               <label for="textoLivre" class="lanc-label">O que aconteceu?</label>
-              <textarea id="textoLivre" rows="2" placeholder="Ex: gastei 200 no mercado &nbsp;·&nbsp; recebi 1500 de salário" required></textarea>
-              <p class="lanc-dica">O app identifica o valor, o tipo e a categoria automaticamente.</p>
+              <textarea id="textoLivre" rows="2" placeholder="Ex: +1500 salário  -1000 aluguel  -50 uber" required></textarea>
+              <p class="lanc-dica">Use <strong>+</strong> para entradas e <strong>−</strong> para gastos. Pode lançar vários de uma vez: <span class="lanc-exemplo">+1500 salário -1000 aluguel</span></p>
             </div>
 
             <div class="lanc-linha-campos">
@@ -522,91 +531,121 @@
       <!-- METAS -->
       <section class="screen" id="screen-metas">
         <div class="page-header">
-          <p class="page-eyebrow">Orçamento</p>
-          <h2 class="page-title">Metas por Categoria</h2>
+          <p class="page-eyebrow">Planejamento</p>
+          <h2 class="page-title">Metas e Objetivos</h2>
         </div>
 
-        <!-- Objetivos de economia -->
-        <div class="form-panel">
-          <div class="form-panel-title">Novo objetivo de economia</div>
-          <form id="formObjetivo" class="form-grid form-grid-objetivo">
-            <div class="field">
-              <label for="objNome">Objetivo</label>
-              <input type="text" id="objNome" placeholder="Ex: Carro, Apartamento, Viagem" required />
+        <!-- Duas abas: são coisas diferentes -->
+        <div class="meta-abas" id="metaAbas">
+          <button type="button" class="meta-aba ativo" data-aba="limites">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 12l5-3"/><path d="M12 2v4"/></svg>
+            <div>
+              <span class="meta-aba-titulo">Limites de gasto</span>
+              <span class="meta-aba-sub">Não passar do orçamento</span>
             </div>
-            <div class="field">
-              <label for="objIcone">Ícone</label>
-              <select id="objIcone">
-                <option value="🎯">🎯 Geral</option>
-                <option value="🚗">🚗 Carro</option>
-                <option value="🏠">🏠 Imóvel</option>
-                <option value="✈️">✈️ Viagem</option>
-                <option value="🎓">🎓 Estudos</option>
-                <option value="💍">💍 Casamento</option>
-                <option value="📱">📱 Eletrônico</option>
-                <option value="🛡️">🛡️ Reserva</option>
-                <option value="💰">💰 Dinheiro</option>
-              </select>
+          </button>
+          <button type="button" class="meta-aba" data-aba="objetivos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="3.5"/><line x1="12" y1="8.5" x2="12" y2="9.5"/></svg>
+            <div>
+              <span class="meta-aba-titulo">Objetivos</span>
+              <span class="meta-aba-sub">Juntar para algo</span>
             </div>
-            <div class="field">
-              <label for="objAlvo">Valor alvo (R$)</label>
-              <input type="number" id="objAlvo" step="0.01" min="1" placeholder="0,00" required />
-            </div>
-            <div class="field">
-              <label for="objAtual">Já tenho (R$)</label>
-              <input type="number" id="objAtual" step="0.01" min="0" placeholder="0,00" />
-            </div>
-            <div class="field">
-              <label for="objPrazoTipo">Prazo por</label>
-              <select id="objPrazoTipo">
-                <option value="data">Data alvo</option>
-                <option value="dias">Nº de dias</option>
-              </select>
-            </div>
-            <div class="field" id="fieldObjData">
-              <label for="objData">Data alvo</label>
-              <input type="date" id="objData"  min="2000-01-01" max="2100-12-31" />
-            </div>
-            <div class="field hidden-filter" id="fieldObjDias">
-              <label for="objDias">Em quantos dias</label>
-              <input type="number" id="objDias" min="1" placeholder="Ex: 90" />
-            </div>
-            <div class="field field-button">
-              <button type="submit" class="btn-primary">Criar objetivo</button>
-            </div>
-          </form>
+          </button>
         </div>
 
-        <div class="panel">
-          <div class="panel-header"><h3 class="panel-title">Meus objetivos</h3></div>
-          <div id="listaObjetivos" class="lista-container"><div class="empty-state">Nenhum objetivo cadastrado ainda.</div></div>
+        <!-- ═══ OBJETIVOS ═══ -->
+        <div class="meta-painel" id="painelObjetivos">
+
+          <div class="form-panel">
+            <div class="form-panel-title">Novo objetivo</div>
+            <p class="form-panel-desc">Um carro, uma viagem, uma reserva de emergência. Defina quanto quer juntar e até quando — o app calcula o quanto guardar por mês.</p>
+
+            <form id="formObjetivo" class="obj-form">
+              <div class="obj-campos">
+                <div class="field field-obj-nome">
+                  <label for="objNome">O que você quer</label>
+                  <input type="text" id="objNome" placeholder="Ex: Viagem, Carro, Reserva" required />
+                </div>
+                <div class="field field-obj-icone">
+                  <label for="objIcone">Ícone</label>
+                  <select id="objIcone">
+                    <option value="geral">Geral</option>
+                    <option value="carro">Carro</option>
+                    <option value="viagem">Viagem</option>
+                    <option value="casa">Casa</option>
+                    <option value="estudos">Estudos</option>
+                    <option value="casamento">Casamento</option>
+                    <option value="reserva">Reserva de emergência</option>
+                    <option value="eletronico">Eletrônico</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="objAlvo">Quanto custa (R$)</label>
+                  <input type="number" id="objAlvo" step="0.01" min="0.01" placeholder="0,00" required />
+                </div>
+                <div class="field">
+                  <label for="objAtual">Já tenho (R$)</label>
+                  <input type="number" id="objAtual" step="0.01" min="0" placeholder="0,00" />
+                </div>
+                <div class="field">
+                  <label for="objData">Até quando</label>
+                  <input type="date" id="objData" min="2000-01-01" max="2100-12-31" required />
+                </div>
+                <div class="field field-button">
+                  <button type="submit" class="btn-primary">Criar objetivo</button>
+                </div>
+              </div>
+              <input type="hidden" id="objPrazoTipo" value="data" />
+              <input type="hidden" id="objDias" value="" />
+              <p class="obj-preview" id="objPreview"></p>
+            </form>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header"><h3 class="panel-title">Meus objetivos</h3></div>
+            <div id="listaObjetivos" class="lista-container"><div class="empty-state">Carregando...</div></div>
+          </div>
         </div>
-        <div class="form-panel">
-          <div class="form-panel-title">Definir meta mensal</div>
-          <form id="formMeta" class="form-grid form-grid-meta">
-            <div class="field">
-              <label for="metaCategoria">Categoria</label>
-              <select id="metaCategoria" required>
-                <option value="">Selecione</option>
-                <option value="Gasto importante">Gasto importante</option>
-                <option value="Lazer">Lazer</option>
-                <option value="Transporte">Transporte</option>
-                <option value="Compras">Compras</option>
-                <option value="Outros">Outros</option>
-              </select>
+
+        <!-- ═══ LIMITES ═══ -->
+        <div class="meta-painel" id="painelLimites" style="display:none">
+
+          <div class="form-panel">
+            <div class="form-panel-title">Novo limite de gasto</div>
+            <p class="form-panel-desc">Defina quanto pretende gastar por mês em cada categoria. O app avisa quando você se aproximar do limite.</p>
+
+            <form id="formMeta" class="limite-form">
+              <div class="field">
+                <label for="metaCategoria">Categoria</label>
+                <select id="metaCategoria" required>
+                  <option value="">Selecione</option>
+                  <option value="Alimentação">Alimentação</option>
+                  <option value="Transporte">Transporte</option>
+                  <option value="Lazer">Lazer</option>
+                  <option value="Compras">Compras</option>
+                  <option value="Saúde">Saúde</option>
+                  <option value="Casa">Casa</option>
+                  <option value="Gasto importante">Gasto importante</option>
+                  <option value="Outros">Outros</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="metaValor">Limite mensal (R$)</label>
+                <input type="number" id="metaValor" step="0.01" min="0.01" placeholder="Ex: 500,00" required />
+              </div>
+              <div class="field field-button">
+                <button type="submit" class="btn-primary">Salvar limite</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title">Gasto do mês</h3>
+              <span class="panel-sub" id="metaMesLabel"></span>
             </div>
-            <div class="field">
-              <label for="metaValor">Limite mensal (R$)</label>
-              <input type="number" id="metaValor" step="0.01" min="1" placeholder="Ex: 500,00" required />
-            </div>
-            <div class="field field-button">
-              <button type="submit" class="btn-primary">Salvar meta</button>
-            </div>
-          </form>
-        </div>
-        <div class="panel">
-          <div class="panel-header"><h3 class="panel-title">Progresso deste mês</h3></div>
-          <div id="listaMetas" class="lista-container"><div class="empty-state">Nenhuma meta cadastrada ainda.</div></div>
+            <div id="listaMetas" class="lista-container"><div class="empty-state">Carregando...</div></div>
+          </div>
         </div>
       </section>
 
@@ -617,201 +656,205 @@
           <h2 class="page-title">Investimentos</h2>
         </div>
 
-        <div class="cards-grid cards-grid-planilha">
-          <div class="info-card card-highlight">
-            <div class="card-label">Total investido</div>
-            <div class="card-value" id="invTotalInvestido">R$ 0,00</div>
-            <div class="card-desc">Soma de todos os aportes</div>
-          </div>
-          <div class="info-card">
-            <div class="card-label card-label-green">Rendimento projetado</div>
-            <div class="card-value" id="invTotalRendimento">R$ 0,00</div>
-            <div class="card-desc">Projeção com base nas taxas informadas (1 ano)</div>
-          </div>
-        </div>
-
-        <div class="form-panel">
-          <div class="form-panel-title">Novo investimento</div>
-          <form id="formInvestimento" class="form-grid form-grid-investimento">
-            <div class="field">
-              <label for="invTipo">Tipo de investimento</label>
-              <select id="invTipo" required>
-                <option value="">Selecione</option>
-                <optgroup label="Renda Fixa — rendimento previsível">
-                  <option value="CDB">CDB</option>
-                  <option value="CDI">CDI / LCI / LCA</option>
-                  <option value="Tesouro Selic">Tesouro Selic</option>
-                  <option value="Tesouro Prefixado">Tesouro Prefixado</option>
-                  <option value="Tesouro IPCA">Tesouro IPCA+</option>
-                  <option value="Poupança">Poupança</option>
-                  <option value="Fundo RF">Fundo de Renda Fixa</option>
-                </optgroup>
-                <optgroup label="Renda Variável — valor oscila">
-                  <option value="Ações">Ações</option>
-                  <option value="FII">Fundos Imobiliários (FII)</option>
-                  <option value="ETF">ETF</option>
-                  <option value="BDR">BDR</option>
-                  <option value="Cripto">Criptomoedas</option>
-                  <option value="Fundo Multi">Fundo Multimercado / Ações</option>
-                </optgroup>
-                <optgroup label="Bens Físicos">
-                  <option value="Imóvel">Imóvel</option>
-                  <option value="Ouro">Ouro / Metais</option>
-                  <option value="Físico">Outro bem físico</option>
-                </optgroup>
-                <optgroup label="Outro">
-                  <option value="Outro">Outro (especificar)</option>
-                </optgroup>
-              </select>
+        <!-- Abas: Carteira | Simulador -->
+        <div class="meta-abas" id="invAbas">
+          <button type="button" class="meta-aba ativo" data-aba="carteira">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
+            <div>
+              <span class="meta-aba-titulo">Minha carteira</span>
+              <span class="meta-aba-sub">Onde seu dinheiro está</span>
             </div>
-            <div class="field hidden-filter" id="fieldInvTipoOutro">
-              <label for="invTipoOutro">Qual investimento?</label>
-              <input type="text" id="invTipoOutro" placeholder="Ex: Debênture, COE, Ouro..." />
-            </div>
-            <div class="field">
-              <label for="invConta">Instituição / Conta</label>
-              <select id="invConta"></select>
-            </div>
-            <div class="field">
-              <label for="invApelido">Apelido <span class="label-opt">(opcional)</span></label>
-              <input type="text" id="invApelido" placeholder="Ex: Reserva de emergência" />
-            </div>
-            <div class="field">
-              <label for="invValor">Valor aplicado (R$)</label>
-              <input type="number" id="invValor" step="0.01" min="0.01" placeholder="0,00" required />
-            </div>
-            <!-- RENDA FIXA: taxa contratada -->
-            <div class="field campo-rf">
-              <label for="invTaxa">Rendimento (%)</label>
-              <input type="number" id="invTaxa" step="0.01" min="0" placeholder="Ex: 12" />
-            </div>
-            <div class="field campo-rf">
-              <label for="invTaxaPeriodo">Por período</label>
-              <select id="invTaxaPeriodo">
-                <option value="ano">Ao ano</option>
-                <option value="mes">Ao mês</option>
-                <option value="dia">Ao dia</option>
-              </select>
-            </div>
-            <div class="field campo-rf">
-              <label for="invRegime">Regime</label>
-              <select id="invRegime">
-                <option value="composto">Juros compostos</option>
-                <option value="simples">Juros simples</option>
-              </select>
-            </div>
-
-            <!-- RENDA VARIÁVEL: quanto vale hoje -->
-            <div class="field campo-rv hidden-filter">
-              <label for="invValorAtual">Vale hoje (R$) <span class="label-opt">(opcional)</span></label>
-              <input type="number" id="invValorAtual" step="0.01" min="0" placeholder="Deixe vazio se não sabe" />
-            </div>
-            <div class="field campo-rv campo-dividendos hidden-filter">
-              <label for="invRendaPassiva">Dividendos (% a.a.) <span class="label-opt">(opcional)</span></label>
-              <input type="number" id="invRendaPassiva" step="0.01" min="0" placeholder="Ex: 8" />
-            </div>
-
-            <div class="field field-button">
-              <button type="submit" class="btn-primary">Adicionar</button>
-            </div>
-          </form>
-
-          <!-- Aviso contextual sobre o tipo escolhido -->
-          <div id="avisoTipo" class="aviso-tipo" style="display:none"></div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header"><h3 class="panel-title">Meus investimentos</h3></div>
-          <div id="listaInvestimentos" class="lista-container"><div class="empty-state">Nenhum investimento cadastrado ainda.</div></div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header"><h3 class="panel-title">Total por instituição</h3></div>
-          <div id="resumoInstituicoes" class="lista-container"><div class="empty-state">Nenhum investimento cadastrado ainda.</div></div>
-        </div>
-
-        <div class="form-panel form-panel-collapsible" id="painelSimulador">
-          <button type="button" class="collapsible-header" id="toggleSimulador" aria-expanded="false" aria-controls="conteudoSimulador">
-            <span class="collapsible-title">🧮 Simulador de rendimento</span>
-            <span class="collapsible-hint">Calcule quanto seu dinheiro rende</span>
-            <svg class="collapsible-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </button>
-          <div class="collapsible-body" id="conteudoSimulador">
-           <div class="collapsible-inner">
-          <form id="formSimulador" class="form-grid form-grid-simulador">
-            <div class="field">
-              <label for="simValor">Valor inicial (R$)</label>
-              <input type="number" id="simValor" step="0.01" min="0" placeholder="0,00" required />
+          <button type="button" class="meta-aba" data-aba="simulador">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="10" y2="11"/><line x1="14" y1="11" x2="16" y2="11"/><line x1="8" y1="16" x2="10" y2="16"/></svg>
+            <div>
+              <span class="meta-aba-titulo">Simulador</span>
+              <span class="meta-aba-sub">Projete o rendimento</span>
             </div>
-            <div class="field">
-              <label for="simAporte">Aporte mensal (R$)</label>
-              <input type="number" id="simAporte" step="0.01" min="0" placeholder="0,00 (opcional)" />
-            </div>
-            <div class="field">
-              <label for="simTaxa">Rendimento (%)</label>
-              <input type="number" id="simTaxa" step="0.01" min="0" placeholder="Ex: 12" required />
-            </div>
-            <div class="field">
-              <label for="simTaxaPeriodo">Por período</label>
-              <select id="simTaxaPeriodo">
-                <option value="ano">Ao ano</option>
-                <option value="mes">Ao mês</option>
-                <option value="dia">Ao dia</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="simRegime">Regime</label>
-              <select id="simRegime">
-                <option value="composto">Juros compostos</option>
-                <option value="simples">Juros simples</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="simTempo">Período</label>
-              <input type="number" id="simTempo" min="1" placeholder="Ex: 12" required />
-            </div>
-            <div class="field">
-              <label for="simTempoUnidade">Unidade</label>
-              <select id="simTempoUnidade">
-                <option value="mes">Meses</option>
-                <option value="ano">Anos</option>
-                <option value="dia">Dias</option>
-              </select>
-            </div>
-            <div class="field field-button">
-              <button type="submit" class="btn-primary">Calcular</button>
-            </div>
-          </form>
+          </button>
+        </div>
 
-          <div id="simuladorResultado" style="display:none; margin-top:20px;">
-            <div class="cards-grid cards-grid-planilha" style="margin-bottom:16px;">
-              <div class="info-card">
-                <div class="card-label">Total investido</div>
-                <div class="card-value card-value-sm" id="simInvestido">R$ 0,00</div>
-                <div class="card-desc">Valor inicial + aportes</div>
+        <!-- ═══ CARTEIRA ═══ -->
+        <div class="inv-painel" id="painelCarteira">
+
+          <div class="inv-resumo">
+            <div class="inv-resumo-card inv-resumo-principal">
+              <div class="inv-resumo-topo">
+                <span class="inv-resumo-label">Total investido</span>
+                <span class="inv-resumo-icone">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
+                </span>
               </div>
-              <div class="info-card">
-                <div class="card-label card-label-green">Juros ganhos</div>
-                <div class="card-value card-value-sm" id="simJuros">R$ 0,00</div>
-                <div class="card-desc">Só o rendimento</div>
-              </div>
-              <div class="info-card card-highlight">
-                <div class="card-label">Valor final</div>
-                <div class="card-value card-value-sm" id="simFinal">R$ 0,00</div>
-                <div class="card-desc">Montante total no fim do período</div>
-              </div>
+              <div class="inv-resumo-valor" id="invTotalInvestido">R$ 0,00</div>
+              <div class="inv-resumo-desc">Soma de todos os aportes</div>
             </div>
-            <div class="panel">
-              <div class="panel-header"><h3 class="panel-title">Evolução do investimento</h3></div>
-              <div style="height:260px;position:relative;">
-                <canvas id="chartSimulador"></canvas>
+            <div class="inv-resumo-card">
+              <div class="inv-resumo-topo">
+                <span class="inv-resumo-label">Rendimento projetado</span>
+                <span class="inv-resumo-icone inv-resumo-icone-verde">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                </span>
               </div>
+              <div class="inv-resumo-valor valor-positivo" id="invTotalRendimento">R$ 0,00</div>
+              <div class="inv-resumo-desc">Projeção com base nas taxas (1 ano)</div>
             </div>
           </div>
-           </div>
+
+          <div class="form-panel">
+            <div class="form-panel-title">Novo investimento</div>
+            <p class="form-panel-desc">Registre onde seu dinheiro está aplicado. O app soma tudo e projeta o rendimento com base na taxa que você informar.</p>
+
+            <form id="formInvestimento" class="inv-form">
+              <div class="inv-bloco">
+                <span class="inv-bloco-titulo">O investimento</span>
+                <div class="inv-campos inv-campos-oque">
+                  <div class="field">
+                    <label for="invTipo">Tipo</label>
+                    <select id="invTipo" required>
+                      <option value="">Selecione</option>
+                      <optgroup label="Renda fixa — % do CDI">
+                        <option value="CDB">CDB</option>
+                        <option value="LCI/LCA">LCI / LCA (isento de IR)</option>
+                        <option value="Fundo DI">Fundo DI</option>
+                        <option value="Tesouro Selic">Tesouro Selic</option>
+                      </optgroup>
+                      <optgroup label="Renda fixa — taxa fixa">
+                        <option value="CDB Prefixado">CDB Prefixado</option>
+                        <option value="Tesouro Prefixado">Tesouro Prefixado</option>
+                        <option value="Tesouro IPCA">Tesouro IPCA+</option>
+                        <option value="Poupança">Poupança</option>
+                      </optgroup>
+                      <optgroup label="Renda variável">
+                        <option value="Ações">Ações</option>
+                        <option value="FII">Fundos Imobiliários (FII)</option>
+                        <option value="ETF">ETF</option>
+                        <option value="BDR">BDR</option>
+                        <option value="Cripto">Criptomoedas</option>
+                        <option value="Fundo Multi">Fundo Multimercado</option>
+                        <option value="Ouro">Ouro</option>
+                        <option value="Imóvel">Imóvel</option>
+                      </optgroup>
+                      <option value="Outro">Outro</option>
+                    </select>
+                  </div>
+                  <div class="field hidden-filter" id="fieldInvTipoOutro">
+                    <label for="invTipoOutro">Qual?</label>
+                    <input type="text" id="invTipoOutro" placeholder="Nome do investimento" />
+                  </div>
+                  <div class="field hidden-filter" id="fieldInvCripto">
+                    <label for="invCripto">Moeda</label>
+                    <select id="invCripto">
+                      <option value="">Selecione</option>
+                    </select>
+                  </div>
+                  <div class="field hidden-filter" id="fieldInvCriptoQtd">
+                    <label for="invCriptoQtd">Quantidade</label>
+                    <input type="number" id="invCriptoQtd" step="0.00000001" min="0" placeholder="Ex: 0.05" />
+                  </div>
+                  <div class="field">
+                    <label for="invApelido">Apelido <span class="label-opt">— opcional</span></label>
+                    <input type="text" id="invApelido" placeholder="Ex: Reserva de emergência" />
+                  </div>
+                  <div class="field">
+                    <label for="invConta">Instituição <span class="label-opt">— opcional</span></label>
+                    <select id="invConta">
+                      <option value="">Não informar</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="inv-bloco">
+                <span class="inv-bloco-titulo" id="invBlocoValorTitulo">Valor e rendimento</span>
+                <div class="inv-campos inv-campos-valor">
+                  <div class="field">
+                    <label for="invValor">Valor aplicado (R$)</label>
+                    <input type="number" id="invValor" step="0.01" min="0" placeholder="0,00" required />
+                  </div>
+                  <div class="field">
+                    <label for="invTaxa" id="invTaxaLabel">Rendimento (%)</label>
+                    <input type="number" id="invTaxa" step="0.01" min="0" placeholder="Ex: 12" />
+                  </div>
+                  <div class="field">
+                    <label for="invTaxaPeriodo">Por período</label>
+                    <select id="invTaxaPeriodo">
+                      <option value="ano">Ao ano</option>
+                      <option value="mes">Ao mês</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="invRegime">Regime</label>
+                    <select id="invRegime">
+                      <option value="composto">Juros compostos</option>
+                      <option value="simples">Juros simples</option>
+                    </select>
+                  </div>
+                  <div class="field field-button">
+                    <button type="submit" class="btn-primary">Adicionar</button>
+                  </div>
+                </div>
+              </div>
+
+              <p class="cripto-dica" id="invCriptoDica"></p>
+              <p class="cripto-dica" id="invCdiDica"></p>
+              <div class="inv-aviso-tipo" id="invAvisoTipo" style="display:none"></div>
+              <input type="hidden" id="invValorAtual" />
+              <input type="hidden" id="invRendaPassiva" />
+            </form>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header inv-lista-head">
+              <h3 class="panel-title">Meus investimentos</h3>
+              <button type="button" class="btn-atualizar-cripto" id="btnAtualizarCripto" title="Atualizar preços" style="display:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg>
+                <span id="criptoAtualizadoEm">Atualizar</span>
+              </button>
+            </div>
+            <div id="listaInvestimentos" class="lista-container"><div class="empty-state">Nenhum investimento cadastrado ainda.</div></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header"><h3 class="panel-title">Total por instituição</h3></div>
+            <div id="resumoInstituicoes" class="lista-container"><div class="empty-state">Nenhum investimento cadastrado ainda.</div></div>
+          </div>
+        </div>
+
+        <!-- ═══ SIMULADOR ═══ -->
+        <div class="inv-painel" id="painelSimulador" style="display:none">
+          <div class="form-panel">
+            <div class="form-panel-title">Simulador de rendimento</div>
+            <p class="form-panel-desc">Descubra quanto seu dinheiro rende ao longo do tempo. Informe o valor inicial, aportes mensais e a taxa — o app projeta o crescimento.</p>
+
+            <form id="formSimulador" class="form-grid form-grid-simulador">
+              <div class="field"><label for="simValor">Valor inicial (R$)</label><input type="number" id="simValor" step="0.01" min="0" placeholder="0,00" /></div>
+              <div class="field"><label for="simAporte">Aporte mensal (R$)</label><input type="number" id="simAporte" step="0.01" min="0" placeholder="0,00 (opcional)" /></div>
+              <div class="field"><label for="simTaxa">Rendimento (%)</label><input type="number" id="simTaxa" step="0.01" min="0" placeholder="Ex: 12" required /></div>
+              <div class="field"><label for="simTaxaPeriodo">Por período</label><select id="simTaxaPeriodo"><option value="ano">Ao ano</option><option value="mes">Ao mês</option></select></div>
+              <div class="field"><label for="simRegime">Regime</label><select id="simRegime"><option value="composto">Juros compostos</option><option value="simples">Juros simples</option></select></div>
+              <div class="field"><label for="simTempo">Período</label><input type="number" id="simTempo" min="1" placeholder="Ex: 12" required /></div>
+              <div class="field"><label for="simTempoUnidade">Unidade</label><select id="simTempoUnidade"><option value="mes">Meses</option><option value="ano">Anos</option></select></div>
+              <div class="field field-button"><button type="submit" class="btn-primary">Calcular</button></div>
+            </form>
+
+            <div id="simuladorResultado" style="display:none; margin-top:20px;">
+              <div class="sim-cards">
+                <div class="sim-card"><div class="sim-card-label">Você investe</div><div class="sim-card-valor" id="simInvestido">R$ 0,00</div></div>
+                <div class="sim-card"><div class="sim-card-label">Rende</div><div class="sim-card-valor valor-positivo" id="simJuros">R$ 0,00</div></div>
+                <div class="sim-card sim-card-total"><div class="sim-card-label">Total final</div><div class="sim-card-valor" id="simFinal">R$ 0,00</div></div>
+              </div>
+              <div class="panel" style="margin-top:16px;">
+                <div class="panel-header"><h3 class="panel-title">Evolução do investimento</h3></div>
+                <div style="height:260px;position:relative;">
+                  <canvas id="chartSimulador"></canvas>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
+
+
 
       <!-- PLANILHA -->
       <section class="screen" id="screen-planilha">
@@ -819,11 +862,12 @@
           <p class="page-eyebrow">Análise</p>
           <h2 class="page-title">Planilha Financeira</h2>
         </div>
+
         <div class="form-panel">
           <div class="form-panel-title">Filtrar período</div>
           <form id="formFiltrosPlanilha" class="form-grid form-grid-filtro">
             <div class="field">
-              <label for="tipoFiltro">Tipo de filtro</label>
+              <label for="tipoFiltro">Período</label>
               <select id="tipoFiltro">
                 <option value="todos">Todos</option>
                 <option value="dia">Por dia</option>
@@ -831,54 +875,95 @@
                 <option value="ano">Por ano</option>
               </select>
             </div>
-            <div class="field" id="fieldFiltroDia"><label for="filtroDia">Dia</label><input type="date" id="filtroDia"  min="2000-01-01" max="2100-12-31" /></div>
-            <div class="field" id="fieldFiltroMes"><label for="filtroMes">Mês</label><input type="month" id="filtroMes" /></div>
-            <div class="field" id="fieldFiltroAno"><label for="filtroAno">Ano</label><input type="number" id="filtroAno" min="2000" max="2100" placeholder="2026" /></div>
+            <div class="field hidden-filter" id="fieldFiltroDia"><label for="filtroDia">Dia</label><input type="date" id="filtroDia" min="2000-01-01" max="2100-12-31" /></div>
+            <div class="field hidden-filter" id="fieldFiltroMes"><label for="filtroMes">Mês</label><input type="month" id="filtroMes" /></div>
+            <div class="field hidden-filter" id="fieldFiltroAno"><label for="filtroAno">Ano</label><input type="number" id="filtroAno" min="2000" max="2100" placeholder="2026" /></div>
             <div class="field field-button"><button type="button" id="limparFiltros" class="btn-ghost">Limpar filtros</button></div>
           </form>
         </div>
-        <div class="cards-grid cards-grid-planilha">
-          <div class="info-card">
-            <div class="card-label">Saldo do período</div>
-            <div class="card-value" id="saldoTotalPlanilha">R$ 0,00</div>
-            <div class="card-desc">Com base no filtro aplicado</div>
+
+        <!-- Destaques -->
+        <div class="plan-destaques">
+          <div class="plan-card plan-card-saldo">
+            <div class="plan-card-label">Saldo do período</div>
+            <div class="plan-card-valor" id="saldoTotalPlanilha">R$ 0,00</div>
+            <div class="plan-card-sub" id="saldoPlanilhaSub">Com base no filtro aplicado</div>
           </div>
-          <div class="info-card">
-            <div class="card-label">Maior categoria de gasto</div>
-            <div class="card-value card-value-sm" id="maiorCategoriaGasto">—</div>
-            <div class="card-desc">Categoria com maior saída no período</div>
+          <div class="plan-card">
+            <div class="plan-card-label">Entrou</div>
+            <div class="plan-card-valor valor-positivo" id="entrouPlanilha">R$ 0,00</div>
+            <div class="plan-card-sub" id="entrouPlanilhaSub">—</div>
+          </div>
+          <div class="plan-card">
+            <div class="plan-card-label">Saiu</div>
+            <div class="plan-card-valor valor-negativo" id="saiuPlanilha">R$ 0,00</div>
+            <div class="plan-card-sub" id="saiuPlanilhaSub">—</div>
+          </div>
+          <div class="plan-card">
+            <div class="plan-card-label">Maior gasto</div>
+            <div class="plan-card-valor plan-card-valor-sm" id="maiorCategoriaGasto">—</div>
+            <div class="plan-card-sub" id="maiorCategoriaSub">Categoria com maior saída</div>
           </div>
         </div>
-        <div class="dashboard-grid">
-          <div class="panel"><div class="panel-header"><h3 class="panel-title">Por categoria</h3></div><div id="resumoCategorias" class="lista-container"><div class="empty-state">Nenhuma movimentação registrada ainda.</div></div></div>
-          <div class="panel"><div class="panel-header"><h3 class="panel-title">Por conta</h3></div><div id="resumoContas" class="lista-container"><div class="empty-state">Nenhuma conta cadastrada ainda.</div></div></div>
-          <div class="panel"><div class="panel-header"><h3 class="panel-title">Gastos por categoria</h3></div><div class="chart-perfect-wrap"><canvas id="chartCategoriasPlanilha"></canvas></div></div>
-          <div class="panel"><div class="panel-header"><h3 class="panel-title">Entradas × Gastos</h3></div><div class="chart-perfect-wrap"><canvas id="chartFluxoPlanilha"></canvas></div></div>
-          <div class="panel full-width">
-            <div class="panel-header panel-header-stack">
-              <h3 class="panel-title">Tabela de movimentações</h3>
-              <div class="table-filters">
-                <div class="field field-inline">
-                  <label for="filtroCategoriaTabela">Filtrar categoria</label>
-                  <select id="filtroCategoriaTabela">
-                    <option value="todas">Todas</option>
-                    <option value="Entrada">Entrada</option>
-                    <option value="Gasto importante">Gasto importante</option>
-                    <option value="Lazer">Lazer</option>
-                    <option value="Transporte">Transporte</option>
-                    <option value="Compras">Compras</option>
-                    <option value="Outros">Outros</option>
-                  </select>
-                </div>
-                <button id="exportarCSVPlanilha" class="btn-ghost" type="button">⬇ Exportar CSV</button>
+
+        <!-- Gráficos de rosca -->
+        <div class="plan-graficos">
+          <div class="panel plan-grafico-panel">
+            <div class="panel-header"><h3 class="panel-title">Para onde vai o dinheiro</h3></div>
+            <div class="plan-donut-wrap">
+              <div class="plan-donut"><canvas id="chartCategoriasPlanilha"></canvas></div>
+              <div class="plan-legenda" id="legendaCategorias"></div>
+            </div>
+          </div>
+          <div class="panel plan-grafico-panel">
+            <div class="panel-header"><h3 class="panel-title">Entradas × Gastos</h3></div>
+            <div class="plan-donut-wrap">
+              <div class="plan-donut"><canvas id="chartFluxoPlanilha"></canvas></div>
+              <div class="plan-legenda" id="legendaFluxo"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Listas -->
+        <div class="plan-listas">
+          <div class="panel">
+            <div class="panel-header"><h3 class="panel-title">Por categoria</h3></div>
+            <div id="resumoCategorias" class="lista-container"><div class="empty-state">Nenhuma movimentação para o filtro selecionado.</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><h3 class="panel-title">Por conta</h3></div>
+            <div id="resumoContas" class="lista-container"><div class="empty-state">Nenhuma movimentação para o filtro selecionado.</div></div>
+          </div>
+        </div>
+
+        <!-- Tabela -->
+        <div class="panel">
+          <div class="panel-header panel-header-stack">
+            <h3 class="panel-title">Tabela de movimentações</h3>
+            <div class="table-filters">
+              <div class="field field-inline">
+                <label for="filtroCategoriaTabela">Filtrar categoria</label>
+                <select id="filtroCategoriaTabela">
+                  <option value="todas">Todas</option>
+                  <option value="Entrada">Entrada</option>
+                  <option value="Gasto importante">Gasto importante</option>
+                  <option value="Lazer">Lazer</option>
+                  <option value="Transporte">Transporte</option>
+                  <option value="Compras">Compras</option>
+                  <option value="Outros">Outros</option>
+                </select>
               </div>
+              <button id="exportarCSVPlanilha" class="btn-secundario" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Exportar CSV</span>
+              </button>
             </div>
-            <div class="table-wrapper">
-              <table class="finance-table">
-                <thead><tr><th>Data</th><th>Descrição</th><th>Conta</th><th>Categoria</th><th>Tipo</th><th>Valor</th></tr></thead>
-                <tbody id="tabelaMovimentosBody"><tr><td colspan="6" class="table-empty">Nenhuma movimentação registrada ainda.</td></tr></tbody>
-              </table>
-            </div>
+          </div>
+          <div class="table-wrapper">
+            <table class="finance-table">
+              <thead><tr><th>Data</th><th>Descrição</th><th>Conta</th><th>Categoria</th><th>Tipo</th><th>Valor</th></tr></thead>
+              <tbody id="tabelaMovimentosBody"><tr><td colspan="6" class="table-empty">Nenhuma movimentação registrada ainda.</td></tr></tbody>
+            </table>
           </div>
         </div>
       </section>
@@ -943,7 +1028,7 @@
 
             <button class="conta-linha" onclick="abrirDocumento('assinatura')">
               <div class="conta-linha-esq">
-                <span class="conta-linha-icone">💳</span>
+                <span class="conta-linha-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span>
                 <div>
                   <div class="conta-linha-titulo">Assinatura</div>
                   <div class="conta-linha-desc">Você está no plano gratuito</div>
@@ -959,7 +1044,7 @@
 
             <button class="conta-linha" onclick="exportarTudoJSON()">
               <div class="conta-linha-esq">
-                <span class="conta-linha-icone">📥</span>
+                <span class="conta-linha-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
                 <div>
                   <div class="conta-linha-titulo">Exportar meus dados</div>
                   <div class="conta-linha-desc">Baixe uma cópia completa em JSON</div>
@@ -970,7 +1055,7 @@
 
             <button class="conta-linha" onclick="exportarTudoCSV()">
               <div class="conta-linha-esq">
-                <span class="conta-linha-icone">📊</span>
+                <span class="conta-linha-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
                 <div>
                   <div class="conta-linha-titulo">Exportar em CSV</div>
                   <div class="conta-linha-desc">Formato de planilha</div>
@@ -981,7 +1066,7 @@
 
             <button class="conta-linha" onclick="abrirDocumento('privacidade')">
               <div class="conta-linha-esq">
-                <span class="conta-linha-icone">🔒</span>
+                <span class="conta-linha-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
                 <div>
                   <div class="conta-linha-titulo">Política de Privacidade</div>
                   <div class="conta-linha-desc">Como tratamos seus dados</div>
@@ -992,7 +1077,7 @@
 
             <button class="conta-linha" onclick="abrirDocumento('termos')">
               <div class="conta-linha-esq">
-                <span class="conta-linha-icone">📄</span>
+                <span class="conta-linha-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></span>
                 <div>
                   <div class="conta-linha-titulo">Termos de Uso</div>
                   <div class="conta-linha-desc">Regras do serviço</div>
@@ -1008,7 +1093,7 @@
 
             <button class="conta-linha" onclick="pedirTrocaSenha()">
               <div class="conta-linha-esq">
-                <span class="conta-linha-icone">🔑</span>
+                <span class="conta-linha-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 0-7 7 5 5 0 0 0 7-7zm0 0L15 8m0 0l3 3m-3-3l2.5-2.5"/></svg></span>
                 <div>
                   <div class="conta-linha-titulo">Alterar senha</div>
                   <div class="conta-linha-desc">Enviaremos um link por e-mail</div>

@@ -867,15 +867,40 @@ function renderContasDashboard() {
     }).join("") + `</div>`;
 }
 
+let _periodoEvolucao = 6;   // meses; 0 = tudo
+
 function renderGraficoEvolucao() {
   if (chartEvolucao) chartEvolucao.destroy();
 
   const PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
   const hoje = new Date();
-  const meses = Array.from({length:6},(_,i)=>{
-    const d = new Date(hoje.getFullYear(), hoje.getMonth()-(5-i), 1);
+
+  // Quantos meses mostrar. "Tudo" = desde o primeiro movimento.
+  let qtdMeses = _periodoEvolucao;
+  if (qtdMeses === 0) {
+    if (state.movimentos.length) {
+      const datas = state.movimentos.map(m => m.data).filter(Boolean).sort();
+      const primeira = datas[0];
+      if (primeira) {
+        const anoP = Number(primeira.slice(0,4)), mesP = Number(primeira.slice(5,7));
+        qtdMeses = (hoje.getFullYear() - anoP) * 12 + (hoje.getMonth()+1 - mesP) + 1;
+      }
+    }
+    qtdMeses = Math.min(Math.max(qtdMeses || 6, 3), 36);   // entre 3 e 36 meses
+  }
+
+  const meses = Array.from({length:qtdMeses},(_,i)=>{
+    const d = new Date(hoje.getFullYear(), hoje.getMonth()-(qtdMeses-1-i), 1);
     return { ano:d.getFullYear(), mes:d.getMonth()+1, label:PT[d.getMonth()], ano2:String(d.getFullYear()).slice(2) };
   });
+
+  // Atualiza o título com o período
+  const tit = document.getElementById("tituloEvolucao");
+  if (tit) {
+    tit.textContent = _periodoEvolucao === 0
+      ? "Evolução do saldo (todo o histórico)"
+      : `Evolução do saldo (últimos ${_periodoEvolucao} meses)`;
+  }
 
   const dados = meses.map(({ano,mes}) => {
     const lim = ano*100+mes;
@@ -1250,33 +1275,55 @@ async function alternarAtivaRec(id) {
 
 function renderMetas() {
   if (!listaMetasEl) return;
-  if (!state.metas.length) {
-    listaMetasEl.innerHTML=`<div class="empty-state">Nenhuma meta cadastrada ainda.</div>`; return;
+
+  const lbl = document.getElementById("metaMesLabel");
+  if (lbl) {
+    const [a, m] = hojeISO().split("-").map(Number);
+    lbl.textContent = `${MESES_PT[m-1]} ${a}`;
   }
-  const mes = mesAtualISO();
-  const gastosMes = {};
-  state.movimentos.filter(m=>m.tipo==="gasto" && ehPago(m) && m.data.startsWith(mes))
-    .forEach(m=>{ gastosMes[m.categoria]=(gastosMes[m.categoria]||0)+m.valor; });
+
+  if (!state.metas.length) {
+    listaMetasEl.innerHTML = vazio(
+      ICO.alvo,
+      "Nenhum limite definido",
+      "Defina um teto de gasto por categoria e o app avisa quando você se aproximar."
+    );
+    return;
+  }
+
+  const [ano, mes] = hojeISO().split("-");
+  const gastoDaCategoria = (cat) =>
+    state.movimentos
+      .filter(mv => mv.tipo === "gasto" && ehPago(mv) && mv.categoria === cat
+                    && mv.data.slice(0,7) === `${ano}-${mes}`)
+      .reduce((s, mv) => s + mv.valor, 0);
+
   listaMetasEl.innerHTML = state.metas.map(meta => {
-    const gasto = gastosMes[meta.categoria]||0;
-    const pct   = Math.min((gasto/meta.limite)*100,100).toFixed(0);
-    const resto = meta.limite - gasto;
-    const sc    = pct>=100 ? "danger" : pct>=80 ? "warning" : "";
-    return `<div class="meta-item">
-      <div class="meta-header">
-        <div class="meta-title">${ICONE_CAT[meta.categoria]||"📋"} ${esc(meta.categoria)}</div>
-        <div class="meta-valores"><strong>${fmtMoeda(gasto)}</strong> de ${fmtMoeda(meta.limite)}</div>
+    const gasto = gastoDaCategoria(meta.categoria);
+    const pct = Math.min(100, Math.round((gasto / meta.limite) * 100));
+    const estourou = gasto > meta.limite;
+    const perto = !estourou && pct >= 80;
+    const cls = estourou ? "estourou" : perto ? "perto" : "ok";
+    const restante = meta.limite - gasto;
+
+    return `<div class="limite-card">
+      <div class="limite-head">
+        <span class="badge">${esc(meta.categoria)}</span>
+        <span class="limite-estado limite-${cls}">
+          ${estourou ? `Passou ${fmtMoeda(Math.abs(restante))}` : `Resta ${fmtMoeda(restante)}`}
+        </span>
+        <button class="btn-acao btn-acao-danger" onclick="excluirMeta('${meta.id}')" title="Excluir">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
       </div>
-      <div class="progress-bar-wrap"><div class="progress-bar-fill ${sc}" style="width:${pct}%"></div></div>
-      <div class="meta-footer">
-        <span>${pct}% utilizado</span>
-        <div class="meta-actions">
-          <span style="color:${resto>=0?"var(--green)":"var(--red)"}">
-            ${resto>=0 ? "Restam "+fmtMoeda(resto) : "Excedido "+fmtMoeda(Math.abs(resto))}
-          </span>
-          <button class="btn-acao" onclick="editarMeta('${meta.id}')" title="Editar meta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
-          <button class="btn-acao btn-acao-danger" onclick="excluirMeta('${meta.id}')" title="Excluir meta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
-        </div>
+
+      <div class="limite-barra">
+        <div class="limite-barra-fill limite-fill-${cls}" style="width:${pct}%"></div>
+      </div>
+
+      <div class="limite-nums">
+        <span class="limite-gasto">${fmtMoeda(gasto)}</span>
+        <span class="limite-de">de ${fmtMoeda(meta.limite)}</span>
       </div>
     </div>`;
   }).join("");
@@ -1289,11 +1336,28 @@ function renderPlanilha() {
   const bMap      = Object.fromEntries(state.bancos.map(b=>[b.id,`${esc(b.nome)} · ${esc(b.tipo)}`]));
   const { entradas, gastos } = calcularTotais(filtrados);
   if(saldoTotalPlanilhaEl) saldoTotalPlanilhaEl.textContent = fmtMoeda(entradas-gastos);
+
+  // Cards de entrou / saiu
+  const elEntrou = document.getElementById("entrouPlanilha");
+  const elSaiu = document.getElementById("saiuPlanilha");
+  if (elEntrou) elEntrou.textContent = fmtMoeda(entradas);
+  if (elSaiu) elSaiu.textContent = fmtMoeda(gastos);
+
+  const qtdEnt = filtrados.filter(m => m.tipo === "entrada").length;
+  const qtdGas = filtrados.filter(m => m.tipo === "gasto").length;
+  const subEnt = document.getElementById("entrouPlanilhaSub");
+  const subSai = document.getElementById("saiuPlanilhaSub");
+  if (subEnt) subEnt.textContent = `${qtdEnt} ${qtdEnt === 1 ? "entrada" : "entradas"}`;
+  if (subSai) subSai.textContent = `${qtdGas} ${qtdGas === 1 ? "saída" : "saídas"}`;
   if (!filtrados.length) {
     if(resumoCategoriasEl) resumoCategoriasEl.innerHTML  = `<div class="empty-state">Nenhuma movimentação para o filtro selecionado.</div>`;
     if(resumoContasEl)     resumoContasEl.innerHTML      = `<div class="empty-state">Nenhuma movimentação para o filtro selecionado.</div>`;
     tabelaMovimentosBody.innerHTML= `<tr><td colspan="6" class="table-empty">Nenhuma movimentação encontrada.</td></tr>`;
     if(maiorCategoriaGastoEl) maiorCategoriaGastoEl.textContent = "—";
+    if(elEntrou) elEntrou.textContent = fmtMoeda(0);
+    if(elSaiu) elSaiu.textContent = fmtMoeda(0);
+    if(subEnt) subEnt.textContent = "—";
+    if(subSai) subSai.textContent = "—";
     renderGraficosPlanilha([]); return;
   }
   const res = {};
@@ -1350,37 +1414,124 @@ function _tooltipMoeda(ctx) {
 
 function renderGraficosPlanilha(movs) {
   const gc = {};
-  movs.filter(m=>m.tipo==="gasto").forEach(m=>{ gc[m.categoria]=(gc[m.categoria]||0)+m.valor; });
-  const labels = Object.keys(gc), data = Object.values(gc);
+  movs.filter(m => m.tipo === "gasto").forEach(m => {
+    gc[m.categoria] = (gc[m.categoria] || 0) + m.valor;
+  });
+  // Ordena por valor (maior gasto primeiro)
+  const pares = Object.entries(gc).sort((a,b) => b[1] - a[1]);
+  const labels = pares.map(p => p[0]);
+  const data = pares.map(p => p[1]);
+  const totalGasto = data.reduce((a,b) => a+b, 0);
+
   const { entradas, gastos } = calcularTotais(movs);
+
   if (chartCategoriasPlanilha) chartCategoriasPlanilha.destroy();
-  if (chartFluxoPlanilha)       chartFluxoPlanilha.destroy();
-  const dark = document.documentElement.getAttribute("data-theme") === "dark";
-  const tc = dark ? "#a3adc4" : "#4d5e73";
-  const font = {family:"Inter",size:12};
+  if (chartFluxoPlanilha) chartFluxoPlanilha.destroy();
+
+  // Plugin: escreve o total no centro da rosca
+  const textoCentro = (titulo, valor) => ({
+    id: "centro",
+    beforeDraw(chart) {
+      const { ctx, chartArea } = chart;
+      if (!chartArea) return;
+      const cx = (chartArea.left + chartArea.right) / 2;
+      const cy = (chartArea.top + chartArea.bottom) / 2;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const corSec = getComputedStyle(document.documentElement).getPropertyValue("--text-muted").trim();
+      const corPri = getComputedStyle(document.documentElement).getPropertyValue("--text-primary").trim();
+      ctx.font = "500 10px Inter";
+      ctx.fillStyle = corSec;
+      ctx.fillText(titulo.toUpperCase(), cx, cy - 12);
+      ctx.font = "600 17px 'IBM Plex Mono'";
+      ctx.fillStyle = corPri;
+      ctx.fillText(valor, cx, cy + 7);
+      ctx.restore();
+    }
+  });
+
   const c1 = document.getElementById("chartCategoriasPlanilha");
+  const wrap1 = c1?.closest(".plan-donut-wrap");
+  if (c1) {
+    if (!data.length) {
+      if (wrap1) wrap1.classList.add("plan-donut-vazio");
+      wrap1?.setAttribute("data-msg", "Sem gastos no período");
+      document.getElementById("legendaCategorias").innerHTML = "";
+    } else {
+      if (wrap1) wrap1.classList.remove("plan-donut-vazio");
+      chartCategoriasPlanilha = new Chart(c1, {
+        type: "doughnut",
+        data: { labels, datasets: [{
+          data, backgroundColor: CHART_COLORS,
+          borderColor: getComputedStyle(document.documentElement).getPropertyValue("--surface").trim(),
+          borderWidth: 3, hoverOffset: 6
+        }]},
+        options: {
+          responsive: true, maintainAspectRatio: false, cutout: "68%",
+          animation: { duration: 500 },
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: _tooltipMoeda } } }
+        },
+        plugins: [textoCentro("Total", fmtCompacto(totalGasto))]
+      });
+      // Legenda HTML customizada
+      document.getElementById("legendaCategorias").innerHTML = pares.map(([cat, val], i) => {
+        const pct = totalGasto > 0 ? Math.round((val/totalGasto)*100) : 0;
+        return `<div class="plan-leg-item">
+          <span class="plan-leg-cor" style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></span>
+          <span class="plan-leg-nome">${esc(cat)}</span>
+          <span class="plan-leg-val">${fmtMoeda(val)}</span>
+          <span class="plan-leg-pct">${pct}%</span>
+        </div>`;
+      }).join("");
+    }
+  }
+
   const c2 = document.getElementById("chartFluxoPlanilha");
-  if(c1) chartCategoriasPlanilha = new Chart(c1, {
-    type:"pie",
-    data:{ labels:labels.length?labels:["Sem dados"], datasets:[{
-      data:data.length?data:[1], backgroundColor:data.length?CHART_COLORS:["#e5e7eb"],
-      borderColor:"var(--surface)", borderWidth:3, hoverOffset:10, radius:"90%"
-    }]},
-    options:{ responsive:true, maintainAspectRatio:false, animation:{duration:400},
-      plugins:{ legend:{position:"bottom",labels:{color:tc,boxWidth:12,padding:14,font}},
-        tooltip:{callbacks:{label:_tooltipMoeda}} }}
-  });
-  if(c2) chartFluxoPlanilha = new Chart(c2, {
-    type:"doughnut",
-    data:{ labels:["Entradas","Gastos"], datasets:[{
-      data:[entradas||0,gastos||0],
-      backgroundColor:["rgba(45,138,95,0.82)","rgba(192,69,63,0.82)"],
-      borderColor:"var(--surface)", borderWidth:3, hoverOffset:8, radius:"90%"
-    }]},
-    options:{ responsive:true, maintainAspectRatio:false, animation:{duration:400},
-      plugins:{ legend:{position:"bottom",labels:{color:tc,boxWidth:12,padding:14,font}},
-        tooltip:{callbacks:{label:_tooltipMoeda}} }}
-  });
+  if (c2) {
+    const temFluxo = (entradas || 0) + (gastos || 0) > 0;
+    const wrap2 = c2.closest(".plan-donut-wrap");
+    if (!temFluxo) {
+      if (wrap2) { wrap2.classList.add("plan-donut-vazio"); wrap2.setAttribute("data-msg", "Sem movimentações no período"); }
+      document.getElementById("legendaFluxo").innerHTML = "";
+      return;
+    }
+    if (wrap2) wrap2.classList.remove("plan-donut-vazio");
+    chartFluxoPlanilha = new Chart(c2, {
+      type: "doughnut",
+      data: {
+        labels: ["Entradas", "Gastos"],
+        datasets: [{
+          data: [entradas || 0, gastos || 0],
+          backgroundColor: ["#2d8a5f", "#c0453f"],
+          borderColor: getComputedStyle(document.documentElement).getPropertyValue("--surface").trim(),
+          borderWidth: 3, hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: "68%",
+        animation: { duration: 500 },
+        plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: _tooltipMoeda } } }
+      },
+      plugins: [textoCentro("Saldo", fmtCompacto((entradas||0) - (gastos||0)))]
+    });
+    const saldo = (entradas||0) - (gastos||0);
+    document.getElementById("legendaFluxo").innerHTML = `
+      <div class="plan-leg-item">
+        <span class="plan-leg-cor" style="background:#2d8a5f"></span>
+        <span class="plan-leg-nome">Entradas</span>
+        <span class="plan-leg-val">${fmtMoeda(entradas)}</span>
+      </div>
+      <div class="plan-leg-item">
+        <span class="plan-leg-cor" style="background:#c0453f"></span>
+        <span class="plan-leg-nome">Gastos</span>
+        <span class="plan-leg-val">${fmtMoeda(gastos)}</span>
+      </div>
+      <div class="plan-leg-item plan-leg-saldo">
+        <span class="plan-leg-nome">Saldo</span>
+        <span class="plan-leg-val ${saldo >= 0 ? "valor-positivo" : "valor-negativo"}">${fmtMoeda(saldo)}</span>
+      </div>`;
+  }
 }
 
 /* ─── CSV Export ─────────────────────────────────────────── */
@@ -1451,6 +1602,11 @@ function trocarTela(name) {
   sincronizarBottomNav(name);
   // Mostrar guia na primeira visita à seção
   mostrarGuia(name);
+
+  // Ao abrir investimentos, atualiza os preços das criptos
+  if (name === "investimentos" && criptosEmUso().length) {
+    atualizarPrecosCripto().then(mudou => { if (mudou) renderInvestimentos(); });
+  }
 }
 menuItems.forEach(i=>i.addEventListener("click",()=>trocarTela(i.dataset.screen)));
 
@@ -1487,35 +1643,55 @@ formTexto?.addEventListener("submit", async e => {
   if (!state.bancos.length) { toast("Cadastre pelo menos uma conta antes.","warning"); return; }
   const texto = textoLivreInput.value.trim(), bancoId = contaMovimentoSelect.value, data = dataMovimentoInput.value;
   if (!texto||!bancoId||!data) { toast("Preencha todos os campos.","error"); return; }
-  const valor = extrairValor(texto);
-  if (!valor) { toast("Não identifiquei o valor. Ex: gastei 200 reais.","error"); return; }
-  const tipo = detectarTipo(texto), categoria = classificarCategoria(texto);
+
+  // Tenta interpretar múltiplos lançamentos (+1500 salário -1000 contas)
+  const itens = parseMultiplosLancamentos(texto);
+  if (!itens.length) {
+    toast("Não identifiquei nenhum valor. Ex: +1500 salário  ou  gastei 200 no mercado.","error");
+    return;
+  }
+
   const status = statusMovSelect?.value || "pago";
   const pendente = status === "pendente";
 
   try {
-    const novo = await dbInsert("movimentos", {
-      descricao:texto, conta_id:bancoId, data, valor, tipo, categoria,
-      status,
-      vencimento: pendente ? data : null,
-      pago_em: pendente ? null : data
-    });
-    state.movimentos.push({
-      id:novo.id, descricao:novo.descricao, bancoId:novo.conta_id, data:novo.data,
-      valor:Number(novo.valor), tipo:novo.tipo, categoria:novo.categoria,
-      status:novo.status, vencimento:novo.vencimento, pagoEm:novo.pago_em
-    });
+    for (const item of itens) {
+      const novo = await dbInsert("movimentos", {
+        descricao: item.descricao, conta_id: bancoId, data,
+        valor: item.valor, tipo: item.tipo, categoria: item.categoria,
+        status,
+        vencimento: pendente ? data : null,
+        pago_em: pendente ? null : data
+      });
+      state.movimentos.push({
+        id:novo.id, descricao:novo.descricao, bancoId:novo.conta_id, data:novo.data,
+        valor:Number(novo.valor), tipo:novo.tipo, categoria:novo.categoria,
+        status:novo.status, vencimento:novo.vencimento, pagoEm:novo.pago_em
+      });
+    }
+
     formTexto.reset();
     dataMovimentoInput.value = hojeISO();
     if (labelDataMov) labelDataMov.textContent = "Data";
     renderTudo();
-    const acao = tipo==="entrada" ? "Entrada" : "Gasto";
-    toast(
-      pendente
-        ? `${acao} de ${fmtMoeda(valor)} agendado para ${new Date(data+"T00:00:00").toLocaleDateString("pt-BR")}.`
-        : `${acao} de ${fmtMoeda(valor)} registrado.`,
-      "success"
-    );
+
+    if (itens.length === 1) {
+      const i = itens[0];
+      const acao = i.tipo === "entrada" ? "Entrada" : "Gasto";
+      toast(
+        pendente
+          ? `${acao} de ${fmtMoeda(i.valor)} agendado para ${new Date(data+"T00:00:00").toLocaleDateString("pt-BR")}.`
+          : `${acao} de ${fmtMoeda(i.valor)} registrado.`,
+        "success"
+      );
+    } else {
+      const entradas = itens.filter(i => i.tipo === "entrada").length;
+      const gastos = itens.filter(i => i.tipo === "gasto").length;
+      const partes = [];
+      if (entradas) partes.push(`${entradas} entrada${entradas>1?"s":""}`);
+      if (gastos) partes.push(`${gastos} gasto${gastos>1?"s":""}`);
+      toast(`${itens.length} lançamentos registrados (${partes.join(" e ")}).`, "success");
+    }
   } catch(err) { tratarErro(err); }
 });
 
@@ -2261,59 +2437,55 @@ function renderObjetivos() {
     listaObjetivosEl.innerHTML = vazio(
       ICO.cofre,
       "Nenhum objetivo ainda",
-      "Um carro, uma viagem, uma reserva. Defina o valor e o prazo."
+      "Um carro, uma viagem, uma reserva. Defina o valor e o prazo acima."
     );
     return;
   }
+
   listaObjetivosEl.innerHTML = state.objetivos.map(o => {
-    const pct   = Math.min((o.valorAtual / o.valorAlvo) * 100, 100);
-    const resto = Math.max(o.valorAlvo - o.valorAtual, 0);
-    const sc    = pct >= 100 ? "danger" : pct >= 80 ? "" : "";
-    const cls   = pct >= 100 ? "" : "";
+    const pct = Math.min(100, Math.round((o.valorAtual / o.valorAlvo) * 100));
+    const falta = Math.max(0, o.valorAlvo - o.valorAtual);
+    const completo = o.valorAtual >= o.valorAlvo;
 
-    // Prazo e sugestão
-    let prazoTxt = "", noPrazo = "";
-    let diasRestantes = null;
-    if (o.prazoTipo === "data" && o.prazoData) {
-      diasRestantes = diasEntre(hojeISO(), o.prazoData);
-      const dataFmt = new Date(o.prazoData + "T00:00:00").toLocaleDateString("pt-BR");
-      prazoTxt = `Meta até ${dataFmt}`;
-    } else if (o.prazoTipo === "dias" && o.prazoDias) {
-      const criado = o.createdAt ? o.createdAt.slice(0,10) : hojeISO();
-      const alvo = new Date(criado);
-      alvo.setDate(alvo.getDate() + Number(o.prazoDias));
-      diasRestantes = diasEntre(hojeISO(), alvo.toISOString().slice(0,10));
-      prazoTxt = `${o.prazoDias} dias (faltam ${Math.max(diasRestantes,0)})`;
-    }
+    const hoje = new Date(hojeISO()+"T00:00:00");
+    const fim  = new Date(o.prazoData+"T00:00:00");
+    const meses = Math.max(0, Math.round((fim - hoje) / (30.44 * 86400000)));
+    const porMes = meses > 0 && falta > 0 ? falta / meses : falta;
+    const dataFmt = fim.toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
 
-    // Sugestão de quanto guardar por mês para chegar no prazo
-    let sugestao = "";
-    if (diasRestantes !== null && diasRestantes > 0 && resto > 0) {
-      const meses = Math.max(diasRestantes / 30, 0.1);
-      const porMes = resto / meses;
-      sugestao = `Guarde ~${fmtMoeda(porMes)}/mês para chegar no prazo`;
-      noPrazo = diasRestantes > 0 ? `<span style="color:var(--green)">No prazo ✓</span>` : "";
-    } else if (diasRestantes !== null && diasRestantes <= 0 && resto > 0) {
-      noPrazo = `<span style="color:var(--red)">Prazo vencido</span>`;
-    }
-    if (pct >= 100) { sugestao = "Objetivo alcançado! 🎉"; noPrazo = ""; }
-
-    const barClass = pct >= 100 ? "" : "";
-    return `<div class="objetivo-item">
-      <div class="objetivo-top">
-        <div class="objetivo-nome">${o.icone || "🎯"} ${esc(o.nome)}</div>
-        <div class="objetivo-valores"><strong>${fmtMoeda(o.valorAtual)}</strong> de ${fmtMoeda(o.valorAlvo)}</div>
+    return `<div class="obj-card ${completo ? "obj-completo" : ""}">
+      <div class="obj-card-head">
+        <span class="obj-card-icone">${iconeObjetivo(o.icone)}</span>
+        <div class="obj-card-id">
+          <div class="obj-card-nome">${esc(o.nome)}</div>
+          <div class="obj-card-prazo">${completo ? "Concluído!" : `até ${dataFmt}`}</div>
+        </div>
+        <button class="btn-acao btn-acao-danger" onclick="excluirObjetivo('${o.id}')" title="Excluir">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
       </div>
-      <div class="progress-bar-wrap"><div class="progress-bar-fill ${barClass}" style="width:${pct}%"></div></div>
-      <div class="objetivo-meta">
-        <span>${pct.toFixed(0)}% concluído${prazoTxt ? " · " + prazoTxt : ""}</span>
-        <span>${resto > 0 ? "Faltam " + fmtMoeda(resto) : "Completo"}</span>
+
+      <div class="obj-barra">
+        <div class="obj-barra-fill ${completo ? "completo" : ""}" style="width:${pct}%"></div>
       </div>
-      ${sugestao ? `<div class="objetivo-sugestao">${sugestao} ${noPrazo}</div>` : ""}
-      <div class="item-actions">
-        <button class="btn-icon" onclick="adicionarValorObjetivo('${o.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>Guardar</button>
-        <button class="btn-icon" onclick="abrirEditarObjetivo('${o.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>Editar</button>
-        <button class="btn-icon btn-icon-danger" onclick="excluirObjetivo('${o.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></span>Excluir</button>
+
+      <div class="obj-card-nums">
+        <span class="obj-atual">${fmtMoeda(o.valorAtual)}</span>
+        <span class="obj-pct">${pct}%</span>
+        <span class="obj-alvo">${fmtMoeda(o.valorAlvo)}</span>
+      </div>
+
+      <div class="obj-card-foot">
+        ${completo
+          ? `<span class="obj-foot-ok">Meta alcançada</span>`
+          : `<span>Falta ${fmtMoeda(falta)}</span>
+             <span class="obj-foot-sep">·</span>
+             <span>${fmtMoeda(porMes)}/mês</span>`
+        }
+        <button class="btn-mini" onclick="adicionarAoObjetivo('${o.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Guardar
+        </button>
       </div>
     </div>`;
   }).join("");
@@ -2347,6 +2519,11 @@ formObjetivo?.addEventListener("submit", async e => {
   } catch(err) { tratarErro(err); }
 });
 
+/* O botão "Guardar" no card chama este nome */
+async function adicionarAoObjetivo(id) {
+  return adicionarValorObjetivo(id);
+}
+
 async function adicionarValorObjetivo(id) {
   const o = state.objetivos.find(o => o.id === id); if (!o) return;
   const valor = await promptValor(`Quanto você quer guardar em "${esc(o.nome)}"?`);
@@ -2374,7 +2551,7 @@ async function excluirObjetivo(id) {
 function abrirEditarObjetivo(id) {
   const o = state.objetivos.find(o => o.id === id); if (!o) return;
   document.getElementById("objNome").value = o.nome;
-  document.getElementById("objIcone").value = o.icone || "🎯";
+  document.getElementById("objIcone").value = o.icone || "geral";
   document.getElementById("objAlvo").value = o.valorAlvo;
   document.getElementById("objAtual").value = o.valorAtual;
   // Remove o antigo e deixa o usuário recriar com os dados preenchidos
@@ -2445,67 +2622,62 @@ const invTotalRendimentoEl = document.getElementById("invTotalRendimento");
    ============================================================ */
 
 const CATEGORIAS_INV = {
-  // Renda fixa: taxa contratada, projeção confiável
-  "CDB":               { cat: "rf", icone: "🏦", aviso: null },
-  "CDI":               { cat: "rf", icone: "🏦", aviso: null },
-  "Tesouro Selic":     { cat: "rf", icone: "🏛️", aviso: null },
-  "Tesouro Prefixado": { cat: "rf", icone: "🏛️", aviso: null },
-  "Poupança":          { cat: "rf", icone: "🐷", aviso: null },
-  "Fundo RF":          { cat: "rf", icone: "📊", aviso: null },
+  // ── Renda fixa indexada ao CDI: usuário informa % do CDI (ex: 105) ──
+  "CDB":               { cat: "rf", modo: "cdi",   icone: "🏦", aviso: null },
+  "LCI/LCA":           { cat: "rf", modo: "cdi",   icone: "🌾", isento: true,
+    aviso: "LCI e LCA são <strong>isentas de Imposto de Renda</strong>. Costumam render um percentual do CDI. Informe o percentual contratado (ex: 95% do CDI)." },
+  "Fundo DI":          { cat: "rf", modo: "cdi",   icone: "📊", aviso: null },
 
-  // Renda fixa indexada: projeção é estimativa (inflação varia)
+  // ── Renda fixa pós-fixada = 100% do CDI garantido ──
+  "Tesouro Selic":     { cat: "rf", modo: "cdi",   icone: "🏛️",
+    aviso: "O Tesouro Selic acompanha a taxa Selic, praticamente <strong>100% do CDI</strong>. Você pode ajustar o percentual se quiser." },
+
+  // ── Renda fixa prefixada: taxa fixa contratada direta ──
+  "Tesouro Prefixado": { cat: "rf", modo: "taxa",  icone: "🏛️",
+    aviso: "Título <strong>prefixado</strong>: a taxa é travada na contratação e não muda. Informe a taxa anual contratada." },
+  "CDB Prefixado":     { cat: "rf", modo: "taxa",  icone: "🏦",
+    aviso: "CDB <strong>prefixado</strong>: taxa travada na contratação. Informe a taxa anual." },
+  "Poupança":          { cat: "rf", modo: "poupanca", icone: "🐷",
+    aviso: "A poupança rende <strong>0,5% ao mês + TR</strong> quando a Selic está acima de 8,5% a.a. O app já usa essa regra." },
+
+  // ── Renda fixa indexada à inflação: taxa fixa + IPCA ──
   "Tesouro IPCA": {
-    cat: "rf", icone: "🏛️",
-    aviso: "Este título paga uma taxa fixa <strong>+ a inflação (IPCA)</strong>. Informe a taxa fixa contratada. A projeção é uma <strong>estimativa</strong> — o rendimento real depende da inflação futura."
-  },
+    cat: "rf", modo: "ipca", icone: "🏛️",
+    aviso: "Este título paga uma taxa fixa <strong>+ a inflação (IPCA)</strong>. Informe só a taxa fixa contratada — o app soma a inflação estimada. A projeção é uma <strong>estimativa</strong>." },
 
-  // Renda variável: sem taxa, valor oscila
+  // ── Renda variável: sem taxa, valor oscila ──
   "Ações": {
-    cat: "rv", icone: "📈", dividendos: true,
-    aviso: "Ações <strong>não têm rendimento garantido</strong> — o preço sobe e desce com o mercado. Registre quanto vale hoje para acompanhar seu ganho ou perda real. Se a empresa paga dividendos, informe o yield anual."
-  },
+    cat: "rv", modo: "variavel", icone: "📈", dividendos: true,
+    aviso: "Ações <strong>não têm rendimento garantido</strong> — o preço sobe e desce com o mercado. Registre quanto vale hoje. Se a empresa paga dividendos, informe o yield anual." },
   "FII": {
-    cat: "rv", icone: "🏢", dividendos: true,
-    aviso: "FIIs <strong>oscilam de preço</strong>, mas pagam rendimentos mensais. Registre quanto vale hoje e o dividend yield anual para acompanhar a renda."
-  },
+    cat: "rv", modo: "variavel", icone: "🏢", dividendos: true,
+    aviso: "FIIs <strong>oscilam de preço</strong>, mas pagam rendimentos mensais. Registre quanto vale hoje e o dividend yield anual." },
   "ETF": {
-    cat: "rv", icone: "📊", dividendos: true,
-    aviso: "ETFs seguem um índice — o valor <strong>oscila com o mercado</strong>, sem rendimento garantido. Registre quanto vale hoje para ver seu resultado real."
-  },
+    cat: "rv", modo: "variavel", icone: "📊", dividendos: false,
+    aviso: "ETFs seguem um índice — o valor <strong>oscila com o mercado</strong>, sem rendimento garantido. Registre quanto vale hoje." },
   "BDR": {
-    cat: "rv", icone: "🌎", dividendos: true,
-    aviso: "BDRs acompanham ações estrangeiras. O valor <strong>oscila</strong> e ainda sofre efeito do câmbio. Não há rendimento previsível."
-  },
+    cat: "rv", modo: "variavel", icone: "🌎", dividendos: false,
+    aviso: "BDRs acompanham ações estrangeiras. O valor <strong>oscila</strong> e ainda sofre efeito do câmbio. Não há rendimento previsível." },
   "Cripto": {
-    cat: "rv", icone: "₿", dividendos: false,
-    aviso: "Criptomoedas são <strong>altamente voláteis e imprevisíveis</strong>. Não existe taxa de rendimento — o preço pode subir ou cair muito. Registre quanto vale hoje para acompanhar seu resultado real."
-  },
+    cat: "rv", modo: "cripto", icone: "₿", dividendos: false,
+    aviso: "Criptomoedas são <strong>altamente voláteis</strong>. Não existe taxa de rendimento — o preço pode subir ou cair muito. O valor é atualizado pelo preço de mercado ao vivo." },
   "Fundo Multi": {
-    cat: "rv", icone: "📊", dividendos: false,
-    aviso: "Fundos multimercado e de ações <strong>não têm rentabilidade garantida</strong>. Registre o valor atual da cota para acompanhar o desempenho."
-  },
+    cat: "rv", modo: "variavel", icone: "📊", dividendos: false,
+    aviso: "Fundos multimercado <strong>não têm rentabilidade garantida</strong>. Registre o valor atual da cota para acompanhar o desempenho." },
 
-  // Bens físicos: valorização imprevisível, podem gerar renda
+  // ── Bens físicos ──
   "Imóvel": {
-    cat: "rv", icone: "🏠", dividendos: true, labelDiv: "Aluguel (% a.a.)",
-    aviso: "A valorização de um imóvel é <strong>imprevisível</strong>. Registre o valor de mercado atual. Se você aluga, informe o retorno anual do aluguel sobre o valor do imóvel."
-  },
+    cat: "rv", modo: "variavel", icone: "🏠", dividendos: true, labelDiv: "Aluguel (% a.a.)",
+    aviso: "A valorização de um imóvel é <strong>imprevisível</strong>. Registre o valor de mercado atual. Se aluga, informe o retorno anual do aluguel." },
   "Ouro": {
-    cat: "rv", icone: "🥇", dividendos: false,
-    aviso: "O preço do ouro <strong>oscila com o mercado</strong> — não há rendimento contratado. Registre quanto vale hoje."
-  },
-  "Físico": {
-    cat: "rv", icone: "📦", dividendos: false,
-    aviso: "Bens físicos <strong>não têm rendimento previsível</strong>. Registre o valor atual estimado para acompanhar a valorização."
-  },
-
-  // Outro: usuário escolhe
-  "Outro": { cat: "escolher", icone: "💼", aviso: null }
+    cat: "rv", modo: "variavel", icone: "🥇", dividendos: false,
+    aviso: "O preço do ouro <strong>oscila com o mercado</strong> — não há rendimento contratado. Registre quanto vale hoje." },
+  "Outro": { cat: "escolher", modo: "taxa", icone: "💼", aviso: null }
 };
 
 /* Retorna a config de um tipo (com fallback para tipos customizados) */
 function configTipo(tipo) {
-  return CATEGORIAS_INV[tipo] || { cat: "rv", icone: "💼", dividendos: false, aviso: null };
+  return CATEGORIAS_INV[tipo] || { cat: "rv", modo: "taxa", icone: "💼", dividendos: false, aviso: null };
 }
 function ehRendaFixa(tipo) { return configTipo(tipo).cat === "rf"; }
 
@@ -2581,33 +2753,14 @@ function resultadoRV(i) {
 function renderInvestimentos() {
   if (!listaInvestimentosEl) return;
 
-  // Cards de resumo — usam o valor de hoje, não o aplicado
-  const totalAplicado = state.investimentos.reduce((a, i) => a + i.valor, 0);
-  const totalHoje     = state.investimentos.reduce((a, i) => a + valorHoje(i), 0);
+  // Total: para cripto, usa o valor de mercado atual
+  const total = state.investimentos.reduce((s,i) => s + valorAtualCripto(i), 0);
+  const rendimentoAno = state.investimentos.reduce((s,i) => {
+    return s + i.valor * (taxaAnualEfetiva(i)/100);
+  }, 0);
 
-  // Rendimento projetado: só renda fixa. Renda variável entra como renda passiva.
-  let rendimento12m = 0;
-  state.investimentos.forEach(i => {
-    if (ehRendaFixa(i.tipo) && i.taxa > 0) {
-      rendimento12m += projetarInvestimento(i.valor, i.taxa, i.taxaPeriodo, i.regime, 12, 0).juros;
-    } else if (i.rendaPassiva > 0) {
-      rendimento12m += valorHoje(i) * (i.rendaPassiva / 100);
-    }
-  });
-
-  if (invTotalInvestidoEl)  invTotalInvestidoEl.textContent  = fmtMoeda(totalHoje);
-  if (invTotalRendimentoEl) invTotalRendimentoEl.textContent = fmtMoeda(rendimento12m);
-
-  // Atualiza o texto dos cards conforme o contexto
-  const cardDescTotal = invTotalInvestidoEl?.parentElement?.querySelector(".card-desc");
-  if (cardDescTotal) {
-    const dif = totalHoje - totalAplicado;
-    cardDescTotal.innerHTML = dif !== 0
-      ? `Aplicado: ${fmtMoeda(totalAplicado)} · <span class="${dif >= 0 ? 'valor-positivo' : 'valor-negativo'}">${dif >= 0 ? '+' : ''}${fmtMoeda(dif)}</span>`
-      : "Soma de todos os aportes";
-  }
-
-  renderResumoInstituicoes();
+  if (invTotalInvestidoEl) invTotalInvestidoEl.textContent = fmtMoeda(total);
+  if (invTotalRendimentoEl) invTotalRendimentoEl.textContent = fmtMoeda(rendimentoAno);
 
   if (!state.investimentos.length) {
     listaInvestimentosEl.innerHTML = vazio(
@@ -2615,38 +2768,75 @@ function renderInvestimentos() {
       "Nenhum investimento ainda",
       "CDB, Tesouro, ações, cripto — registre onde seu dinheiro está aplicado."
     );
+    renderResumoInstituicoes();
     return;
   }
 
-  // ── Agrupar por instituição ──
-  const grupos = {};
-  state.investimentos.forEach(i => {
-    const chave = i.contaId || "__sem__";
-    (grupos[chave] ||= []).push(i);
-  });
+  listaInvestimentosEl.innerHTML = state.investimentos.map(inv => {
+    const ehCripto = !!inv.criptoId;
+    const c = ehCripto ? criptoPorId(inv.criptoId) : null;
+    const preco = ehCripto ? _precosCripto[inv.criptoId] : null;
 
-  // Ordena os grupos pelo total (maior primeiro)
-  const ordenado = Object.entries(grupos).sort((a, b) => {
-    const ta = a[1].reduce((s, i) => s + valorHoje(i), 0);
-    const tb = b[1].reduce((s, i) => s + valorHoje(i), 0);
-    return tb - ta;
-  });
+    // Valor: para cripto, recalcula com o preço atual
+    const valorHoje = ehCripto ? valorAtualCripto(inv) : inv.valor;
+    const variou = ehCripto && Math.abs(valorHoje - inv.valor) > 0.005;
+    const lucro = valorHoje - inv.valor;
 
-  listaInvestimentosEl.innerHTML = ordenado.map(([chave, itens]) => {
-    const nomeInst = chave === "__sem__" ? "Sem instituição" : esc(nomeInstituicao(chave) || "Conta removida");
-    const iconeInst = chave === "__sem__" ? "❔" : "🏦";
-    const totalGrupo = itens.reduce((s, i) => s + valorHoje(i), 0);
+    // Rendimento (renda fixa)
+    const taxaAno = taxaAnualEfetiva(inv);
+    const rendAno = inv.valor * (taxaAno/100);
+    const b = inv.contaId ? state.bancos.find(x => x.id === inv.contaId) : null;
+    const nome = inv.nome || inv.tipo;
 
-    const cards = itens.map(i => cardInvestimento(i)).join("");
+    const icone = ehCripto
+      ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.5 8.5h4a2 2 0 0 1 0 4h-4m0 0h4.3a2 2 0 0 1 0 4H9.5m0-8v10m1.5-11v1.5m0 8v1.5"/></svg>`
+      : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>`;
 
-    return `<div class="grupo-inst">
-      <div class="grupo-inst-header">
-        <span class="grupo-inst-nome">${iconeInst} ${nomeInst}</span>
-        <span class="grupo-inst-total">${fmtMoeda(totalGrupo)}</span>
+    // Linha de meta (subtítulo)
+    let meta = `<span class="badge">${esc(inv.tipo)}</span>`;
+    if (ehCripto && c) {
+      meta += `<span class="mov-sep">·</span><span>${inv.criptoQtd} ${c.sigla}</span>`;
+      if (preco) meta += badgeVariacao(preco.variacao24h);
+    } else if (inv.taxa > 0) {
+      meta += `<span class="mov-sep">·</span><span>${fmtNum(inv.taxa)}% ${inv.taxaPeriodo === "mes" ? "a.m." : "a.a."}</span>`;
+    }
+    if (b) meta += `<span class="mov-sep">·</span><span>${esc(b.nome)}</span>`;
+
+    // Segunda linha do valor: rendimento fixo ou lucro/prejuízo da cripto
+    let subvalor = "";
+    if (ehCripto && variou) {
+      const cls = lucro >= 0 ? "inv-lucro" : "inv-prejuizo";
+      subvalor = `<div class="inv-item-rend ${cls}">${lucro >= 0 ? "+" : "−"}${fmtMoeda(Math.abs(lucro))}</div>`;
+    } else if (!ehCripto && inv.taxa > 0) {
+      subvalor = `<div class="inv-item-rend">+${fmtMoeda(rendAno)}/ano</div>`;
+    }
+
+    return `<div class="inv-item ${ehCripto ? "inv-cripto" : ""}">
+      <div class="inv-item-icone">${icone}</div>
+
+      <div class="inv-item-info">
+        <div class="inv-item-nome">${esc(nome)}</div>
+        <div class="inv-item-meta">${meta}</div>
       </div>
-      <div class="grupo-inst-body">${cards}</div>
+
+      <div class="inv-item-valores">
+        <div class="inv-item-valor">${fmtMoeda(valorHoje)}</div>
+        ${subvalor}
+      </div>
+
+      <div class="inv-item-acoes">
+        <button class="btn-acao" onclick="abrirEditarInvestimento('${inv.id}')" title="Editar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        </button>
+        <button class="btn-acao btn-acao-danger" onclick="excluirInvestimento('${inv.id}')" title="Excluir">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
     </div>`;
   }).join("");
+
+  renderResumoInstituicoes();
+  atualizarBotaoCripto();
 }
 
 /* Card de um investimento — mostra dados diferentes conforme a natureza */
@@ -2771,18 +2961,29 @@ function renderResumoInstituicoes() {
   const ordenado = Object.entries(grupos).sort((a, b) => b[1].total - a[1].total);
 
   el.innerHTML = ordenado.map(([chave, g]) => {
-    const nome = chave === "__sem__" ? "Não informado" : esc(nomeInstituicao(chave) || "Conta removida");
-    const icone = chave === "__sem__" ? "❔" : "🏦";
+    const semConta = chave === "__sem__";
+    const b = semConta ? null : state.bancos.find(x => x.id === chave);
+    const nome = semConta ? "Sem instituição" : (b ? b.nome : "Conta removida");
     const pct = totalGeral > 0 ? (g.total / totalGeral) * 100 : 0;
-    return `<div class="instituicao-item">
-      <div class="inst-top">
-        <div class="inst-nome">${icone} ${nome}</div>
-        <div class="inst-valor">${fmtMoeda(g.total)}</div>
+
+    const marca = b
+      ? marcaConta(b)
+      : `<span class="inst-marca-neutra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 21h18M4 21V10l8-6 8 6v11M9 21v-6h6v6"/></svg></span>`;
+
+    return `<div class="inst-item">
+      <div class="inst-main">
+        ${marca}
+        <div class="inst-info">
+          <div class="inst-nome">${esc(nome)}</div>
+          <div class="inst-sub">${g.qtd} ${g.qtd === 1 ? "investimento" : "investimentos"} · ${pct.toFixed(0)}% da carteira</div>
+        </div>
+        <div class="inst-valores">
+          <div class="inst-valor">${fmtMoeda(g.total)}</div>
+          ${g.rendimento > 0 ? `<div class="inst-rend">+${fmtMoeda(g.rendimento)}/ano</div>` : ""}
+        </div>
       </div>
-      <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-      <div class="inst-meta">
-        <span>${g.qtd} ${g.qtd === 1 ? "investimento" : "investimentos"} · ${pct.toFixed(0)}% da carteira</span>
-        ${g.rendimento > 0 ? `<span class="valor-positivo">+${fmtMoeda(g.rendimento)}/ano</span>` : `<span style="opacity:.5">—</span>`}
+      <div class="inst-barra">
+        <div class="inst-barra-fill" style="width:${pct}%"></div>
       </div>
     </div>`;
   }).join("");
@@ -2890,7 +3091,9 @@ formInvestimento?.addEventListener("submit", async e => {
   // Campos de renda fixa
   const taxa = rendaFixa || cfg.cat === "escolher"
     ? (Number(document.getElementById("invTaxa").value) || 0) : 0;
-  const taxaPeriodo = document.getElementById("invTaxaPeriodo").value;
+  const modoTipo = cfg.modo || "taxa";
+  // No modo CDI o percentual é sempre anual; período do input não se aplica
+  const taxaPeriodo = modoTipo === "cdi" ? "ano" : document.getElementById("invTaxaPeriodo").value;
   const regime = document.getElementById("invRegime").value;
 
   // Renda fixa sem taxa não faz sentido
@@ -2905,6 +3108,17 @@ formInvestimento?.addEventListener("submit", async e => {
   const valorAtual = valorAtualInput ? Number(valorAtualInput) : null;
   const rendaPassiva = Number(document.getElementById("invRendaPassiva")?.value) || 0;
 
+  // Campos de cripto
+  const ehCripto = tipo === "Cripto";
+  const criptoId = ehCripto ? (document.getElementById("invCripto")?.value || null) : null;
+  const criptoQtd = ehCripto ? (Number(document.getElementById("invCriptoQtd")?.value) || null) : null;
+
+  if (ehCripto && !criptoId) {
+    toast("Selecione qual moeda.", "error");
+    document.getElementById("invCripto")?.focus();
+    return;
+  }
+
   try {
     const novo = await dbInsert("investimentos", {
       nome: apelido, tipo, valor,
@@ -2913,16 +3127,27 @@ formInvestimento?.addEventListener("submit", async e => {
       renda_passiva: rendaPassiva,
       valor_atual_em: valorAtual ? hojeISO() : null,
       conta_id: contaId || null,
-      data_inicio: hojeISO()
+      data_inicio: hojeISO(),
+      cripto_id: criptoId,
+      cripto_qtd: criptoQtd
     });
     state.investimentos.push(mapInvestimento(novo));
     formInvestimento.reset();
+    document.getElementById("invCriptoDica").innerHTML = "";
+    document.getElementById("invValor")?.removeAttribute("data-editado-manual");
     fieldInvTipoOutro?.classList.add("hidden-filter");
+    document.getElementById("fieldInvCripto")?.classList.add("hidden-filter");
+    document.getElementById("fieldInvCriptoQtd")?.classList.add("hidden-filter");
     formInvestimento.classList.remove("com-outro", "modo-rv", "modo-ambos");
     ajustarFormPorTipo();
     atualizarSelectContas();
     renderInvestimentos();
     toast(`Investimento adicionado!`, "success");
+
+    // Se for cripto, busca o preço agora e atualiza os valores
+    if (criptoId) {
+      atualizarPrecosCripto(true).then(() => renderInvestimentos());
+    }
   } catch(err) { tratarErro(err); }
 });
 
@@ -2954,7 +3179,9 @@ function mapInvestimento(i) {
     valorAtual: i.valor_atual != null ? Number(i.valor_atual) : null,
     rendaPassiva: Number(i.renda_passiva || 0),
     valorAtualEm: i.valor_atual_em || null,
-    dataInicio: i.data_inicio, observacao: i.observacao
+    dataInicio: i.data_inicio, observacao: i.observacao,
+    criptoId: i.cripto_id || null,
+    criptoQtd: i.cripto_qtd != null ? Number(i.cripto_qtd) : null
   };
 }
 
@@ -2975,34 +3202,15 @@ function simularDoInvestimento(id) {
   document.getElementById("simRegime").value = i.regime;
   document.getElementById("simTempo").value = 12;
   document.getElementById("simTempoUnidade").value = "mes";
-  abrirSimulador(true);
+  abrirSimulador();
   document.getElementById("formSimulador").dispatchEvent(new Event("submit"));
-  setTimeout(() => {
-    document.getElementById("painelSimulador")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, 120);
 }
 
-/* ============================================================
-   ACORDEÃO DO SIMULADOR
-   ============================================================ */
-
-function abrirSimulador(abrir) {
-  const btn  = document.getElementById("toggleSimulador");
-  const body = document.getElementById("conteudoSimulador");
-  if (!btn || !body) return;
-  body.classList.toggle("open", abrir);
-  btn.setAttribute("aria-expanded", String(abrir));
-  // O Chart.js não mede direito enquanto o container está fechado.
-  // Ao abrir, força o redimensionamento depois da animação.
-  if (abrir && chartSimulador) {
-    setTimeout(() => chartSimulador.resize(), 300);
-  }
+/* O botão "Simular" de um investimento abre a aba do simulador */
+function abrirSimulador() {
+  trocarTela("investimentos");
+  trocarAbaInv("simulador");
 }
-
-document.getElementById("toggleSimulador")?.addEventListener("click", () => {
-  const body = document.getElementById("conteudoSimulador");
-  abrirSimulador(!body.classList.contains("open"));
-});
 
 
 /* ============================================================
@@ -4677,15 +4885,23 @@ function btnRetomar() {
 
 const CORES_CONTA = [
   "#8B5CF6",  // roxo
+  "#A855F7",  // roxo claro
   "#EC4899",  // rosa
+  "#F43F5E",  // rosa-vermelho
   "#F97316",  // laranja
+  "#FB923C",  // laranja claro
   "#EAB308",  // amarelo
-  "#22C55E",  // verde
-  "#14B8A6",  // teal
-  "#0EA5E9",  // azul
-  "#6366F1",  // índigo
-  "#EF4444",  // vermelho
   "#84CC16",  // lima
+  "#22C55E",  // verde
+  "#10B981",  // esmeralda
+  "#14B8A6",  // teal
+  "#06B6D4",  // ciano
+  "#0EA5E9",  // azul
+  "#3B82F6",  // azul royal
+  "#6366F1",  // índigo
+  "#8B5CF6",  // violeta
+  "#EF4444",  // vermelho
+  "#64748B",  // cinza-azulado
 ];
 
 /* Deriva uma cor estável a partir do nome.
@@ -4754,12 +4970,58 @@ function montarCorPicker(elId, corAtual, onPick) {
     `).join("")}
   `;
 
+  // Campo hex personalizado
+  const hexWrap = document.createElement("div");
+  hexWrap.className = "cor-hex";
+  hexWrap.innerHTML = `
+    <span class="cor-hex-amostra" id="${elId}-hexAmostra" style="background:${corAtual && !CORES_CONTA.includes(corAtual) ? corAtual : "transparent"}"></span>
+    <input type="text" class="cor-hex-input" id="${elId}-hexInput" placeholder="#FF5733" maxlength="7"
+           value="${corAtual && !CORES_CONTA.includes(corAtual) ? corAtual : ""}" />
+    <button type="button" class="cor-hex-ok" id="${elId}-hexOk">Usar</button>
+  `;
+  el.appendChild(hexWrap);
+
+  const hexInput = hexWrap.querySelector(".cor-hex-input");
+  const hexAmostra = hexWrap.querySelector(".cor-hex-amostra");
+  const hexOk = hexWrap.querySelector(".cor-hex-ok");
+
+  const validarHex = v => /^#[0-9A-Fa-f]{6}$/.test(v);
+  const normalizarHex = v => {
+    v = v.trim();
+    if (v && !v.startsWith("#")) v = "#" + v;
+    return v.toUpperCase();
+  };
+
+  hexInput.addEventListener("input", () => {
+    const v = normalizarHex(hexInput.value);
+    if (validarHex(v)) {
+      hexAmostra.style.background = v;
+      hexOk.disabled = false;
+    } else {
+      hexAmostra.style.background = "transparent";
+      hexOk.disabled = true;
+    }
+  });
+
+  const aplicarHex = () => {
+    const v = normalizarHex(hexInput.value);
+    if (!validarHex(v)) { toast("Código inválido. Use o formato #FF5733.", "error"); return; }
+    onPick(v);
+    el.querySelectorAll(".cor-opcao").forEach(x => x.classList.remove("ativa"));
+    if (elId === "corPicker") { atualizarAmostraCor(); fecharCorPop(); }
+    else { toast("Cor personalizada aplicada.", "success"); }
+  };
+  hexOk.addEventListener("click", aplicarHex);
+  hexInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); aplicarHex(); } });
+
   el.querySelectorAll(".cor-opcao").forEach(b => {
     b.addEventListener("click", () => {
       const cor = b.dataset.cor || null;
       onPick(cor);
       el.querySelectorAll(".cor-opcao").forEach(x => x.classList.remove("ativa"));
       b.classList.add("ativa");
+      if (hexInput) hexInput.value = "";
+      if (hexAmostra) hexAmostra.style.background = "transparent";
       if (elId === "corPicker") {
         atualizarAmostraCor();
         fecharCorPop();
@@ -5069,8 +5331,645 @@ function restaurarPaineis() {
   }
 }
 
+
+/* ============================================================
+   METAS E OBJETIVOS (v26)
+   Duas coisas diferentes, agora separadas em abas:
+   - Objetivos: juntar dinheiro para algo (longo prazo)
+   - Limites: teto de gasto por categoria (mensal)
+   ============================================================ */
+
+function trocarAbaMeta(aba) {
+  document.querySelectorAll("#metaAbas .meta-aba").forEach(b =>
+    b.classList.toggle("ativo", b.dataset.aba === aba));
+  const obj = document.getElementById("painelObjetivos");
+  const lim = document.getElementById("painelLimites");
+  if (obj) obj.style.display = aba === "objetivos" ? "" : "none";
+  if (lim) lim.style.display = aba === "limites" ? "" : "none";
+  localStorage.setItem("fp_meta_aba", aba);
+}
+
+document.querySelectorAll("#metaAbas .meta-aba").forEach(btn => {
+  btn.addEventListener("click", () => trocarAbaMeta(btn.dataset.aba));
+});
+
+/* Preview: quanto guardar por mês para chegar no objetivo */
+function atualizarObjPreview() {
+  const el = document.getElementById("objPreview");
+  if (!el) return;
+  const alvo  = parseFloat(document.getElementById("objAlvo")?.value) || 0;
+  const atual = parseFloat(document.getElementById("objAtual")?.value) || 0;
+  const data  = document.getElementById("objData")?.value;
+
+  if (!alvo || !data) { el.innerHTML = ""; return; }
+
+  const falta = Math.max(0, alvo - atual);
+  const hoje = new Date(hojeISO()+"T00:00:00");
+  const fim  = new Date(data+"T00:00:00");
+  const meses = Math.max(1, Math.round((fim - hoje) / (30.44 * 86400000)));
+
+  if (falta <= 0) {
+    el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg><span>Você já tem o valor completo!</span>`;
+    return;
+  }
+
+  const porMes = falta / meses;
+  el.innerHTML = `<svg class="obj-preview-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Guarde <strong>${fmtMoeda(porMes)}</strong> por mês durante <strong>${meses}</strong> ${meses === 1 ? "mês" : "meses"} para juntar ${fmtMoeda(falta)}.</span>`;
+}
+
+["objAlvo","objAtual","objData"].forEach(id => {
+  document.getElementById(id)?.addEventListener("input", atualizarObjPreview);
+});
+
+
+/* ============================================================
+   ÍCONES DE OBJETIVO (v27)
+   Emojis davam ar amador. SVGs em linha, na cor da marca.
+   ============================================================ */
+const ICONES_OBJETIVO = {
+  geral:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>',
+  carro:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l1.5-4.5A2 2 0 0 1 8.4 7h7.2a2 2 0 0 1 1.9 1.5L19 13"/><path d="M4 13h16v4a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H7v1a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="15.5" r="0.5"/><circle cx="16.5" cy="15.5" r="0.5"/></svg>',
+  viagem:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5a2.1 2.1 0 0 0-3-3L13 8 4.8 6.2a1 1 0 0 0-.9.3l-.9.9a.5.5 0 0 0 .1.8L8 11l-2 2H4l-1 1 3 2 2 3 1-1v-2l2-2 2.9 5.8a.5.5 0 0 0 .8.1l.9-.9a1 1 0 0 0 .3-.9z"/></svg>',
+  casa:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/><path d="M9 20v-6h6v6"/></svg>',
+  estudos:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 2.7 2.5 6 2.5s6-1.5 6-2.5v-5"/></svg>',
+  casamento:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14" r="6"/><path d="M9 5l3 3 3-3"/><path d="M9 5l1.5-2h3L15 5"/></svg>',
+  reserva:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.5 8 11 4.6-2.5 8-6 8-11V5z"/><path d="M9 12l2 2 4-4"/></svg>',
+  eletronico: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>',
+};
+
+/* Objetivos criados antes desta versão têm emoji salvo.
+   Este mapa converte para as novas chaves, sem perder o ícone. */
+const EMOJI_PARA_CHAVE = {
+  "🎯":"geral","🚗":"carro","✈️":"viagem","✈":"viagem","🏠":"casa",
+  "🎓":"estudos","💍":"casamento","🛡️":"reserva","🛡":"reserva","📱":"eletronico"
+};
+function iconeObjetivo(chave) {
+  const c = EMOJI_PARA_CHAVE[chave] || chave;
+  return ICONES_OBJETIVO[c] || ICONES_OBJETIVO.geral;
+}
+
+
+/* Número curto: 12.5 → "12,5", 12.0 → "12" (sem casas inúteis) */
+function fmtNum(n) {
+  return Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+}
+
+
+/* ============================================================
+   CRIPTO AO VIVO (v29)
+   Busca preço em BRL + variação 24h na CoinGecko (grátis, sem chave).
+   Cache de 5 min para respeitar o rate limit da API pública.
+   ============================================================ */
+
+/* As moedas que o app oferece. O id é o da CoinGecko. */
+const CRIPTOS = [
+  { id: "bitcoin",      sigla: "BTC",  nome: "Bitcoin" },
+  { id: "ethereum",     sigla: "ETH",  nome: "Ethereum" },
+  { id: "tether",       sigla: "USDT", nome: "Tether (USDT)" },
+  { id: "binancecoin",  sigla: "BNB",  nome: "BNB" },
+  { id: "solana",       sigla: "SOL",  nome: "Solana" },
+  { id: "ripple",       sigla: "XRP",  nome: "XRP" },
+  { id: "cardano",      sigla: "ADA",  nome: "Cardano" },
+  { id: "dogecoin",     sigla: "DOGE", nome: "Dogecoin" },
+  { id: "usd-coin",     sigla: "USDC", nome: "USD Coin" },
+  { id: "polkadot",     sigla: "DOT",  nome: "Polkadot" },
+];
+
+function criptoPorId(id) {
+  return CRIPTOS.find(c => c.id === id) || null;
+}
+
+/* Cache em memória + localStorage (sobrevive a recarregar a página) */
+const CACHE_CRIPTO_MS = 5 * 60 * 1000;   // 5 minutos
+let _precosCripto = {};                    // { bitcoin: { brl, variacao24h }, ... }
+let _precosCriptoEm = 0;
+
+function carregarCacheCripto() {
+  try {
+    const raw = localStorage.getItem("fp_precos_cripto");
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    if (obj && obj.dados && obj.em) {
+      _precosCripto = obj.dados;
+      _precosCriptoEm = obj.em;
+    }
+  } catch { /* cache corrompido, ignora */ }
+}
+
+function salvarCacheCripto() {
+  try {
+    localStorage.setItem("fp_precos_cripto", JSON.stringify({
+      dados: _precosCripto, em: _precosCriptoEm
+    }));
+  } catch { /* localStorage cheio, ignora */ }
+}
+
+/* Quais criptos o usuário realmente tem — só busca essas */
+function criptosEmUso() {
+  const ids = new Set();
+  state.investimentos.forEach(i => { if (i.criptoId) ids.add(i.criptoId); });
+  return [...ids];
+}
+
+/* Busca os preços. Retorna true se atualizou, false se usou cache. */
+async function atualizarPrecosCripto(forcar = false) {
+  const ids = criptosEmUso();
+  if (!ids.length) return false;
+
+  const agora = Date.now();
+  const cacheValido = (agora - _precosCriptoEm) < CACHE_CRIPTO_MS;
+
+  // Só busca se o cache venceu, ou se forçado, ou se falta alguma moeda
+  const faltaAlguma = ids.some(id => !_precosCripto[id]);
+  if (cacheValido && !forcar && !faltaAlguma) return false;
+
+  const url = `https://api.coingecko.com/api/v3/simple/price`
+    + `?ids=${ids.join(",")}&vs_currencies=brl`
+    + `&include_24hr_change=true`;
+
+  try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 12000);
+    const resp = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timeout);
+
+    if (resp.status === 429) {
+      // Rate limit — mantém o cache antigo, avisa discretamente
+      _criptoErro = "limite";
+      return false;
+    }
+    if (!resp.ok) { _criptoErro = "falha"; return false; }
+
+    const data = await resp.json();
+    ids.forEach(id => {
+      if (data[id] && typeof data[id].brl === "number") {
+        _precosCripto[id] = {
+          brl: data[id].brl,
+          variacao24h: data[id].brl_24h_change ?? null
+        };
+      }
+    });
+    _precosCriptoEm = agora;
+    _criptoErro = null;
+    salvarCacheCripto();
+    return true;
+
+  } catch (e) {
+    // Rede caiu ou timeout — segue com o cache que tiver
+    _criptoErro = "rede";
+    return false;
+  }
+}
+
+let _criptoErro = null;
+
+/* Valor atual de um investimento cripto, com o preço de agora.
+   Se não há preço ainda, cai no valor aplicado. */
+function valorAtualCripto(inv) {
+  if (!inv.criptoId || !inv.criptoQtd) return inv.valor;
+  const p = _precosCripto[inv.criptoId];
+  if (!p) return inv.valor;
+  return inv.criptoQtd * p.brl;
+}
+
+/* Formata a variação: +2,3% em verde, −1,8% em vermelho */
+function badgeVariacao(variacao) {
+  if (variacao == null) return "";
+  const pos = variacao >= 0;
+  const cls = pos ? "cripto-var-pos" : "cripto-var-neg";
+  const sinal = pos ? "+" : "−";
+  return `<span class="cripto-var ${cls}">${sinal}${fmtNum(Math.abs(variacao))}% <small>24h</small></span>`;
+}
+
+
+
+/* ─── Campos de cripto no formulário ─── */
+
+/* Popula o select de moedas */
+function popularSelectCripto() {
+  const sel = document.getElementById("invCripto");
+  if (!sel || sel.options.length > 1) return;
+  CRIPTOS.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = `${c.nome} (${c.sigla})`;
+    sel.appendChild(opt);
+  });
+}
+
+/* Mostra/esconde os campos de cripto conforme o tipo */
+function alternarCamposCripto() {
+  const tipo = document.getElementById("invTipo")?.value;
+  const cfg = configTipo(tipo);
+  const modo = cfg.modo || "taxa";
+  const ehCripto = modo === "cripto";
+  const ehVariavel = modo === "variavel" || modo === "cripto";
+  const ehCDI = modo === "cdi";
+  const ehPoupanca = modo === "poupanca";
+
+  // Campos de cripto: só quando é cripto
+  document.getElementById("fieldInvCripto")?.classList.toggle("hidden-filter", !ehCripto);
+  document.getElementById("fieldInvCriptoQtd")?.classList.toggle("hidden-filter", !ehCripto);
+
+  // Taxa: escondida em renda variável (sem taxa) e poupança (taxa fixa conhecida)
+  const escondeTaxa = ehVariavel || ehPoupanca;
+  document.getElementById("invTaxa")?.closest(".field")?.classList.toggle("hidden-filter", escondeTaxa);
+  // Período e regime: só fazem sentido no modo "taxa" fixa
+  const soTaxaFixa = modo === "taxa" || modo === "ipca";
+  document.getElementById("invTaxaPeriodo")?.closest(".field")?.classList.toggle("hidden-filter", !soTaxaFixa);
+  document.getElementById("invRegime")?.closest(".field")?.classList.toggle("hidden-filter", !soTaxaFixa);
+
+  // Label do campo taxa muda conforme o modo
+  const lbl = document.getElementById("invTaxaLabel");
+  const inp = document.getElementById("invTaxa");
+  if (lbl && inp) {
+    if (ehCDI) {
+      lbl.textContent = "% do CDI";
+      inp.placeholder = "Ex: 105";
+    } else if (modo === "ipca") {
+      lbl.textContent = "Taxa fixa (%) + IPCA";
+      inp.placeholder = "Ex: 6";
+    } else {
+      lbl.textContent = "Rendimento (%)";
+      inp.placeholder = "Ex: 12";
+    }
+  }
+
+  // Valor calculado (cripto) vira leitura
+  const campoValor = document.getElementById("invValor");
+  if (campoValor) {
+    campoValor.readOnly = ehCripto;
+    campoValor.closest(".field")?.classList.toggle("campo-calculado", ehCripto);
+  }
+
+  // Título do bloco
+  const titBloco = document.getElementById("invBlocoValorTitulo");
+  if (titBloco) titBloco.textContent = ehVariavel ? "Valor" : "Valor e rendimento";
+
+  atualizarDicaCDI();
+  mostrarAvisoTipo(cfg);
+}
+
+/* Mostra "105% do CDI = 14,86% a.a." ao vivo */
+function atualizarDicaCDI() {
+  const dica = document.getElementById("invCdiDica");
+  if (!dica) return;
+  const tipo = document.getElementById("invTipo")?.value;
+  const cfg = configTipo(tipo);
+  if ((cfg.modo || "") !== "cdi") { dica.innerHTML = ""; return; }
+
+  const pct = Number(document.getElementById("invTaxa")?.value) || 0;
+  if (!pct) {
+    dica.innerHTML = `CDI hoje: <strong>${fmtNum(cdiAtual())}% a.a.</strong> — informe o percentual do CDI`;
+    return;
+  }
+  const efetiva = cdiAtual() * (pct/100);
+  dica.innerHTML = `${fmtNum(pct)}% do CDI = <strong>${fmtNum(efetiva)}% a.a.</strong> <span style="opacity:.6">(CDI ${fmtNum(cdiAtual())}%)</span>`;
+}
+
+/* Mostra o aviso específico do tipo, se houver */
+function mostrarAvisoTipo(cfg) {
+  const box = document.getElementById("invAvisoTipo");
+  if (!box) return;
+  if (cfg && cfg.aviso) {
+    box.innerHTML = cfg.aviso;
+    box.style.display = "";
+  } else {
+    box.style.display = "none";
+  }
+}
+
+/* Ao escolher moeda + quantidade, calcula o valor aplicado com o preço atual */
+async function calcularValorCripto() {
+  const id  = document.getElementById("invCripto")?.value;
+  const qtd = parseFloat(document.getElementById("invCriptoQtd")?.value);
+  const dica = document.getElementById("invCriptoDica");
+  if (!id || !qtd || qtd <= 0) { if (dica) dica.innerHTML = ""; return; }
+
+  // Garante que temos o preço dessa moeda
+  if (!_precosCripto[id]) {
+    const ids = criptosEmUso();
+    if (!ids.includes(id)) {
+      // Busca pontual dessa moeda
+      try {
+        const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=brl&include_24hr_change=true`);
+        if (r.ok) {
+          const d = await r.json();
+          if (d[id]) _precosCripto[id] = { brl: d[id].brl, variacao24h: d[id].brl_24h_change ?? null };
+        }
+      } catch { /* segue sem preço */ }
+    }
+  }
+
+  const p = _precosCripto[id];
+  if (!p) { if (dica) dica.innerHTML = ""; return; }
+
+  const valor = qtd * p.brl;
+  const campoValor = document.getElementById("invValor");
+  if (campoValor && !campoValor.dataset.editadoManual) {
+    campoValor.value = valor.toFixed(2);
+  }
+
+  const c = criptoPorId(id);
+  if (dica) {
+    dica.innerHTML = `1 ${c.sigla} = ${fmtMoeda(p.brl)} · ${qtd} ${c.sigla} = <strong>${fmtMoeda(valor)}</strong>`;
+  }
+}
+
+document.getElementById("invTipo")?.addEventListener("change", () => {
+  alternarCamposCripto();
+  popularSelectCripto();
+});
+document.getElementById("invCripto")?.addEventListener("change", calcularValorCripto);
+document.getElementById("invCriptoQtd")?.addEventListener("input", calcularValorCripto);
+
+// Se a pessoa editar o valor à mão, para de sobrescrever
+document.getElementById("invValor")?.addEventListener("input", e => {
+  e.target.dataset.editadoManual = "1";
+});
+
+
+/* ─── Botão de atualizar preços ─── */
+function atualizarBotaoCripto() {
+  const btn = document.getElementById("btnAtualizarCripto");
+  const lbl = document.getElementById("criptoAtualizadoEm");
+  if (!btn) return;
+
+  const temCripto = criptosEmUso().length > 0;
+  btn.style.display = temCripto ? "" : "none";
+  if (!temCripto) return;
+
+  if (_criptoErro === "limite") {
+    lbl.textContent = "Limite atingido — tente em 1 min";
+    btn.classList.add("cripto-erro");
+  } else if (_criptoErro === "rede") {
+    lbl.textContent = "Sem conexão";
+    btn.classList.add("cripto-erro");
+  } else if (_precosCriptoEm) {
+    const min = Math.round((Date.now() - _precosCriptoEm) / 60000);
+    lbl.textContent = min < 1 ? "Agora mesmo" : `há ${min} min`;
+    btn.classList.remove("cripto-erro");
+  } else {
+    lbl.textContent = "Atualizar";
+    btn.classList.remove("cripto-erro");
+  }
+}
+
+document.getElementById("btnAtualizarCripto")?.addEventListener("click", async () => {
+  const btn = document.getElementById("btnAtualizarCripto");
+  btn?.classList.add("girando");
+  await atualizarPrecosCripto(true);
+  renderInvestimentos();
+  setTimeout(() => btn?.classList.remove("girando"), 600);
+});
+
+
+/* ============================================================
+   ABAS DE INVESTIMENTOS (v31)
+   Carteira | Simulador — na mesma seção.
+   ============================================================ */
+function trocarAbaInv(aba) {
+  document.querySelectorAll("#invAbas .meta-aba").forEach(b =>
+    b.classList.toggle("ativo", b.dataset.aba === aba));
+  const cart = document.getElementById("painelCarteira");
+  const sim  = document.getElementById("painelSimulador");
+  if (cart) cart.style.display = aba === "carteira" ? "" : "none";
+  if (sim)  sim.style.display  = aba === "simulador" ? "" : "none";
+
+  // O Chart.js não mede direito enquanto está oculto — redimensiona ao abrir
+  if (aba === "simulador" && chartSimulador) {
+    setTimeout(() => chartSimulador.resize(), 60);
+  }
+}
+
+document.querySelectorAll("#invAbas .meta-aba").forEach(btn => {
+  btn.addEventListener("click", () => trocarAbaInv(btn.dataset.aba));
+});
+
+
+/* ============================================================
+   PARSER DE MÚLTIPLOS LANÇAMENTOS (v34)
+   Entende "+1500 salário -1000 contas -50 uber" numa linha,
+   criando um lançamento para cada. O sinal manda:
+   + = entrada, - = gasto. Sem sinal, usa palavras-chave.
+   ============================================================ */
+
+function parseMultiplosLancamentos(texto) {
+  const itens = [];
+
+  // Divide por + ou - que precedem um número (mantendo o sinal).
+  // Ex: "+1500 salário -1000 contas" → ["+1500 salário", "-1000 contas"]
+  // A regex captura: sinal opcional, número, e o texto até o próximo sinal+número
+  const regex = /([+\-−])?\s*(\d[\d.,]*)\s*(?:reais?|r\$)?\s*([^+\-−]*)/gi;
+
+  let m;
+  let achouAlgum = false;
+  while ((m = regex.exec(texto)) !== null) {
+    const [, sinal, numStr, descRaw] = m;
+    if (!numStr) continue;
+
+    const valor = Number(numStr.replace(/\./g, "").replace(",", "."));
+    if (!valor || isNaN(valor)) continue;
+
+    achouAlgum = true;
+    const desc = (descRaw || "").trim().replace(/^(de|do|da|no|na|em)\s+/i, "");
+
+    // Determina o tipo:
+    // sinal + = entrada, sinal - = gasto
+    // sem sinal → usa palavras-chave no trecho
+    let tipo;
+    if (sinal === "+") tipo = "entrada";
+    else if (sinal === "-" || sinal === "−") tipo = "gasto";
+    else tipo = detectarTipo(desc || texto);
+
+    itens.push({
+      valor,
+      tipo,
+      descricao: desc || (tipo === "entrada" ? "Entrada" : "Gasto"),
+      categoria: classificarCategoria(desc || texto)
+    });
+  }
+
+  // Se não achou nenhum número, retorna vazio (o chamador trata)
+  return achouAlgum ? itens : [];
+}
+
+
+
+/* Chips de período do gráfico de evolução */
+document.getElementById("periodoEvolucao")?.addEventListener("click", e => {
+  const btn = e.target.closest(".periodo-chip");
+  if (!btn) return;
+  _periodoEvolucao = Number(btn.dataset.meses);
+  document.querySelectorAll("#periodoEvolucao .periodo-chip").forEach(c =>
+    c.classList.toggle("ativo", c === btn));
+  renderGraficoEvolucao();
+});
+
+
+/* ============================================================
+   SIDEBAR RECOLHÍVEL (v36)
+   Recolhe para mostrar só ícones. Estado salvo entre sessões.
+   ============================================================ */
+function aplicarEstadoSidebar() {
+  const recolhida = localStorage.getItem("fp_sidebar") === "recolhida";
+  document.body.classList.toggle("sidebar-recolhida", recolhida);
+  const btn = document.getElementById("sidebarToggle");
+  if (btn) btn.setAttribute("title", recolhida ? "Expandir menu" : "Recolher menu");
+
+  // Garante que cada item tenha o tooltip e que o texto esteja num span
+  // (o texto vinha solto no button, por isso o CSS não conseguia escondê-lo)
+  document.querySelectorAll(".sidebar .menu-item").forEach(item => {
+    if (!item.dataset.tooltip) {
+      item.dataset.tooltip = item.textContent.trim();
+    }
+    // Envolve nós de texto soltos num span.menu-label (uma vez só)
+    if (!item.querySelector(".menu-label")) {
+      item.childNodes.forEach(node => {
+        if (node.nodeType === 3 && node.textContent.trim()) {
+          const span = document.createElement("span");
+          span.className = "menu-label";
+          span.textContent = node.textContent.trim();
+          node.replaceWith(span);
+        }
+      });
+    }
+  });
+}
+
+document.getElementById("sidebarToggle")?.addEventListener("click", () => {
+  const recolhida = !document.body.classList.contains("sidebar-recolhida");
+  localStorage.setItem("fp_sidebar", recolhida ? "recolhida" : "expandida");
+  aplicarEstadoSidebar();
+  // Os gráficos precisam remedir após a animação de largura
+  setTimeout(() => {
+    if (chartEvolucao) chartEvolucao.resize();
+    if (chartCategoriasPlanilha) chartCategoriasPlanilha.resize();
+    if (chartFluxoPlanilha) chartFluxoPlanilha.resize();
+    if (chartSimulador) chartSimulador.resize();
+  }, 280);
+});
+
+
+/* ============================================================
+   TAXA CDI AO VIVO (v37) — API do Banco Central
+   Série 12 = CDI diário. Anualiza base 252 dias úteis.
+   Cache de 12h (o CDI muda no máximo a cada reunião do Copom).
+   ============================================================ */
+
+const CDI_FALLBACK = 14.15;   // % a.a. — usado se a API falhar (jul/2026)
+let _cdiAnual = null;         // taxa anualizada, ex: 14.15
+let _cdiEm = 0;
+const CACHE_CDI_MS = 12 * 60 * 60 * 1000;   // 12 horas
+
+function carregarCacheCDI() {
+  try {
+    const raw = localStorage.getItem("fp_cdi");
+    if (!raw) return;
+    const o = JSON.parse(raw);
+    if (o && o.taxa && o.em) { _cdiAnual = o.taxa; _cdiEm = o.em; }
+  } catch {}
+}
+
+function salvarCacheCDI() {
+  try { localStorage.setItem("fp_cdi", JSON.stringify({ taxa: _cdiAnual, em: _cdiEm })); } catch {}
+}
+
+/* A taxa CDI que o app usa agora (cache, fallback, ou já buscada) */
+function cdiAtual() {
+  return _cdiAnual || CDI_FALLBACK;
+}
+
+async function atualizarCDI(forcar = false) {
+  const agora = Date.now();
+  if (!forcar && _cdiAnual && (agora - _cdiEm) < CACHE_CDI_MS) return _cdiAnual;
+
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 10000);
+    // Série 12 = CDI diário (% ao dia). Pega o último valor.
+    const resp = await fetch(
+      "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados/ultimos/1?formato=json",
+      { signal: ctrl.signal }
+    );
+    clearTimeout(t);
+    if (!resp.ok) return cdiAtual();
+
+    const dados = await resp.json();
+    if (Array.isArray(dados) && dados.length) {
+      const diaria = Number(String(dados[0].valor).replace(",", ".")); // % ao dia
+      if (diaria > 0) {
+        // Anualiza base 252 dias úteis: (1 + i)^252 - 1
+        _cdiAnual = (Math.pow(1 + diaria/100, 252) - 1) * 100;
+        _cdiEm = agora;
+        salvarCacheCDI();
+      }
+    }
+  } catch {
+    // Rede caiu — segue com cache ou fallback
+  }
+  return cdiAtual();
+}
+
+
+
+/* ============================================================
+   TAXA ANUAL EFETIVA (v37)
+   Converte o que o usuário informou na taxa real ao ano,
+   conforme o modo do investimento.
+   - cdi:      taxa = % informado × CDI atual (ex: 105% → 14,86%)
+   - taxa:     taxa fixa informada, direta
+   - ipca:     taxa fixa + IPCA estimado
+   - poupanca: 0,5% a.m. + TR (regra fixa)
+   - variavel/cripto: sem taxa (retorna 0, valor vem do mercado)
+   ============================================================ */
+
+const IPCA_ESTIMADO = 4.0;   // % a.a. — inflação estimada (ajustável)
+
+function taxaAnualEfetiva(inv) {
+  const cfg = configTipo(inv.tipo);
+  const modo = cfg.modo || "taxa";
+
+  // A taxa que o usuário digitou, já normalizada para "ao ano"
+  const taxaInformada = inv.taxaPeriodo === "mes"
+    ? (Math.pow(1 + (inv.taxa||0)/100, 12) - 1) * 100
+    : (inv.taxa || 0);
+
+  switch (modo) {
+    case "cdi":
+      // inv.taxa aqui é o % do CDI (ex: 105). Converte com o CDI atual.
+      return cdiAtual() * ((inv.taxa || 100) / 100);
+
+    case "ipca":
+      // taxa fixa informada + inflação estimada
+      return taxaInformada + IPCA_ESTIMADO;
+
+    case "poupanca":
+      // 0,5% a.m. capitalizado + TR (~0 com juros altos)
+      return (Math.pow(1.005, 12) - 1) * 100;
+
+    case "variavel":
+    case "cripto":
+      // Renda variável: sem rendimento projetável por taxa
+      return 0;
+
+    case "taxa":
+    default:
+      return taxaInformada;
+  }
+}
+
+
+
+/* Atualiza a conversão do CDI ao digitar o percentual */
+document.getElementById("invTaxa")?.addEventListener("input", atualizarDicaCDI);
+
 async function iniciar() {
+  aplicarEstadoSidebar();
+  carregarCacheCripto();
+  popularSelectCripto();
   restaurarDicas();
+  trocarAbaMeta(localStorage.getItem("fp_meta_aba") || "limites");
   restaurarPaineis();
   iniciarCorPicker();
   const ri = document.getElementById("recInicio");
