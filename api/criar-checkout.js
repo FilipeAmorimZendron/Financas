@@ -79,6 +79,11 @@ export default async function handler(req, res) {
     proximoVencimento.setDate(proximoVencimento.getDate() + 1); // amanhã
     const nextDueDate = proximoVencimento.toISOString().slice(0, 10);
 
+    // Data de término da assinatura (bem no futuro, ~10 anos)
+    const fim = new Date();
+    fim.setFullYear(fim.getFullYear() + 10);
+    const endDate = fim.toISOString().slice(0, 10);
+
     const respCheckout = await fetch(`${ASAAS_URL}/checkouts`, {
       method: "POST",
       headers,
@@ -99,10 +104,14 @@ export default async function handler(req, res) {
             value: valor,
           },
         ],
-        customer: cliente.id,
+        customerData: {
+          name: nome || email,
+          email: email,
+        },
         subscription: {
           cycle: ciclo === "anual" ? "YEARLY" : "MONTHLY",
           nextDueDate: nextDueDate,
+          endDate: endDate,
         },
         externalReference: `${userId}|${plano}|${ciclo}`,
       }),
