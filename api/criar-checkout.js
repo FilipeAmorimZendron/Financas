@@ -99,10 +99,7 @@ export default async function handler(req, res) {
             value: valor,
           },
         ],
-        customerData: {
-          name: nome || email,
-          email: email,
-        },
+        customer: cliente.id,
         subscription: {
           cycle: ciclo === "anual" ? "YEARLY" : "MONTHLY",
           nextDueDate: nextDueDate,
