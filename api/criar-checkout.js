@@ -66,6 +66,7 @@ export default async function handler(req, res) {
     });
 
     const cliente = await respCliente.json();
+    console.log("Resposta cliente Asaas:", respCliente.status, JSON.stringify(cliente));
     if (!respCliente.ok || !cliente.id) {
       return res.status(502).json({
         erro: "Falha ao criar cliente no Asaas",
@@ -111,7 +112,12 @@ export default async function handler(req, res) {
     });
 
     const checkout = await respCheckout.json();
-    if (!respCheckout.ok || !checkout.id) {
+
+    // Log da resposta crua do Asaas (aparece nos Logs da Vercel) para diagnóstico
+    console.log("Resposta checkout Asaas:", respCheckout.status, JSON.stringify(checkout));
+
+    // Se o Asaas recusou (status não-2xx), devolve o motivo
+    if (!respCheckout.ok) {
       return res.status(502).json({
         erro: "Falha ao criar checkout no Asaas",
         detalhe: checkout,
@@ -119,7 +125,23 @@ export default async function handler(req, res) {
     }
 
     // --- 3. Devolve o link da página de pagamento ---
-    const link = checkout.link || `https://www.asaas.com/checkoutSession/show?id=${checkout.id}`;
+    // O Asaas pode usar nomes diferentes para o link/id dependendo da versão.
+    // Tentamos os campos mais comuns, na ordem.
+    const link =
+      checkout.link ||
+      checkout.url ||
+      checkout.invoiceUrl ||
+      checkout.checkoutUrl ||
+      (checkout.id ? `https://sandbox.asaas.com/checkoutSession/show?id=${checkout.id}` : null);
+
+    if (!link) {
+      // Não achamos o link — devolve a resposta inteira para investigarmos
+      return res.status(502).json({
+        erro: "Checkout criado mas link não encontrado",
+        detalhe: checkout,
+      });
+    }
+
     return res.status(200).json({ url: link });
 
   } catch (e) {
