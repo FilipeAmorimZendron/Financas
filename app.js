@@ -3218,12 +3218,21 @@ function cardInvestimento(i) {
   let valorDireita = "";
 
   if (rf && i.taxa > 0) {
-    // ── RENDA FIXA: taxa + projeção confiável ──
-    const proj = projetarInvestimento(i.valor, i.taxa, i.taxaPeriodo, i.regime, 12, 0);
-    const per = { ano: "a.a.", mes: "a.m.", dia: "a.d." }[i.taxaPeriodo] || "";
-    const reg = i.regime === "composto" ? "compostos" : "simples";
-    linhaPrincipal = `<strong>${i.taxa}% ${per}</strong> · juros ${reg}`;
-    linhaSecundaria = `Em 12 meses: <span class="valor-positivo">+${fmtMoeda(proj.juros)}</span> → ${fmtMoeda(proj.final)}`;
+    // ── RENDA FIXA: usa a taxa anual efetiva (interpreta CDI/IPCA corretamente) ──
+    const taxaAno = taxaAnualEfetiva(i);
+    const jurosAno = i.valor * (taxaAno / 100);
+    const finalAno = i.valor + jurosAno;
+    const cfg = configTipo(i.tipo);
+    // Mostra o rótulo conforme o tipo: % do CDI, ou % a.a. direto
+    let rotuloTaxa;
+    if (cfg.modo === "cdi") {
+      rotuloTaxa = `<strong>${i.taxa}% do CDI</strong> · ${taxaAno.toFixed(2)}% a.a.`;
+    } else {
+      const per = { ano: "a.a.", mes: "a.m.", dia: "a.d." }[i.taxaPeriodo] || "";
+      rotuloTaxa = `<strong>${i.taxa}% ${per}</strong>`;
+    }
+    linhaPrincipal = rotuloTaxa;
+    linhaSecundaria = `Em 12 meses: <span class="valor-positivo">+${fmtMoeda(jurosAno)}</span> → ${fmtMoeda(finalAno)}`;
     valorDireita = fmtMoeda(i.valor);
 
   } else {
@@ -3317,9 +3326,11 @@ function renderResumoInstituicoes() {
     if (!grupos[chave]) grupos[chave] = { total: 0, rendimento: 0, qtd: 0 };
     grupos[chave].total += valorHoje(i);
     grupos[chave].qtd += 1;
-    // Rendimento: projeção para renda fixa, renda passiva para variável
-    if (ehRendaFixa(i.tipo) && i.taxa > 0) {
-      grupos[chave].rendimento += projetarInvestimento(i.valor, i.taxa, i.taxaPeriodo, i.regime, 12, 0).juros;
+    // Rendimento: projeção para renda fixa (usa a taxa anual efetiva, que já
+    // interpreta CDI/IPCA corretamente), renda passiva para variável
+    if (ehRendaFixa(i.tipo)) {
+      const taxaAno = taxaAnualEfetiva(i);
+      grupos[chave].rendimento += i.valor * (taxaAno / 100);
     } else if (i.rendaPassiva > 0) {
       grupos[chave].rendimento += valorHoje(i) * (i.rendaPassiva / 100);
     }
