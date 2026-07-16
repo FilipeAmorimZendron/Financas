@@ -4706,14 +4706,19 @@ function renderConta() {
 
   // Selo do plano na tela de conta
   const seloConta = document.getElementById("contaPlanoSelo");
+  const planoValor = document.getElementById("contaPlanoValor");
+  const plano = planoAtual();
+  const nomePlano = plano === "master" ? "Master" : plano === "premium" ? "Premium" : "Grátis";
+  // Atualiza o card grande "Plano atual"
+  if (planoValor) planoValor.textContent = nomePlano;
+  // O selo abaixo do email só aparece para pagantes (premium/master)
   if (seloConta) {
-    const plano = planoAtual();
-    if (plano === "basico") {
-      seloConta.innerHTML = `<span class="plano-selo plano-selo-basico">Plano gratuito</span>`;
-    } else if (plano === "master") {
-      seloConta.innerHTML = `<span class="plano-selo plano-selo-master">Master</span>`;
+    if (plano === "master") {
+      seloConta.innerHTML = `<span class="selo-plano-usuario selo-plano-master">Master</span>`;
+    } else if (plano === "premium") {
+      seloConta.innerHTML = `<span class="selo-plano-usuario selo-plano-premium">Premium</span>`;
     } else {
-      seloConta.innerHTML = `<span class="plano-selo plano-selo-premium">Premium</span>`;
+      seloConta.innerHTML = "";
     }
   }
 
@@ -5108,7 +5113,7 @@ function atualizarSeloPlano() {
   const infoBtn = document.querySelector(".perfil-btn .perfil-info");
   if (!infoBtn) return;
 
-  let selo = infoBtn.querySelector(".plano-selo");
+  let selo = infoBtn.querySelector(".selo-plano-usuario");
   // Básico: sem selo
   if (plano === "basico") {
     if (selo) selo.remove();
@@ -5117,13 +5122,13 @@ function atualizarSeloPlano() {
   // Premium ou Master: cria/atualiza o selo
   if (!selo) {
     selo = document.createElement("span");
-    selo.className = "plano-selo";
+    selo.className = "selo-plano-usuario";
     // Insere logo após o email
     const acao = infoBtn.querySelector(".perfil-acao");
     infoBtn.insertBefore(selo, acao);
   }
-  selo.classList.toggle("plano-selo-master", plano === "master");
-  selo.classList.toggle("plano-selo-premium", plano === "premium");
+  selo.classList.toggle("selo-plano-master", plano === "master");
+  selo.classList.toggle("selo-plano-premium", plano === "premium");
   selo.textContent = plano === "master" ? "Master" : "Premium";
 }
 

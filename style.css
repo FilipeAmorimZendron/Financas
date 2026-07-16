@@ -7204,7 +7204,7 @@ body.scroll-travado {
 /* ============================================================
    SELOS DE PLANO (Premium / Master)
    ============================================================ */
-.plano-selo {
+.selo-plano-usuario {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -7218,19 +7218,19 @@ body.scroll-travado {
   white-space: nowrap;
 }
 /* Premium: teal (cor do app) */
-.plano-selo-premium {
+.selo-plano-premium {
   background: var(--teal-dim);
   color: var(--teal-400);
   border: 1px solid rgba(20, 167, 151, 0.35);
 }
 /* Master: dourado (mais nobre) */
-.plano-selo-master {
+.selo-plano-master {
   background: var(--amber-dim);
   color: var(--amber);
   border: 1px solid rgba(214, 158, 46, 0.4);
 }
 /* Básico: cinza discreto (só na tela de conta) */
-.plano-selo-basico {
+.selo-plano-basico {
   background: var(--surface2);
   color: var(--text-secondary);
   border: 1px solid var(--border-soft);
@@ -7239,7 +7239,7 @@ body.scroll-travado {
   letter-spacing: 0;
 }
 /* Selo na sidebar: um pouco menor e com margem */
-.perfil-info .plano-selo {
+.perfil-info .selo-plano-usuario {
   margin: 3px 0;
   font-size: 0.62rem;
   padding: 2px 7px;
