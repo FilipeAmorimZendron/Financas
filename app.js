@@ -609,7 +609,15 @@ const tabelaMovimentosBody   = document.getElementById("tabelaMovimentosBody");
 /* ─── Utilitários ────────────────────────────────────────── */
 const fmtMoeda = v => v.toLocaleString("pt-BR", { style:"currency", currency:"BRL" });
 const gerarId  = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random());
-const hojeISO  = () => new Date().toISOString().split("T")[0];
+// Data de hoje no fuso horário do Brasil (não UTC), para evitar que a data
+// "pule" para o dia seguinte à noite. Usa o fuso local do dispositivo.
+const hojeISO = () => {
+  const agora = new Date();
+  const ano = agora.getFullYear();
+  const mes = String(agora.getMonth() + 1).padStart(2, "0");
+  const dia = String(agora.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+};
 const mesAtualISO = () => hojeISO().slice(0,7);
 
 function badge(cat) {
@@ -3898,7 +3906,10 @@ function somarMeses(dataISO, n) {
 function somarDias(dataISO, n) {
   const dt = new Date(dataISO + "T00:00:00");
   dt.setDate(dt.getDate() + n);
-  return dt.toISOString().slice(0, 10);
+  const ano = dt.getFullYear();
+  const mes = String(dt.getMonth() + 1).padStart(2, "0");
+  const dia = String(dt.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
 }
 
 /* Gera as ocorrências de uma recorrência dentro de um intervalo.
