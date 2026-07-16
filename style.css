@@ -7020,3 +7020,234 @@ body.sem-internet .layout { padding-top: 34px; }
 @media (max-width: 560px) {
   .lp-tira { grid-template-columns: 1fr; }
 }
+/* ============================================================
+   BLOQUEIO DE SEÇÃO PREMIUM (cadeado)
+   Cobre uma seção inteira quando o usuário básico tenta acessar
+   um recurso exclusivo (investimentos, recorrências).
+   ============================================================ */
+.screen.secao-desfocada {
+  filter: blur(5px);
+  pointer-events: none;
+  user-select: none;
+  transition: filter 0.2s;
+}
+.bloqueio-premium {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 2rem 1rem;
+  background: rgba(23, 29, 49, 0.45);
+}
+.bloqueio-premium-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 2.25rem 2rem;
+  max-width: 440px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+.bloqueio-premium-icone {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bloqueio-premium-icone svg {
+  width: 28px;
+  height: 28px;
+  color: var(--accent);
+}
+.bloqueio-premium-titulo {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+.bloqueio-premium-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.55;
+  max-width: 360px;
+}
+.bloqueio-premium-aviso {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  margin: 2px 0;
+  max-width: 360px;
+}
+.bloqueio-premium-planos {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 340px;
+  margin: 4px 0 2px;
+}
+.bloqueio-plano {
+  flex: 1;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: var(--surface2);
+}
+.bloqueio-plano-nome {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.bloqueio-plano-preco {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.bloqueio-plano-preco small {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+.bloqueio-premium-btn {
+  margin-top: 8px;
+  padding: 12px 32px;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+/* Cadeado nos itens de menu de seções premium */
+.menu-cadeado {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  padding-left: 8px;
+  opacity: 0.6;
+}
+.menu-cadeado svg {
+  width: 14px;
+  height: 14px;
+}
+.menu-item-bloqueado {
+  opacity: 0.7;
+}
+.bnav-item .menu-cadeado {
+  margin-left: 2px;
+  padding-left: 2px;
+}
+
+/* Trava o scroll da página quando uma seção premium está bloqueada */
+body.scroll-travado {
+  overflow: hidden;
+}
+
+/* ============================================================
+   MODAL DE UPGRADE (limites de contas, metas, etc.)
+   Mesmo visual do card de bloqueio, mas como modal central.
+   ============================================================ */
+.upgrade-ov {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 29, 49, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.18s;
+  padding: 1rem;
+}
+.upgrade-ov.open { opacity: 1; }
+.upgrade-modal {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 2rem 1.75rem;
+  max-width: 420px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 13px;
+  transform: scale(0.96);
+  transition: transform 0.18s;
+}
+.upgrade-ov.open .upgrade-modal { transform: scale(1); }
+.upgrade-modal-btns {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+.upgrade-modal-btns .btn-primary,
+.upgrade-modal-btns .btn-ghost {
+  padding: 10px 22px;
+  font-size: 0.9rem;
+}
+
+/* ============================================================
+   SELOS DE PLANO (Premium / Master)
+   ============================================================ */
+.plano-selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 100px;
+  line-height: 1;
+  white-space: nowrap;
+}
+/* Premium: teal (cor do app) */
+.plano-selo-premium {
+  background: var(--teal-dim);
+  color: var(--teal-400);
+  border: 1px solid rgba(20, 167, 151, 0.35);
+}
+/* Master: dourado (mais nobre) */
+.plano-selo-master {
+  background: var(--amber-dim);
+  color: var(--amber);
+  border: 1px solid rgba(214, 158, 46, 0.4);
+}
+/* Básico: cinza discreto (só na tela de conta) */
+.plano-selo-basico {
+  background: var(--surface2);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-soft);
+  text-transform: none;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+/* Selo na sidebar: um pouco menor e com margem */
+.perfil-info .plano-selo {
+  margin: 3px 0;
+  font-size: 0.62rem;
+  padding: 2px 7px;
+  align-self: flex-start;
+}
+/* Selo na tela de conta: centralizado abaixo do email */
+.conta-plano-selo {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0 2px;
+}

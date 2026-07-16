@@ -1642,6 +1642,7 @@ const _normValor = s => {
 /* ─── Render global ──────────────────────────────────────── */
 function renderTudo() {
   invalidarCacheSaldos();
+  atualizarCadeadosMenu();  // atualiza os cadeados do menu conforme o plano
   renderConta();   // dados podem ter mudado — recalcula na próxima leitura
   atualizarSelectContas();
   ajustarFormPorTipo();
@@ -1664,6 +1665,7 @@ function renderTudo() {
 function trocarTela(name) {
   menuItems.forEach(i=>i.classList.toggle("active", i.dataset.screen===name));
   screens.forEach(s => {
+    s.classList.remove("secao-desfocada");  // limpa desfoque de bloqueio anterior
     if (s.id === `screen-${name}`) {
       s.classList.add("active");
       void s.offsetHeight;
@@ -1675,6 +1677,14 @@ function trocarTela(name) {
   sincronizarBottomNav(name);
   // Mostrar guia na primeira visita à seção
   mostrarGuia(name);
+
+  // Se for seção premium e o usuário não tem acesso: entra, mas desfoca e mostra o modal
+  const infoPremium = SECOES_PREMIUM[name];
+  if (infoPremium && !podeUsar(infoPremium.recurso)) {
+    const secao = document.getElementById(`screen-${name}`);
+    if (secao) secao.classList.add("secao-desfocada");
+    pedirUpgrade(infoPremium.desc, infoPremium.titulo);
+  }
 
   // Ao abrir investimentos, atualiza os preços das criptos
   if (name === "investimentos" && criptosEmUso().length) {
@@ -1701,6 +1711,12 @@ formBanco?.addEventListener("submit", async e => {
   e.preventDefault();
   const nome = nomeBancoInput.value.trim(), tipo = tipoBancoInput.value, saldoInicial = Number(saldoBancoInput.value);
   if (!nome||!tipo) { toast("Preencha todos os campos.","error"); return; }
+  // Bloqueio de plano: básico pode ter no máximo N contas
+  const limiteContas = limitesAtuais().contas;
+  if ((state.bancos?.length || 0) >= limiteContas) {
+    pedirUpgrade(`O plano gratuito permite até ${limiteContas} contas. Assine para ter contas ilimitadas.`);
+    return;
+  }
   try {
     const novo = await dbInsert("contas", { nome, tipo, saldo_inicial: saldoInicial, cor: _corEscolhida });
     state.bancos.push({ id:novo.id, nome:novo.nome, tipo:novo.tipo, saldoInicial:Number(novo.saldo_inicial), cor: novo.cor || null });
@@ -1915,6 +1931,11 @@ formTransferencia?.addEventListener("submit", async e => {
 
 formRecorrencia?.addEventListener("submit", async e => {
   e.preventDefault();
+  // Bloqueio de plano: recorrências é recurso Premium
+  if (!podeUsar("recorrencias")) {
+    pedirUpgrade("Este recurso está disponível a partir do plano Premium.");
+    return;
+  }
   if (!state.bancos.length) { toast("Cadastre uma conta antes.","warning"); return; }
   const descricao = recDescricaoInput.value.trim();
   const valor = Number(recValorInput.value);
@@ -2011,6 +2032,12 @@ formMeta?.addEventListener("submit", async e => {
       state.metas[idx].limite = Number(att.limite);
       toast(`Meta de "${cat}" atualizada.`,"success");
     } else {
+      // Bloqueio de plano: básico pode ter no máximo N metas
+      const limiteMetas = limitesAtuais().metas;
+      if ((state.metas?.length || 0) >= limiteMetas) {
+        pedirUpgrade(`O plano gratuito permite até ${limiteMetas} metas. Assine para ter metas ilimitadas.`);
+        return;
+      }
       const novo = await dbInsert("metas", { categoria:cat, limite });
       state.metas.push({ id:novo.id, categoria:novo.categoria, limite:Number(novo.limite) });
       toast(`Meta de "${cat}" criada!`,"success");
@@ -3144,6 +3171,11 @@ invTipoSelect?.addEventListener("change", () => {
 
 formInvestimento?.addEventListener("submit", async e => {
   e.preventDefault();
+  // Bloqueio de plano: investimentos é recurso Premium
+  if (!podeUsar("investimentos")) {
+    pedirUpgrade("Este recurso está disponível a partir do plano Premium.");
+    return;
+  }
   const tipoSel = document.getElementById("invTipo").value;
   const tipoOutro = document.getElementById("invTipoOutro")?.value.trim() || "";
   const apelido = document.getElementById("invApelido")?.value.trim() || "";
@@ -4899,13 +4931,147 @@ async function salvarPerfil(dados) {
 }
 
 function mapPerfil(p) {
-  if (!p) return { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null };
+  if (!p) return { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null, plano: "basico", assinaturaStatus: "inativa" };
   return {
     avatarTipo:   p.avatar_tipo   || "inicial",
     avatarPadrao: p.avatar_padrao || null,
     avatarUrl:    p.avatar_url    || null,
-    nome:         p.nome          || null
+    nome:         p.nome          || null,
+    plano:            p.plano              || "basico",
+    assinaturaStatus: p.assinatura_status  || "inativa"
   };
+}
+
+/* ============================================================
+   PLANOS E LIMITES (feature-gating)
+   Lê o plano do usuário (de state.perfil) e diz o que ele pode.
+   ============================================================ */
+
+/* Limites de cada plano. Ajustável com o tempo. */
+const LIMITES_PLANO = {
+  basico:  { contas: 2,        metas: 5,        investimentos: false, recorrencias: false, relatorios: false, exportar: false },
+  premium: { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true  },
+  master:  { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true,  ia: true }
+};
+
+/* Retorna o plano ATIVO do usuário. Só vale premium/master se a assinatura estiver ativa. */
+function planoAtual() {
+  const p = state.perfil || {};
+  const status = p.assinaturaStatus || "inativa";
+  const plano  = p.plano || "basico";
+  // Se a assinatura não está ativa, cai pro básico (mesmo que plano diga outra coisa)
+  if (status !== "ativa") return "basico";
+  return (plano === "premium" || plano === "master") ? plano : "basico";
+}
+
+/* Pega os limites do plano ativo */
+function limitesAtuais() {
+  return LIMITES_PLANO[planoAtual()] || LIMITES_PLANO.basico;
+}
+
+/* Diz se o usuário é pagante (premium ou master ativo) */
+function ehPremium() {
+  return planoAtual() !== "basico";
+}
+
+/* Verifica se pode usar um recurso premium (investimentos, recorrencias, etc.) */
+function podeUsar(recurso) {
+  const lim = limitesAtuais();
+  return lim[recurso] === true || lim[recurso] === Infinity;
+}
+
+/* Mostra um aviso de "recurso premium" com botão que leva aos planos.
+   Usado no bloqueio suave: o usuário vê o recurso, mas para usar precisa assinar. */
+function pedirUpgrade(msg, titulo) {
+  return new Promise(resolve => {
+    const ov = document.createElement("div");
+    ov.className = "upgrade-ov";
+    ov.innerHTML = `
+      <div class="upgrade-modal">
+        <div class="bloqueio-premium-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <p class="bloqueio-premium-titulo">${titulo || "Recurso Premium"}</p>
+        <p class="bloqueio-premium-desc">${msg || "Esse recurso é exclusivo dos planos pagos."}</p>
+        <div class="bloqueio-premium-planos">
+          <div class="bloqueio-plano">
+            <span class="bloqueio-plano-nome">Premium</span>
+            <span class="bloqueio-plano-preco">R$ 19,90<small>/mês</small></span>
+          </div>
+          <div class="bloqueio-plano">
+            <span class="bloqueio-plano-nome">Master</span>
+            <span class="bloqueio-plano-preco">R$ 29,90<small>/mês</small></span>
+          </div>
+        </div>
+        <div class="upgrade-modal-btns">
+          <button class="btn-ghost upgrade-cancel">Agora não</button>
+          <button class="btn-primary upgrade-ok">Assinar agora</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    requestAnimationFrame(() => ov.classList.add("open"));
+    ov.querySelector(".upgrade-ok").onclick = () => {
+      ov.remove();
+      trocarTela("planos");
+      resolve(true);
+    };
+    ov.querySelector(".upgrade-cancel").onclick = () => {
+      ov.remove();
+      // Se estava numa seção desfocada, volta ao dashboard para limpar o desfoque
+      if (document.querySelector(".screen.secao-desfocada")) trocarTela("dashboard");
+      resolve(false);
+    };
+    ov.addEventListener("click", e => {
+      if (e.target === ov) {
+        ov.remove();
+        if (document.querySelector(".screen.secao-desfocada")) trocarTela("dashboard");
+        resolve(false);
+      }
+    });
+  });
+}
+
+/* Recursos premium que bloqueiam a seção inteira quando o usuário é básico.
+   Mapeia o nome da tela -> dados do bloqueio. */
+const SECOES_PREMIUM = {
+  investimentos: {
+    recurso: "investimentos",
+    titulo: "Investimentos",
+    desc: "Este recurso está disponível a partir do plano Premium."
+  },
+  recorrencias: {
+    recurso: "recorrencias",
+    titulo: "Contas recorrentes",
+    desc: "Este recurso está disponível a partir do plano Premium."
+  }
+};
+
+/* Monta (ou remove) o cadeado de bloqueio numa seção premium.
+   Se o usuário pode usar o recurso, remove o bloqueio e mostra o conteúdo.
+   Se não pode, cobre a seção com o cadeado. */
+/* Coloca ou remove o cadeado nos itens de menu de seções premium.
+   Chamada quando o perfil carrega e quando o plano muda. */
+function atualizarCadeadosMenu() {
+  Object.keys(SECOES_PREMIUM).forEach(name => {
+    const info = SECOES_PREMIUM[name];
+    const bloqueado = !podeUsar(info.recurso);
+    // Pega todos os botões de menu (sidebar e bottom nav) dessa seção
+    document.querySelectorAll(`[data-screen="${name}"]`).forEach(item => {
+      let cadeado = item.querySelector(".menu-cadeado");
+      if (bloqueado) {
+        if (!cadeado) {
+          cadeado = document.createElement("span");
+          cadeado.className = "menu-cadeado";
+          cadeado.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+          item.appendChild(cadeado);
+        }
+        item.classList.add("menu-item-bloqueado");
+      } else {
+        if (cadeado) cadeado.remove();
+        item.classList.remove("menu-item-bloqueado");
+      }
+    });
+  });
 }
 
 
