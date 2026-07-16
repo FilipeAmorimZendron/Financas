@@ -6717,6 +6717,42 @@ function montarResumoFinanceiro() {
   return linhas.join("\n");
 }
 
+/* Abre o chat e mostra a saudação personalizada na primeira vez */
+function abrirChatIA() {
+  const chat = document.getElementById("iaChat");
+  const fab = document.getElementById("iaFab");
+  const campo = document.getElementById("iaChatCampo");
+  if (!chat || !fab) return;
+
+  chat.hidden = false;
+  fab.hidden = true;
+
+  // Mensagem de boas-vindas personalizada na primeira abertura
+  if (!iaConversaIniciada) {
+    const nome = primeiroNomeUsuario();
+    const saudacao = nome
+      ? `Olá, ${nome}! Sou seu assistente financeiro e já tenho acesso aos seus dados. Como posso ajudar você hoje?`
+      : "Olá! Sou seu assistente financeiro e já tenho acesso aos seus dados. Como posso ajudar você hoje?";
+    adicionarMensagemIA(saudacao, "ia");
+    iaConversaIniciada = true;
+  }
+  setTimeout(() => campo?.focus(), 100);
+}
+
+/* Pega o primeiro nome do usuário (do perfil, ou do email como fallback) */
+function primeiroNomeUsuario() {
+  const nome = (state.perfil?.nome || "").trim();
+  if (nome) return nome.split(/\s+/)[0];
+  // Fallback: usa a parte antes do @ do email, capitalizada
+  const email = state.user?.email || "";
+  const usuario = email.split("@")[0];
+  if (!usuario) return "";
+  // Limpa números e pontos, pega a primeira palavra
+  const limpo = usuario.replace(/[._0-9]+/g, " ").trim().split(/\s+/)[0];
+  if (!limpo) return "";
+  return limpo.charAt(0).toUpperCase() + limpo.slice(1);
+}
+
 /* ─── Chat de IA (assistente flutuante) ──────────────────── */
 let iaConversaIniciada = false;
 
@@ -6729,23 +6765,20 @@ function initChatIA() {
   if (!fab || !chat) return;
 
   // Abrir o chat (ou pedir upgrade se for básico)
-  fab.addEventListener("click", () => {
+  fab.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!ehPremium()) {
       pedirUpgrade("O assistente de IA está disponível nos planos Premium e Master.", "Assistente de IA");
       return;
     }
-    chat.hidden = false;
-    fab.hidden = true;
-    // Mensagem de boas-vindas na primeira abertura
-    if (!iaConversaIniciada) {
-      adicionarMensagemIA("Oi! Sou seu assistente financeiro e já tenho acesso aos seus dados. Posso analisar seus gastos, ajudar a economizar e responder dúvidas. O que você quer saber?", "ia");
-      iaConversaIniciada = true;
-    }
-    setTimeout(() => campo?.focus(), 100);
+    abrirChatIA();
   });
 
-  // Fechar = minimiza (volta pro botão flutuante, mas mantém a conversa)
-  fechar?.addEventListener("click", () => {
+  // Fechar = minimiza (volta pro botão flutuante, mantém a conversa)
+  fechar?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     chat.hidden = true;
     fab.hidden = false;
   });
@@ -6810,5 +6843,9 @@ async function perguntarIA(pergunta) {
 
 initSino();
 
-// Liga o chat de IA ao carregar
-initChatIA();
+// Liga o chat de IA ao carregar (garante que o DOM está pronto)
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initChatIA);
+} else {
+  initChatIA();
+}
