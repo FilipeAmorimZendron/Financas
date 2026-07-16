@@ -618,13 +618,58 @@ function badge(cat) {
 
 /* ─── Classificação ─────────────────────────────────────── */
 function classificarCategoria(t) {
-  t = t.toLowerCase();
-  if (/mercado|supermercado|farmácia|farmacia|aluguel|conta\b|luz\b|água|agua|internet|combustível|combustivel/.test(t)) return "Gasto importante";
-  if (/namorada|cinema|bar\b|restaurante|lazer|viagem|passeio|festa/.test(t)) return "Lazer";
-  if (/salário|salario|pagamento|recebi|entrou|ganhei|pix recebido|transferência recebida|entrada/.test(t)) return "Entrada";
-  if (/uber|99\b|ônibus|onibus|transporte|metrô|metro/.test(t)) return "Transporte";
-  if (/roupa|shopping|presente|compras/.test(t)) return "Compras";
+  t = (t || "").toLowerCase();
+
+  // Alimentação
+  if (/mercado|supermercado|padaria|açougue|acougue|hortifruti|feira|ifood|rappi|uber\s*eats|delivery|restaurante|lanchonete|pizzaria|hamburgueria|cafe|café|bar\b|boteco|comida|almoço|almoco|jantar|food|mc\s*donald|burger|subway|starbucks/.test(t)) return "Alimentação";
+
+  // Transporte
+  if (/uber|99\b|99app|cabify|taxi|táxi|ônibus|onibus|metrô|metro|trem|bilhete|passagem|combustível|combustivel|gasolina|álcool|alcool|etanol|posto\b|shell|ipiranga|petrobras|estacionamento|pedágio|pedagio|zona azul|bike|patinete/.test(t)) return "Transporte";
+
+  // Moradia
+  if (/aluguel|condomínio|condominio|iptu|luz\b|energia|elétrica|eletrica|enel|cemig|light\b|água|agua|sabesp|saneamento|gás\b|gas\b|comgás|internet|wifi|vivo|claro|tim\b|oi\b|net\b|telefone|faxina|diarista|reforma/.test(t)) return "Moradia";
+
+  // Saúde
+  if (/farmácia|farmacia|drogaria|drogasil|pacheco|remédio|remedio|médico|medico|consulta|exame|hospital|clínica|clinica|dentista|psicólogo|psicologo|terapia|plano de saúde|unimed|amil|academia|smartfit|gympass|pilates|nutricionista/.test(t)) return "Saúde";
+
+  // Lazer
+  if (/cinema|netflix|spotify|disney|hbo|max\b|prime video|globoplay|paramount|deezer|youtube premium|streaming|show|ingresso|teatro|parque|viagem|hotel|airbnb|passeio|festa|balada|jogo|game|steam|playstation|xbox|nintendo/.test(t)) return "Lazer";
+
+  // Educação
+  if (/curso|faculdade|escola|colégio|colegio|mensalidade|matrícula|matricula|livro|apostila|udemy|alura|udacity|coursera|aula|professor|idioma|inglês|ingles/.test(t)) return "Educação";
+
+  // Serviços / assinaturas
+  if (/assinatura|salão|salao|cabeleireiro|barbeiro|manicure|estética|estetica|lavanderia|conserto|manutenção|manutencao|técnico|tecnico|advogado|contador|chatgpt|openai|google one|icloud|dropbox|notion/.test(t)) return "Serviços";
+
+  // Compras
+  if (/roupa|calçado|calcado|sapato|tênis|tenis|shopping|loja|magazine|magalu|americanas|amazon|mercado livre|shopee|aliexpress|presente|eletrônico|eletronico|celular|notebook|móveis|moveis|decoração|decoracao/.test(t)) return "Compras";
+
+  // Entrada (receitas)
+  if (/salário|salario|pagamento|recebi|entrou|ganhei|pix recebido|transferência recebida|rendimento|dividendo|freelance|freela/.test(t)) return "Entrada";
+
   return "Outros";
+}
+
+/* Categorização híbrida: tenta palavras-chave primeiro (grátis/instantâneo).
+   Se cair em "Outros", pede ajuda à IA. Sempre retorna uma categoria válida. */
+async function categorizarComIA(descricao) {
+  const local = classificarCategoria(descricao);
+  // Se as palavras-chave já reconheceram, usa direto (sem gastar API)
+  if (local !== "Outros") return local;
+  // Só chama a IA para "Entrada" não faz sentido; e descrições vazias também não
+  if (!descricao || !descricao.trim()) return "Outros";
+  try {
+    const resp = await fetch("/api/categorizar", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ descricao: descricao })
+    });
+    if (!resp.ok) return "Outros";
+    const dados = await resp.json();
+    return dados.categoria || "Outros";
+  } catch (e) {
+    return "Outros";
+  }
 }
 
 function detectarTipo(t) {
@@ -1890,6 +1935,10 @@ formTexto?.addEventListener("submit", async e => {
 
   try {
     for (const item of itens) {
+      // Se o gasto ficou em "Outros", pede à IA uma categoria melhor
+      if (item.tipo === "gasto" && item.categoria === "Outros") {
+        item.categoria = await categorizarComIA(item.descricao);
+      }
       const novo = await dbInsert("movimentos", {
         descricao: item.descricao, conta_id: bancoId, data,
         valor: item.valor, tipo: item.tipo, categoria: item.categoria,
