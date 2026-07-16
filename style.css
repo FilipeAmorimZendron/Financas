@@ -7415,6 +7415,10 @@ body.scroll-travado {
 }
 .ia-fab svg { width: 26px; height: 26px; color: #fff; }
 
+.ia-fab[hidden],
+.ia-chat[hidden] {
+  display: none !important;
+}
 .ia-chat {
   position: fixed;
   bottom: 24px;
