@@ -408,7 +408,9 @@ async function carregarDadosNuvem() {
     // Se o usuário ainda não tem linha de perfil, cria uma agora (plano básico).
     // Assim todo usuário aparece na tabela perfil e pode receber premium.
     if (!perfilExistente && state.user?.id) {
-      salvarPerfil({ plano: "basico", assinatura_status: "inativa" }).catch(() => {});
+      salvarPerfil({ plano: "basico", assinatura_status: "inativa" })
+        .then(() => console.log("Perfil criado automaticamente para", state.user.id))
+        .catch(err => console.error("Erro ao criar perfil automático:", err));
     }
     state.recPagamentos  = (recPagamentos||[]).map(p => ({
       id:p.id, recorrenciaId:p.recorrencia_id, vencimento:p.vencimento,
@@ -4943,7 +4945,12 @@ async function salvarPerfil(dados) {
       ...getAuthHeader(),
       "Prefer": "resolution=merge-duplicates,return=representation"
     },
-    body: JSON.stringify({ user_id: state.user.id, ...dados, atualizado_em: new Date().toISOString() })
+    body: JSON.stringify({
+      user_id: state.user.id,
+      email: state.user?.email || null,
+      ...dados,
+      atualizado_em: new Date().toISOString()
+    })
   });
   const rows = await res.json();
   return rows[0];
