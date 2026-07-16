@@ -6717,138 +6717,137 @@ function montarResumoFinanceiro() {
   return linhas.join("\n");
 }
 
-/* Abre o chat e mostra a saudação personalizada na primeira vez */
-let iaConversaIniciada = false;
-function abrirChatIA() {
-  const chat = document.getElementById("iaChat");
-  const fab = document.getElementById("iaFab");
-  const campo = document.getElementById("iaChatCampo");
-  if (!chat || !fab) return;
-
-  chat.hidden = false;
-  fab.hidden = true;
-
-  // Mensagem de boas-vindas personalizada na primeira abertura
-  if (!iaConversaIniciada) {
-    const nome = primeiroNomeUsuario();
-    const saudacao = nome
-      ? `Olá, ${nome}! Seja bem-vindo ao Assistente FAZ. O que você gostaria de saber sobre suas finanças hoje?`
-      : "Olá! Seja bem-vindo ao Assistente FAZ. O que você gostaria de saber sobre suas finanças hoje?";
-    adicionarMensagemIA(saudacao, "ia");
-    iaConversaIniciada = true;
-  }
-  setTimeout(() => campo?.focus(), 100);
-}
-
-/* Pega o primeiro nome do usuário (do perfil, ou do email como fallback) */
-function primeiroNomeUsuario() {
-  const nome = (state.perfil?.nome || "").trim();
-  if (nome) return nome.split(/\s+/)[0];
-  // Fallback: usa a parte antes do @ do email, capitalizada
-  const email = state.user?.email || "";
-  const usuario = email.split("@")[0];
-  if (!usuario) return "";
-  // Limpa números e pontos, pega a primeira palavra
-  const limpo = usuario.replace(/[._0-9]+/g, " ").trim().split(/\s+/)[0];
-  if (!limpo) return "";
-  return limpo.charAt(0).toUpperCase() + limpo.slice(1);
-}
-
-/* ─── Chat de IA (assistente flutuante) ──────────────────── */
-
-function initChatIA() {
-  const fab = document.getElementById("iaFab");
-  const chat = document.getElementById("iaChat");
-  const fechar = document.getElementById("iaChatFechar");
-  const enviar = document.getElementById("iaChatEnviar");
-  const campo = document.getElementById("iaChatCampo");
-  if (!fab || !chat) return;
-
-  // Abrir o chat (ou pedir upgrade se for básico)
-  fab.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!ehPremium()) {
-      pedirUpgrade("O assistente de IA está disponível nos planos Premium e Master.", "Assistente de IA");
-      return;
-    }
-    abrirChatIA();
-  });
-
-  // Fechar = minimiza (volta pro botão flutuante, mantém a conversa)
-  // Usa delegação: funciona mesmo clicando no ícone SVG dentro do botão
-  document.addEventListener("click", (e) => {
-    if (e.target.closest("#iaChatFechar")) {
-      e.preventDefault();
-      e.stopPropagation();
-      chat.hidden = true;
-      fab.hidden = false;
-    }
-  });
-
-  // Enviar pergunta
-  const enviarPergunta = () => {
-    const texto = (campo.value || "").trim();
-    if (!texto) return;
-    campo.value = "";
-    perguntarIA(texto);
-  };
-  enviar?.addEventListener("click", enviarPergunta);
-  campo?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); enviarPergunta(); }
-  });
-}
-
-/* Adiciona uma mensagem no chat (quem = "usuario" ou "ia") */
-function adicionarMensagemIA(texto, quem) {
-  const lista = document.getElementById("iaChatMensagens");
-  if (!lista) return;
-  const div = document.createElement("div");
-  div.className = `ia-msg ia-msg-${quem}`;
-  div.textContent = texto;
-  lista.appendChild(div);
-  lista.scrollTop = lista.scrollHeight;
-  return div;
-}
-
-/* Envia a pergunta para a função de IA e mostra a resposta */
-async function perguntarIA(pergunta) {
-  adicionarMensagemIA(pergunta, "usuario");
-
-  // Mostra "digitando..."
-  const digitando = adicionarMensagemIA("Pensando...", "ia");
-  digitando.classList.add("ia-msg-carregando");
-
-  try {
-    const resp = await fetch("/api/chat-ia", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ pergunta, resumoFinanceiro: montarResumoFinanceiro() })
-    });
-    const dados = await resp.json();
-    digitando.remove();
-
-    if (!resp.ok) {
-      adicionarMensagemIA(dados.erro || "Desculpe, não consegui responder agora. Tente de novo.", "ia");
-      return;
-    }
-    // Limpa qualquer markdown (asteriscos) que a IA possa ter enviado
-    const respostaLimpa = (dados.resposta || "Não consegui gerar uma resposta.")
-      .replace(/\*\*/g, "")
-      .replace(/\*/g, "");
-    adicionarMensagemIA(respostaLimpa, "ia");
-
-  } catch (e) {
-    digitando.remove();
-    adicionarMensagemIA("Erro de conexão. Verifique sua internet e tente de novo.", "ia");
-  }
-}
-
 initSino();
 
-// Liga o chat de IA ao carregar (garante que o DOM está pronto)
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initChatIA);
-} else {
-  initChatIA();
-}
+/* ═══════════════════════════════════════════════════════════
+   CHAT DE IA — Assistente FAZ (versão limpa)
+   ═══════════════════════════════════════════════════════════ */
+(function () {
+  let conversaIniciada = false;
+
+  // Pega o primeiro nome do usuário (perfil, ou parte do email como fallback)
+  function primeiroNome() {
+    try {
+      const nome = (state.perfil && state.perfil.nome ? state.perfil.nome : "").trim();
+      if (nome) return nome.split(/\s+/)[0];
+      const email = (state.user && state.user.email) ? state.user.email : "";
+      const usuario = email.split("@")[0] || "";
+      const limpo = usuario.replace(/[._0-9]+/g, " ").trim().split(/\s+/)[0] || "";
+      return limpo ? limpo.charAt(0).toUpperCase() + limpo.slice(1) : "";
+    } catch (e) { return ""; }
+  }
+
+  // Adiciona uma mensagem no chat
+  function addMsg(texto, quem) {
+    const lista = document.getElementById("iaChatMensagens");
+    if (!lista) return null;
+    const div = document.createElement("div");
+    div.className = "ia-msg ia-msg-" + quem;
+    div.textContent = texto;
+    lista.appendChild(div);
+    lista.scrollTop = lista.scrollHeight;
+    return div;
+  }
+
+  // Abre o chat (mostra a saudação na primeira vez)
+  function abrir() {
+    const chat = document.getElementById("iaChat");
+    const fab = document.getElementById("iaFab");
+    const campo = document.getElementById("iaChatCampo");
+    if (!chat || !fab) return;
+    chat.hidden = false;
+    fab.hidden = true;
+    if (!conversaIniciada) {
+      const nome = primeiroNome();
+      const saudacao = nome
+        ? "Olá, " + nome + "! Seja bem-vindo ao Assistente FAZ. O que você gostaria de saber sobre suas finanças hoje?"
+        : "Olá! Seja bem-vindo ao Assistente FAZ. O que você gostaria de saber sobre suas finanças hoje?";
+      addMsg(saudacao, "ia");
+      conversaIniciada = true;
+    }
+    setTimeout(function () { if (campo) campo.focus(); }, 100);
+  }
+
+  // Minimiza o chat (volta pro botão, mantém a conversa)
+  function minimizar() {
+    const chat = document.getElementById("iaChat");
+    const fab = document.getElementById("iaFab");
+    if (chat) chat.hidden = true;
+    if (fab) fab.hidden = false;
+  }
+
+  // Envia a pergunta para a IA
+  async function perguntar(pergunta) {
+    addMsg(pergunta, "usuario");
+    const carregando = addMsg("Pensando...", "ia");
+    if (carregando) carregando.classList.add("ia-msg-carregando");
+    try {
+      let resumo = "";
+      try { resumo = montarResumoFinanceiro(); } catch (e) { resumo = ""; }
+      const resp = await fetch("/api/chat-ia", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ pergunta: pergunta, resumoFinanceiro: resumo })
+      });
+      const dados = await resp.json();
+      if (carregando) carregando.remove();
+      if (!resp.ok) {
+        addMsg(dados.erro || "Desculpe, não consegui responder agora. Tente de novo.", "ia");
+        return;
+      }
+      const limpa = (dados.resposta || "Não consegui gerar uma resposta.")
+        .replace(/\*\*/g, "").replace(/\*/g, "");
+      addMsg(limpa, "ia");
+    } catch (e) {
+      if (carregando) carregando.remove();
+      addMsg("Erro de conexão. Verifique sua internet e tente de novo.", "ia");
+    }
+  }
+
+  // Liga tudo. Usa delegação no documento — funciona mesmo que os
+  // elementos sejam recriados ou o clique caia num filho (SVG).
+  function ligar() {
+    document.addEventListener("click", function (e) {
+      // Abrir (clicou no botão flutuante)
+      if (e.target.closest("#iaFab")) {
+        e.preventDefault();
+        if (typeof ehPremium === "function" && !ehPremium()) {
+          pedirUpgrade("O assistente de IA está disponível nos planos Premium e Master.", "Assistente de IA");
+          return;
+        }
+        abrir();
+        return;
+      }
+      // Minimizar (clicou no X)
+      if (e.target.closest("#iaChatFechar")) {
+        e.preventDefault();
+        minimizar();
+        return;
+      }
+      // Enviar (clicou na seta)
+      if (e.target.closest("#iaChatEnviar")) {
+        e.preventDefault();
+        const campo = document.getElementById("iaChatCampo");
+        const texto = campo && campo.value ? campo.value.trim() : "";
+        if (texto) { campo.value = ""; perguntar(texto); }
+        return;
+      }
+    });
+
+    // Enter no campo envia
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && e.target && e.target.id === "iaChatCampo") {
+        e.preventDefault();
+        const campo = e.target;
+        const texto = campo.value ? campo.value.trim() : "";
+        if (texto) { campo.value = ""; perguntar(texto); }
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", ligar);
+  } else {
+    ligar();
+  }
+})();
