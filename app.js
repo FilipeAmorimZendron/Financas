@@ -5184,7 +5184,7 @@ function mapPerfil(p) {
 /* Limites de cada plano. Ajustável com o tempo. */
 const LIMITES_PLANO = {
   basico:  { contas: 2,        metas: 5,        investimentos: false, recorrencias: false, relatorios: false, exportar: false },
-  premium: { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true  },
+  premium: { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true,  ia: true },
   master:  { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true,  ia: true }
 };
 
@@ -6658,4 +6658,94 @@ async function assinarPlano(plano) {
 }
 
 // Liga o sino de notificações ao carregar
+/* ─── Chat de IA (assistente flutuante) ──────────────────── */
+let iaConversaIniciada = false;
+
+function initChatIA() {
+  const fab = document.getElementById("iaFab");
+  const chat = document.getElementById("iaChat");
+  const fechar = document.getElementById("iaChatFechar");
+  const enviar = document.getElementById("iaChatEnviar");
+  const campo = document.getElementById("iaChatCampo");
+  if (!fab || !chat) return;
+
+  // Abrir o chat (ou pedir upgrade se for básico)
+  fab.addEventListener("click", () => {
+    if (!ehPremium()) {
+      pedirUpgrade("O assistente de IA está disponível nos planos Premium e Master.", "Assistente de IA");
+      return;
+    }
+    chat.hidden = false;
+    fab.hidden = true;
+    // Mensagem de boas-vindas na primeira abertura
+    if (!iaConversaIniciada) {
+      adicionarMensagemIA("Oi! Sou seu assistente financeiro. Posso ajudar a entender seus gastos, planejar economias e responder dúvidas sobre finanças. Como posso ajudar?", "ia");
+      iaConversaIniciada = true;
+    }
+    setTimeout(() => campo?.focus(), 100);
+  });
+
+  // Fechar
+  fechar?.addEventListener("click", () => {
+    chat.hidden = true;
+    fab.hidden = false;
+  });
+
+  // Enviar pergunta
+  const enviarPergunta = () => {
+    const texto = (campo.value || "").trim();
+    if (!texto) return;
+    campo.value = "";
+    perguntarIA(texto);
+  };
+  enviar?.addEventListener("click", enviarPergunta);
+  campo?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); enviarPergunta(); }
+  });
+}
+
+/* Adiciona uma mensagem no chat (quem = "usuario" ou "ia") */
+function adicionarMensagemIA(texto, quem) {
+  const lista = document.getElementById("iaChatMensagens");
+  if (!lista) return;
+  const div = document.createElement("div");
+  div.className = `ia-msg ia-msg-${quem}`;
+  div.textContent = texto;
+  lista.appendChild(div);
+  lista.scrollTop = lista.scrollHeight;
+  return div;
+}
+
+/* Envia a pergunta para a função de IA e mostra a resposta */
+async function perguntarIA(pergunta) {
+  adicionarMensagemIA(pergunta, "usuario");
+
+  // Mostra "digitando..."
+  const digitando = adicionarMensagemIA("Pensando...", "ia");
+  digitando.classList.add("ia-msg-carregando");
+
+  try {
+    const resp = await fetch("/api/chat-ia", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pergunta })
+    });
+    const dados = await resp.json();
+    digitando.remove();
+
+    if (!resp.ok) {
+      adicionarMensagemIA(dados.erro || "Desculpe, não consegui responder agora. Tente de novo.", "ia");
+      return;
+    }
+    adicionarMensagemIA(dados.resposta || "Não consegui gerar uma resposta.", "ia");
+
+  } catch (e) {
+    digitando.remove();
+    adicionarMensagemIA("Erro de conexão. Verifique sua internet e tente de novo.", "ia");
+  }
+}
+
 initSino();
+
+// Liga o chat de IA ao carregar
+initChatIA();
