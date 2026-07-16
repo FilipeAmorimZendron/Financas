@@ -7251,3 +7251,140 @@ body.scroll-travado {
   justify-content: center;
   margin: 6px 0 2px;
 }
+
+/* ============================================================
+   SINO DE NOTIFICAÇÕES
+   ============================================================ */
+.sino-wrap {
+  position: absolute;
+  top: 24px;
+  right: 32px;
+  z-index: 150;
+}
+.sino-btn {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.sino-btn:hover {
+  background: var(--surface3);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+.sino-btn svg { width: 20px; height: 20px; }
+.sino-contador {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 100px;
+  background: var(--red, #e24b4a);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.sino-painel {
+  position: absolute;
+  top: 52px;
+  right: 0;
+  width: 340px;
+  max-width: 88vw;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.sino-painel-head {
+  padding: 14px 18px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-soft);
+}
+.sino-lista {
+  max-height: 400px;
+  overflow-y: auto;
+}
+.sino-item {
+  display: flex;
+  gap: 12px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--border-soft);
+  align-items: flex-start;
+}
+.sino-item:last-child { border-bottom: none; }
+.sino-item-icone {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--surface2);
+  color: var(--text-secondary);
+}
+.sino-item-icone svg { width: 17px; height: 17px; }
+.sino-item-vencida .sino-item-icone,
+.sino-item-saldo .sino-item-icone {
+  background: rgba(226, 75, 74, 0.12);
+  color: var(--red, #e24b4a);
+}
+.sino-item-meta .sino-item-icone {
+  background: var(--amber-dim);
+  color: var(--amber);
+}
+.sino-item-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sino-item-texto strong {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.sino-item-texto span {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.sino-vazio {
+  padding: 32px 18px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.sino-vazio svg {
+  width: 34px;
+  height: 34px;
+  color: var(--teal-400);
+  margin-bottom: 8px;
+}
+.sino-vazio p {
+  margin: 0 0 2px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.sino-vazio span { font-size: 0.82rem; }
+
+/* No mobile, ajusta a posição do sino */
+@media (max-width: 720px) {
+  .sino-wrap { top: 16px; right: 16px; }
+}

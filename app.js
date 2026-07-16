@@ -689,9 +689,145 @@ function calcularSaldoBanco(id) {
 
 const calcularSaldoTotal = () => state.bancos.reduce((a,b)=>a+calcularSaldoBanco(b.id),0);
 
-/* ─── Compromissos (contas a pagar / a receber) ─────────── */
+/* ─── Avisos / Notificações ──────────────────────────────
+   Calcula avisos proativos a partir dos dados do app.
+   Não usa IA — é só lógica sobre vencimentos, saldos e metas. */
+function formatarDataBR(iso) {
+  return new Date(iso + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+}
+function calcularAvisos() {
+  const avisos = [];
+  const hoje = hojeISO();
+  const DIAS_AVISO = 5; // avisa contas que vencem nos próximos 5 dias
+  const limiteProximo = somarDias(hoje, DIAS_AVISO);
 
-/* Data efetiva de um pendente (vencimento ou data) */
+  // 1. Contas vencidas (atrasadas) e vencendo em breve
+  const compromissos = todosCompromissos(limiteProximo).filter(c => c.tipo === "gasto");
+  compromissos.forEach(c => {
+    if (c.vencimento < hoje) {
+      avisos.push({
+        tipo: "vencida",
+        titulo: "Conta atrasada",
+        texto: `${c.descricao} venceu em ${formatarDataBR(c.vencimento)}`,
+        prioridade: 1
+      });
+    } else {
+      avisos.push({
+        tipo: "vencendo",
+        titulo: "Conta a vencer",
+        texto: `${c.descricao} vence em ${formatarDataBR(c.vencimento)}`,
+        prioridade: 2
+      });
+    }
+  });
+
+  // 2. Saldo baixo ou negativo nas contas
+  const saldos = saldosPorConta();
+  state.bancos.forEach(b => {
+    const saldo = saldos[b.id] ?? 0;
+    if (saldo < 0) {
+      avisos.push({
+        tipo: "saldo",
+        titulo: "Saldo negativo",
+        texto: `${b.nome} está com saldo negativo (${fmtMoeda(saldo)})`,
+        prioridade: 1
+      });
+    } else if (saldo < 50) {
+      avisos.push({
+        tipo: "saldo",
+        titulo: "Saldo baixo",
+        texto: `${b.nome} está com saldo baixo (${fmtMoeda(saldo)})`,
+        prioridade: 3
+      });
+    }
+  });
+
+  // 3. Metas de gasto estouradas
+  const [ano, mes] = hoje.split("-");
+  const gastoDaCategoria = (cat) =>
+    state.movimentos
+      .filter(mv => mv.tipo === "gasto" && ehPago(mv) && mv.categoria === cat
+                    && mv.data.slice(0,7) === `${ano}-${mes}`)
+      .reduce((s, mv) => s + mv.valor, 0);
+  state.metas.forEach(meta => {
+    const gasto = gastoDaCategoria(meta.categoria);
+    if (gasto > meta.limite) {
+      avisos.push({
+        tipo: "meta",
+        titulo: "Meta estourada",
+        texto: `Você passou do limite de "${meta.categoria}" (${fmtMoeda(gasto)} de ${fmtMoeda(meta.limite)})`,
+        prioridade: 2
+      });
+    }
+  });
+
+  // Ordena por prioridade (1 = mais urgente primeiro)
+  return avisos.sort((a, b) => a.prioridade - b.prioridade);
+}
+
+/* Ícone SVG para cada tipo de aviso */
+function iconeAviso(tipo) {
+  const icones = {
+    vencida:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+    vencendo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    saldo:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
+    meta:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`
+  };
+  return icones[tipo] || icones.vencendo;
+}
+
+/* Renderiza o sino: contador + lista no painel */
+function renderSino() {
+  const avisos = calcularAvisos();
+  const contador = document.getElementById("sinoContador");
+  const lista = document.getElementById("sinoLista");
+  if (!contador || !lista) return;
+
+  // Contador
+  if (avisos.length > 0) {
+    contador.textContent = avisos.length > 9 ? "9+" : String(avisos.length);
+    contador.hidden = false;
+  } else {
+    contador.hidden = true;
+  }
+
+  // Lista no painel
+  if (avisos.length === 0) {
+    lista.innerHTML = `<div class="sino-vazio">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <p>Tudo em dia!</p>
+      <span>Nenhum aviso no momento.</span>
+    </div>`;
+    return;
+  }
+
+  lista.innerHTML = avisos.map(a => `
+    <div class="sino-item sino-item-${a.tipo}">
+      <div class="sino-item-icone">${iconeAviso(a.tipo)}</div>
+      <div class="sino-item-texto">
+        <strong>${a.titulo}</strong>
+        <span>${esc(a.texto)}</span>
+      </div>
+    </div>`).join("");
+}
+
+/* Liga os cliques do sino (abrir/fechar painel) */
+function initSino() {
+  const btn = document.getElementById("sinoBtn");
+  const painel = document.getElementById("sinoPainel");
+  if (!btn || !painel) return;
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    painel.hidden = !painel.hidden;
+  });
+  // Fecha ao clicar fora
+  document.addEventListener("click", (e) => {
+    if (!painel.hidden && !painel.contains(e.target) && !btn.contains(e.target)) {
+      painel.hidden = true;
+    }
+  });
+}
 const vencDe = m => m.vencimento || m.data;
 
 /* Dias até vencer. Negativo = atrasado. */
@@ -1651,6 +1787,7 @@ const _normValor = s => {
 function renderTudo() {
   invalidarCacheSaldos();
   atualizarCadeadosMenu();  // atualiza os cadeados do menu conforme o plano
+  renderSino();             // atualiza os avisos do sino
   renderConta();   // dados podem ter mudado — recalcula na próxima leitura
   atualizarSelectContas();
   ajustarFormPorTipo();
@@ -2858,11 +2995,76 @@ function resultadoRV(i) {
   return { ganho, pct };
 }
 
+/* Alíquota de IR do CDB/renda fixa pela tabela regressiva.
+   Quanto mais tempo aplicado, menor o imposto sobre o rendimento. */
+function aliquotaIR(dataInicioISO) {
+  if (!dataInicioISO) return 0.225; // sem data, assume a maior (mais conservador)
+  const inicio = new Date(dataInicioISO + "T00:00:00");
+  const hoje = new Date(hojeISO() + "T00:00:00");
+  const diasCorridos = Math.max(0, Math.floor((hoje - inicio) / 86400000));
+  if (diasCorridos <= 180) return 0.225;  // 22,5%
+  if (diasCorridos <= 360) return 0.20;   // 20%
+  if (diasCorridos <= 720) return 0.175;  // 17,5%
+  return 0.15;                            // 15%
+}
+
+/* Tipos de investimento isentos de IR (não descontam imposto) */
+const ISENTOS_IR = ["LCI", "LCA", "Poupança", "Poupanca"];
+function ehIsentoIR(inv) {
+  return ISENTOS_IR.some(t => (inv.tipo || "").toLowerCase().includes(t.toLowerCase()));
+}
+
+/* Conta dias úteis (seg a sex) entre duas datas ISO, sem contar feriados.
+   Aproximação: ignora feriados nacionais, mas usa a base de 252 dias/ano do mercado. */
+function contarDiasUteis(inicioISO, fimISO) {
+  const inicio = new Date(inicioISO + "T00:00:00");
+  const fim = new Date(fimISO + "T00:00:00");
+  if (fim <= inicio) return 0;
+  let dias = 0;
+  const d = new Date(inicio);
+  while (d < fim) {
+    d.setDate(d.getDate() + 1);
+    const diaSemana = d.getDay(); // 0 = domingo, 6 = sábado
+    if (diaSemana !== 0 && diaSemana !== 6) dias++;
+  }
+  return dias;
+}
+
+/* Valor atual de um investimento de renda fixa, crescido por dias úteis
+   desde a data de aplicação. Usa juros compostos (padrão do mercado).
+   Já desconta o IR sobre o rendimento (valor líquido), exceto isentos. */
+function valorRendaFixaHoje(inv) {
+  const taxaAno = taxaAnualEfetiva(inv);
+  if (!taxaAno || !inv.dataInicio) return inv.valor;
+  const diasUteis = contarDiasUteis(inv.dataInicio, hojeISO());
+  if (diasUteis <= 0) return inv.valor;
+  // Taxa diária equivalente (base 252 dias úteis/ano), juros compostos
+  const taxaDiaria = Math.pow(1 + taxaAno / 100, 1 / 252) - 1;
+  const valorBruto = inv.valor * Math.pow(1 + taxaDiaria, diasUteis);
+  const rendimentoBruto = valorBruto - inv.valor;
+  // Desconta IR sobre o rendimento (exceto isentos)
+  const ir = ehIsentoIR(inv) ? 0 : aliquotaIR(inv.dataInicio);
+  return inv.valor + rendimentoBruto * (1 - ir);
+}
+
+/* Quanto o investimento rende por dia útil, líquido de IR (valor de hoje) */
+function rendimentoDiarioRF(inv) {
+  const taxaAno = taxaAnualEfetiva(inv);
+  if (!taxaAno) return 0;
+  const valorHoje = valorRendaFixaHoje(inv);
+  const taxaDiaria = Math.pow(1 + taxaAno / 100, 1 / 252) - 1;
+  const brutoDia = valorHoje * taxaDiaria;
+  const ir = ehIsentoIR(inv) ? 0 : aliquotaIR(inv.dataInicio);
+  return brutoDia * (1 - ir);
+}
+
 function renderInvestimentos() {
   if (!listaInvestimentosEl) return;
 
-  // Total: para cripto, usa o valor de mercado atual
-  const total = state.investimentos.reduce((s,i) => s + valorAtualCripto(i), 0);
+  // Total: cripto usa valor de mercado; renda fixa usa valor crescido por dias úteis
+  const total = state.investimentos.reduce((s,i) => {
+    return s + (i.criptoId ? valorAtualCripto(i) : valorRendaFixaHoje(i));
+  }, 0);
   const rendimentoAno = state.investimentos.reduce((s,i) => {
     return s + i.valor * (taxaAnualEfetiva(i)/100);
   }, 0);
@@ -2885,14 +3087,15 @@ function renderInvestimentos() {
     const c = ehCripto ? criptoPorId(inv.criptoId) : null;
     const preco = ehCripto ? _precosCripto[inv.criptoId] : null;
 
-    // Valor: para cripto, recalcula com o preço atual
-    const valorHoje = ehCripto ? valorAtualCripto(inv) : inv.valor;
+    // Valor: para cripto, recalcula com o preço atual; renda fixa cresce por dias úteis
+    const valorHoje = ehCripto ? valorAtualCripto(inv) : valorRendaFixaHoje(inv);
     const variou = ehCripto && Math.abs(valorHoje - inv.valor) > 0.005;
     const lucro = valorHoje - inv.valor;
 
     // Rendimento (renda fixa)
     const taxaAno = taxaAnualEfetiva(inv);
     const rendAno = inv.valor * (taxaAno/100);
+    const rendDia = ehCripto ? 0 : rendimentoDiarioRF(inv);
     const b = inv.contaId ? state.bancos.find(x => x.id === inv.contaId) : null;
     const nome = inv.nome || inv.tipo;
 
@@ -2916,7 +3119,7 @@ function renderInvestimentos() {
       const cls = lucro >= 0 ? "inv-lucro" : "inv-prejuizo";
       subvalor = `<div class="inv-item-rend ${cls}">${lucro >= 0 ? "+" : "−"}${fmtMoeda(Math.abs(lucro))}</div>`;
     } else if (!ehCripto && inv.taxa > 0) {
-      subvalor = `<div class="inv-item-rend">+${fmtMoeda(rendAno)}/ano</div>`;
+      subvalor = `<div class="inv-item-rend">+${fmtMoeda(rendDia)}/dia</div>`;
     }
 
     return `<div class="inv-item ${ehCripto ? "inv-cripto" : ""}">
@@ -6453,3 +6656,6 @@ async function assinarPlano(plano) {
     toast("Erro de conexão. Tente novamente.", "error");
   }
 }
+
+// Liga o sino de notificações ao carregar
+initSino();
