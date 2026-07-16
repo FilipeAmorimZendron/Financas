@@ -403,7 +403,13 @@ async function carregarDadosNuvem() {
       fim: r.fim || null,
       ativa: r.ativa !== false
     }));
-    state.perfil = mapPerfil((perfilRows||[])[0]);
+    const perfilExistente = (perfilRows||[])[0];
+    state.perfil = mapPerfil(perfilExistente);
+    // Se o usuário ainda não tem linha de perfil, cria uma agora (plano básico).
+    // Assim todo usuário aparece na tabela perfil e pode receber premium.
+    if (!perfilExistente && state.user?.id) {
+      salvarPerfil({ plano: "basico", assinatura_status: "inativa" }).catch(() => {});
+    }
     state.recPagamentos  = (recPagamentos||[]).map(p => ({
       id:p.id, recorrenciaId:p.recorrencia_id, vencimento:p.vencimento,
       pagoEm:p.pago_em, valorPago: p.valor_pago != null ? Number(p.valor_pago) : null,
@@ -4696,6 +4702,19 @@ function renderConta() {
   if (qc) qc.textContent = String(state.bancos.length);
   if (ql) ql.textContent = String(state.movimentos.length);
 
+  // Selo do plano na tela de conta
+  const seloConta = document.getElementById("contaPlanoSelo");
+  if (seloConta) {
+    const plano = planoAtual();
+    if (plano === "basico") {
+      seloConta.innerHTML = `<span class="plano-selo plano-selo-basico">Plano gratuito</span>`;
+    } else if (plano === "master") {
+      seloConta.innerHTML = `<span class="plano-selo plano-selo-master">Master</span>`;
+    } else {
+      seloConta.innerHTML = `<span class="plano-selo plano-selo-premium">Premium</span>`;
+    }
+  }
+
   // Rótulo do tema
   const tl = document.getElementById("temaLabel");
   const ti = document.getElementById("temaIcone");
@@ -5072,6 +5091,33 @@ function atualizarCadeadosMenu() {
       }
     });
   });
+  atualizarSeloPlano();
+}
+
+/* Mostra um selo colorido com o nome do plano (Premium/Master) na sidebar.
+   Básico não mostra selo. */
+function atualizarSeloPlano() {
+  const plano = planoAtual();  // basico | premium | master
+  const infoBtn = document.querySelector(".perfil-btn .perfil-info");
+  if (!infoBtn) return;
+
+  let selo = infoBtn.querySelector(".plano-selo");
+  // Básico: sem selo
+  if (plano === "basico") {
+    if (selo) selo.remove();
+    return;
+  }
+  // Premium ou Master: cria/atualiza o selo
+  if (!selo) {
+    selo = document.createElement("span");
+    selo.className = "plano-selo";
+    // Insere logo após o email
+    const acao = infoBtn.querySelector(".perfil-acao");
+    infoBtn.insertBefore(selo, acao);
+  }
+  selo.classList.toggle("plano-selo-master", plano === "master");
+  selo.classList.toggle("plano-selo-premium", plano === "premium");
+  selo.textContent = plano === "master" ? "Master" : "Premium";
 }
 
 
