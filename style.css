@@ -7445,6 +7445,35 @@ body.scroll-travado {
   flex-direction: column;
   overflow: hidden;
   z-index: 300;
+  transform-origin: bottom left;
+  animation: iaChatEntra 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes iaChatEntra {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Classe aplicada ao fechar, para animar a saída */
+.ia-chat.ia-saindo {
+  animation: iaChatSai 0.2s ease forwards;
+}
+
+@keyframes iaChatSai {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
 }
 .ia-chat-head {
   padding: 14px 18px;
@@ -7499,6 +7528,21 @@ body.scroll-travado {
   flex-direction: column;
   gap: 10px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-soft) transparent;
+}
+.ia-chat-mensagens::-webkit-scrollbar {
+  width: 6px;
+}
+.ia-chat-mensagens::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ia-chat-mensagens::-webkit-scrollbar-thumb {
+  background: var(--border-soft);
+  border-radius: 100px;
+}
+.ia-chat-mensagens::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 .ia-msg {
   max-width: 82%;
@@ -7507,6 +7551,11 @@ body.scroll-travado {
   line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
+  animation: iaMsgEntra 0.25s ease;
+}
+@keyframes iaMsgEntra {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .ia-msg-usuario {
   align-self: flex-end;
@@ -7569,3 +7618,12 @@ body.scroll-travado {
     left: 12px;
   }
 }
+/* Contador de perguntas do assistente */
+.ia-contador {
+  margin: 0;
+  padding: 0 16px 10px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+.ia-contador:empty { display: none; }

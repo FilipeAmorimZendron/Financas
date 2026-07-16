@@ -6849,7 +6849,12 @@ initSino();
   // Minimiza o chat (mantém a conversa; o botão fica sempre na sidebar)
   function minimizar() {
     const chat = document.getElementById("iaChat");
-    if (chat) chat.hidden = true;
+    if (!chat) return;
+    chat.classList.add("ia-saindo");
+    setTimeout(function () {
+      chat.hidden = true;
+      chat.classList.remove("ia-saindo");
+    }, 190);
   }
 
   // Envia a pergunta para a IA
@@ -6860,24 +6865,53 @@ initSino();
     try {
       let resumo = "";
       try { resumo = montarResumoFinanceiro(); } catch (e) { resumo = ""; }
+      const token = localStorage.getItem("fp_token") || "";
       const resp = await fetch("/api/chat-ia", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ pergunta: pergunta, resumoFinanceiro: resumo })
+        body: JSON.stringify({ pergunta: pergunta, resumoFinanceiro: resumo, token: token })
       });
       const dados = await resp.json();
       if (carregando) carregando.remove();
+
       if (!resp.ok) {
+        // Limite atingido
+        if (dados.erro === "limite") {
+          addMsg(dados.motivo || "Você atingiu o limite de perguntas.", "ia");
+          if (dados.plano === "premium" && typeof pedirUpgrade === "function") {
+            setTimeout(function () {
+              pedirUpgrade("Você usou todas as perguntas do plano Premium este mês. Faça upgrade para o Master e tenha 100 perguntas.", "Limite de perguntas");
+            }, 400);
+          }
+          return;
+        }
+        // Precisa de upgrade (básico)
+        if (dados.erro === "upgrade") {
+          addMsg(dados.motivo || "Recurso disponível nos planos pagos.", "ia");
+          return;
+        }
         addMsg(dados.erro || "Desculpe, não consegui responder agora. Tente de novo.", "ia");
         return;
       }
+
       const limpa = (dados.resposta || "Não consegui gerar uma resposta.")
         .replace(/\*\*/g, "").replace(/\*/g, "");
       addMsg(limpa, "ia");
+
+      // Atualiza o contador de usos
+      if (dados.usos) {
+        atualizarContadorIA(dados.usos.usados, dados.usos.limite);
+      }
     } catch (e) {
       if (carregando) carregando.remove();
       addMsg("Erro de conexão. Verifique sua internet e tente de novo.", "ia");
     }
+  }
+
+  // Atualiza o texto do contador "X de Y perguntas"
+  function atualizarContadorIA(usados, limite) {
+    const el = document.getElementById("iaContador");
+    if (el) el.textContent = usados + " de " + limite + " perguntas usadas";
   }
 
   // Liga tudo. Usa delegação no documento — funciona mesmo que os
