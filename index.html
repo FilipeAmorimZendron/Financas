@@ -1206,7 +1206,7 @@
             </div>
 
             <!-- Premium -->
-            <div class="plano-card plano-card-destaque">
+            <div class="plano-card plano-card-destaque" id="planoCardPremium">
               <div class="plano-selo">Mais popular</div>
               <div class="plano-nome">Premium</div>
               <div class="plano-preco">
@@ -1229,7 +1229,7 @@
             </div>
 
             <!-- Master -->
-            <div class="plano-card plano-card-master">
+            <div class="plano-card plano-card-master" id="planoCardMaster">
               <div class="plano-selo plano-selo-master">Completo</div>
               <div class="plano-nome">Master</div>
               <div class="plano-preco">
@@ -1593,21 +1593,21 @@
   <!-- HERO -->
   <header class="lp-hero">
     <div class="lp-hero-content reveal">
-      <p class="lp-eyebrow">Controle financeiro pessoal</p>
+      <p class="lp-eyebrow">Controle financeiro inteligente</p>
       <h1 class="lp-title">
-        Você trabalha o mês todo.<br>
-        <span class="lp-title-accent">Cadê o dinheiro?</span>
+        Saiba exatamente quanto<br>
+        você pode <span class="lp-title-accent">gastar hoje.</span>
       </h1>
       <p class="lp-sub">
-        Chega de abrir o app do banco e não entender pra onde foi. O FAZ organiza
-        sua vida financeira sem planilha, sem complicação — e mostra, em segundos,
-        quanto você <strong>realmente</strong> pode gastar hoje.
+        O FAZ organiza suas contas, prevê o que sobra e ainda tem um assistente
+        com <strong>IA</strong> que responde suas dúvidas de dinheiro.
+        Sem planilha, sem complicação.
       </p>
       <div class="lp-cta-row">
-        <button class="lp-btn-primary" onclick="abrirAuth('cadastro')">Começar grátis agora</button>
+        <button class="lp-btn-primary" onclick="rolarPara('planos')">Ver planos e preços</button>
         <button class="lp-btn-ghost" onclick="rolarPara('como')">Ver como funciona</button>
       </div>
-      <p class="lp-nota">Grátis pra sempre no plano básico. Sem cartão de crédito.</p>
+      <p class="lp-nota">Comece grátis · Sem cartão de crédito · Cancele quando quiser</p>
     </div>
 
     <!-- SIGNATURE: o painel que se recalcula ao vivo -->
@@ -1674,6 +1674,71 @@
     </div>
   </section>
 
+  <!-- PLANOS -->
+  <section class="lp-secao lp-planos-secao" id="planos">
+    <div class="lp-secao-head reveal">
+      <p class="lp-eyebrow">Planos</p>
+      <h2 class="lp-h2">Comece de graça.<br>Cresça quando quiser.</h2>
+      <div class="lp-planos-toggle" id="lpPlanosToggle">
+        <button type="button" class="lp-toggle-opt ativo" data-ciclo="mensal">Mensal</button>
+        <button type="button" class="lp-toggle-opt" data-ciclo="anual">Anual <span class="lp-toggle-badge">-15%</span></button>
+      </div>
+    </div>
+
+    <div class="lp-planos-grid">
+      <div class="lp-plano reveal">
+        <div class="lp-plano-nome">Básico</div>
+        <div class="lp-plano-preco"><span class="lp-plano-valor">Grátis</span></div>
+        <div class="lp-plano-nota">para sempre</div>
+        <button class="lp-plano-btn lp-plano-btn-ghost" onclick="abrirAuth('cadastro')">Criar conta grátis</button>
+        <ul class="lp-plano-lista">
+          <li>Até 2 contas</li>
+          <li>Lançamentos e dashboard</li>
+          <li>Até 5 metas</li>
+          <li class="lp-plano-off">Assistente de IA</li>
+          <li class="lp-plano-off">Investimentos e recorrências</li>
+        </ul>
+      </div>
+
+      <div class="lp-plano lp-plano-destaque reveal">
+        <div class="lp-plano-selo">Mais popular</div>
+        <div class="lp-plano-nome">Premium</div>
+        <div class="lp-plano-preco"><span class="lp-plano-moeda">R$</span><span class="lp-plano-valor" data-mensal="19,90" data-anual="17,90">19,90</span><span class="lp-plano-ciclo">/mês</span></div>
+        <div class="lp-plano-nota" data-mensal="cobrado mensalmente" data-anual="R$ 214,80/ano — economize R$ 24">cobrado mensalmente</div>
+        <button class="lp-plano-btn lp-plano-btn-primary" onclick="assinarNaLanding('premium')">Assinar Premium</button>
+        <div class="lp-plano-ia">
+          <span class="lp-plano-ia-titulo">IA completa</span>
+          <span class="lp-plano-ia-desc">Seu assistente financeiro, com 25 perguntas por mês</span>
+        </div>
+        <ul class="lp-plano-lista">
+          <li>Contas ilimitadas</li>
+          <li>Investimentos e cripto ao vivo</li>
+          <li>Metas e recorrências ilimitadas</li>
+          <li>Importar extrato e exportar relatórios</li>
+        </ul>
+      </div>
+
+      <div class="lp-plano lp-plano-master reveal">
+        <div class="lp-plano-selo lp-plano-selo-master">Completo</div>
+        <div class="lp-plano-nome">Master</div>
+        <div class="lp-plano-preco"><span class="lp-plano-moeda">R$</span><span class="lp-plano-valor" data-mensal="29,90" data-anual="25,90">29,90</span><span class="lp-plano-ciclo">/mês</span></div>
+        <div class="lp-plano-nota" data-mensal="cobrado mensalmente" data-anual="R$ 310,80/ano — economize R$ 48">cobrado mensalmente</div>
+        <button class="lp-plano-btn lp-plano-btn-master" onclick="assinarNaLanding('master')">Assinar Master</button>
+        <div class="lp-plano-ia lp-plano-ia-master">
+          <span class="lp-plano-ia-titulo">IA completa e ilimitada</span>
+          <span class="lp-plano-ia-desc">Seu consultor pessoal, sempre disponível</span>
+        </div>
+        <div class="lp-plano-tudo">Tudo do Premium, e mais:</div>
+        <ul class="lp-plano-lista">
+          <li>Perguntas ilimitadas à IA</li>
+          <li>Análise financeira aprofundada</li>
+          <li>Suporte prioritário</li>
+        </ul>
+      </div>
+    </div>
+    <p class="lp-planos-rodape">Todos os planos começam com a conta grátis. Você faz o upgrade dentro do app quando quiser.</p>
+  </section>
+
   <!-- O PROBLEMA -->
   <section class="lp-secao lp-problema">
     <div class="lp-problema-grid">
@@ -1713,6 +1778,17 @@
     </div>
 
     <div class="lp-cards">
+      <div class="lp-card lp-card-destaque reveal">
+        <div class="lp-card-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></svg>
+        </div>
+        <h3 class="lp-card-titulo">Assistente de IA <span class="lp-card-badge">NOVO</span></h3>
+        <p class="lp-card-desc">
+          Pergunte "onde gastei mais esse mês" e receba a resposta na hora.
+          Um consultor financeiro que conhece seus dados e te ajuda a economizar.
+        </p>
+      </div>
+
       <div class="lp-card reveal">
         <div class="lp-card-icone">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
@@ -1791,57 +1867,50 @@
     </div>
   </section>
 
-  <!-- PLANOS -->
-  <section class="lp-secao lp-planos-secao" id="planos">
+  <!-- Depoimentos -->
+  <section class="lp-secao lp-depoimentos-secao">
     <div class="lp-secao-head reveal">
-      <p class="lp-eyebrow">Planos</p>
-      <h2 class="lp-h2">Comece de graça.<br>Cresça quando quiser.</h2>
+      <p class="lp-eyebrow">O que dizem por aí</p>
+      <h2 class="lp-h2">Quem usa, recomenda</h2>
     </div>
-
-    <div class="lp-planos-grid">
-      <div class="lp-plano reveal">
-        <div class="lp-plano-nome">Básico</div>
-        <div class="lp-plano-preco"><span class="lp-plano-valor">Grátis</span></div>
-        <div class="lp-plano-nota">para sempre</div>
-        <button class="lp-plano-btn lp-plano-btn-ghost" onclick="abrirAuth('cadastro')">Criar conta grátis</button>
-        <ul class="lp-plano-lista">
-          <li>Até 3 contas</li>
-          <li>Lançamentos manuais</li>
-          <li>Dashboard e categorias</li>
-          <li>Metas básicas</li>
-        </ul>
+    <div class="lp-depoimentos-grid">
+      <div class="lp-depoimento reveal">
+        <div class="lp-depo-estrelas">★★★★★</div>
+        <div class="lp-depo-titulo">Mudou minha relação com dinheiro</div>
+        <p class="lp-depo-texto">Sempre me perdia nas contas. Com o FAZ, em duas semanas eu já sabia exatamente pra onde ia cada real. O assistente de IA me ajudou a cortar gastos que eu nem via.</p>
+        <div class="lp-depo-autor">Marina S.</div>
       </div>
-
-      <div class="lp-plano lp-plano-destaque reveal">
-        <div class="lp-plano-selo">Mais popular</div>
-        <div class="lp-plano-nome">Premium</div>
-        <div class="lp-plano-preco"><span class="lp-plano-moeda">R$</span><span class="lp-plano-valor">19,90</span><span class="lp-plano-ciclo">/mês</span></div>
-        <div class="lp-plano-nota">ou R$ 17,90/mês no anual</div>
-        <button class="lp-plano-btn lp-plano-btn-primary" onclick="abrirAuth('cadastro')">Assinar Premium</button>
-        <ul class="lp-plano-lista">
-          <li>Contas ilimitadas</li>
-          <li>Cripto ao vivo</li>
-          <li>Importar OFX/CSV</li>
-          <li>Metas e recorrências ilimitadas</li>
-          <li>Suporte priorizado</li>
-        </ul>
+      <div class="lp-depoimento reveal">
+        <div class="lp-depo-estrelas">★★★★★</div>
+        <div class="lp-depo-titulo">Simples e direto ao ponto</div>
+        <p class="lp-depo-texto">Testei vários apps e sempre desistia por serem complicados. Esse é diferente: lanço um gasto em segundos e a categoria já vem certa. Uso todo dia.</p>
+        <div class="lp-depo-autor">Rafael M.</div>
       </div>
-
-      <div class="lp-plano lp-plano-master reveal">
-        <div class="lp-plano-selo lp-plano-selo-master">Topo</div>
-        <div class="lp-plano-nome">Master</div>
-        <div class="lp-plano-preco"><span class="lp-plano-moeda">R$</span><span class="lp-plano-valor">29,90</span><span class="lp-plano-ciclo">/mês</span></div>
-        <div class="lp-plano-nota">ou R$ 25,90/mês no anual</div>
-        <button class="lp-plano-btn lp-plano-btn-master" onclick="abrirAuth('cadastro')">Assinar Master</button>
-        <ul class="lp-plano-lista">
-          <li class="lp-plano-tudo">Tudo do Premium, mais:</li>
-          <li>IA financeira tirando dúvidas</li>
-          <li>Análise dos seus gastos com IA</li>
-          <li>Dicas personalizadas</li>
-        </ul>
+      <div class="lp-depoimento reveal">
+        <div class="lp-depo-estrelas">★★★★★</div>
+        <div class="lp-depo-titulo">A IA vale cada centavo</div>
+        <p class="lp-depo-texto">Poder perguntar "onde gastei mais esse mês" e receber a resposta na hora é surreal. Parece que tenho um consultor financeiro no bolso. Migrei pro Master e não me arrependo.</p>
+        <div class="lp-depo-autor">Camila R.</div>
+      </div>
+      <div class="lp-depoimento reveal">
+        <div class="lp-depo-estrelas">★★★★★</div>
+        <div class="lp-depo-titulo">Finalmente organizei minha vida</div>
+        <p class="lp-depo-texto">Consegui juntar pra minha reserva de emergência acompanhando as metas. Ver o progresso me motiva a continuar. Recomendo demais.</p>
+        <div class="lp-depo-autor">Diego A.</div>
+      </div>
+      <div class="lp-depoimento reveal">
+        <div class="lp-depo-estrelas">★★★★★</div>
+        <div class="lp-depo-titulo">Controle dos investimentos num lugar só</div>
+        <p class="lp-depo-texto">Tenho CDB, cripto e ações, e acompanhar tudo junto sempre foi um caos. Aqui vejo o rendimento de cada um sem planilha nenhuma. Excelente.</p>
+        <div class="lp-depo-autor">Patrícia L.</div>
+      </div>
+      <div class="lp-depoimento reveal">
+        <div class="lp-depo-estrelas">★★★★★</div>
+        <div class="lp-depo-titulo">Vale muito a pena</div>
+        <p class="lp-depo-texto">Rápido, bonito e fácil de usar. Em poucos dias já tinha o controle total das minhas finanças. Melhor decisão que tomei esse ano.</p>
+        <div class="lp-depo-autor">Lucas F.</div>
       </div>
     </div>
-    <p class="lp-planos-rodape">Todos os planos começam com a conta grátis. Você faz o upgrade dentro do app quando quiser.</p>
   </section>
 
   <!-- FAQ -->
@@ -1881,6 +1950,17 @@
         <summary>É grátis?</summary>
         <p>O plano Básico é grátis pra sempre e já resolve o essencial. Se quiser cripto ao vivo, contas ilimitadas e recursos avançados, tem o Premium e o Master — mas você só paga se quiser, e faz o upgrade dentro do app.</p>
       </details>
+    </div>
+  </section>
+
+  <!-- Suporte / dúvidas -->
+  <section class="lp-secao">
+    <div class="lp-suporte reveal">
+      <div class="lp-suporte-texto">
+        <h3 class="lp-suporte-titulo">Ainda com dúvidas?</h3>
+        <p class="lp-suporte-sub">Nossa equipe está pronta pra te ajudar. Fale com o suporte e tire qualquer dúvida antes de começar.</p>
+      </div>
+      <a class="lp-suporte-btn" href="mailto:contato@seudominio.com.br">Falar com o suporte</a>
     </div>
   </section>
 

@@ -2396,7 +2396,7 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 
 
-.lp-nav-links { display: flex; gap: 26px; }
+.lp-nav-links { display: flex; gap: 32px; }
 .lp-nav-links a {
   color: var(--lp-text-dim);
   text-decoration: none;
@@ -2633,13 +2633,19 @@ body.sem-internet .layout { padding-top: 34px; }
   margin: 0 auto;
   padding: 110px 24px;
 }
-.lp-secao-head { margin-bottom: 52px; }
+.lp-secao-head {
+  margin-bottom: 52px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 
 .lp-h2 {
   font-family: 'Sora', sans-serif;
-  font-size: clamp(27px, 3.6vw, 40px);
+  font-size: clamp(30px, 4.2vw, 46px);
   font-weight: 600;
-  line-height: 1.22;
+  line-height: 1.18;
   letter-spacing: -0.03em;
   margin: 0;
 }
@@ -6711,6 +6717,14 @@ body.sem-internet .layout { padding-top: 34px; }
   border: 1px solid #b8842a;
   background: linear-gradient(180deg, rgba(184, 132, 42, 0.05), transparent 40%);
 }
+/* Realce quando a pessoa chega da landing com um plano escolhido */
+.plano-card-escolhido {
+  animation: planoPulso 1.1s ease-in-out 2;
+}
+@keyframes planoPulso {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(15, 138, 125, 0); }
+  50% { box-shadow: 0 0 0 5px rgba(15, 138, 125, 0.45); }
+}
 .plano-selo {
   position: absolute;
   top: -11px;
@@ -6968,7 +6982,7 @@ body.sem-internet .layout { padding-top: 34px; }
   flex-direction: column;
 }
 .lp-plano-destaque { border: 2px solid var(--lp-teal); }
-.lp-plano-master { border-color: rgba(245,165,36,0.3); }
+.lp-plano-master { border-color: #b8842a; }
 .lp-plano-selo {
   position: absolute;
   top: -12px; left: 24px;
@@ -6981,7 +6995,7 @@ body.sem-internet .layout { padding-top: 34px; }
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
-.lp-plano-selo-master { background: var(--lp-amber); color: #2a1e05; }
+.lp-plano-selo-master { background: #b8842a; color: #fff; }
 .lp-plano-nome {
   font-family: 'Sora', sans-serif;
   font-size: 18px;
@@ -7023,8 +7037,40 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .lp-plano-btn-primary { background: var(--lp-teal); color: var(--lp-bg); }
 .lp-plano-btn-primary:hover { opacity: 0.9; }
-.lp-plano-btn-master { background: var(--lp-amber); color: #2a1e05; }
+.lp-plano-btn-master { background: #b8842a; color: #fff; }
 .lp-plano-btn-master:hover { opacity: 0.9; }
+
+/* Caixa de IA nos planos da landing */
+.lp-plano-ia {
+  background: rgba(15, 138, 125, 0.1);
+  border-radius: 10px;
+  padding: 11px 13px;
+  margin: 14px 0 12px;
+}
+.lp-plano-ia-master { background: rgba(184, 132, 42, 0.1); }
+.lp-plano-ia-titulo {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lp-teal);
+}
+.lp-plano-ia-master .lp-plano-ia-titulo { color: #c9962f; }
+.lp-plano-ia-desc {
+  display: block;
+  font-size: 12px;
+  color: var(--lp-text-dim);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+/* Item "não incluso" (com X) */
+.lp-plano-off {
+  color: var(--lp-text-dim);
+  opacity: 0.65;
+}
+.lp-plano-off::before {
+  content: "✕" !important;
+  color: var(--lp-text-dim) !important;
+}
 .lp-plano-btn-ghost {
   background: transparent;
   color: var(--lp-text);
@@ -7766,4 +7812,157 @@ body.scroll-travado {
 .dica-info:focus .dica-balao {
   opacity: 1;
   visibility: visible;
+}
+
+/* ─── Depoimentos da landing ─── */
+.lp-depoimentos-secao {
+  background: rgba(15, 138, 125, 0.04);
+  border-radius: 24px;
+  padding: 56px 32px;
+}
+.lp-depoimentos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  max-width: 1100px;
+  margin: 40px auto 0;
+}
+.lp-depoimento {
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-line);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+.lp-depo-estrelas {
+  color: #f5a524;
+  font-size: 15px;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+.lp-depo-titulo {
+  font-family: 'Sora', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--lp-text);
+  margin-bottom: 10px;
+}
+.lp-depo-texto {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--lp-text-dim);
+  margin: 0 0 16px;
+  flex: 1;
+}
+.lp-depo-autor {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lp-text);
+}
+@media (max-width: 900px) {
+  .lp-depoimentos-grid { grid-template-columns: 1fr; }
+  .lp-depoimentos-secao { padding: 40px 20px; }
+}
+
+/* ─── Caixa de suporte da landing ─── */
+.lp-suporte {
+  background: rgba(214, 158, 46, 0.1);
+  border-radius: 20px;
+  padding: 32px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+  flex-wrap: wrap;
+}
+.lp-suporte-titulo {
+  font-family: 'Sora', sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--lp-text);
+  margin: 0 0 6px;
+}
+.lp-suporte-sub {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--lp-text-dim);
+  margin: 0;
+  max-width: 460px;
+}
+.lp-suporte-btn {
+  background: #d69e2e;
+  color: #fff;
+  padding: 13px 26px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.lp-suporte-btn:hover { opacity: 0.9; }
+@media (max-width: 700px) {
+  .lp-suporte { padding: 28px 24px; flex-direction: column; align-items: flex-start; }
+}
+
+/* ─── Card de destaque nos recursos (IA) ─── */
+.lp-card-destaque {
+  border: 1.5px solid var(--lp-teal);
+  background: rgba(15, 138, 125, 0.04);
+}
+.lp-card-badge {
+  display: inline-block;
+  background: var(--lp-teal);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 100px;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+/* ─── Toggle Mensal/Anual da landing ─── */
+.lp-planos-toggle {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-line);
+  border-radius: 100px;
+  padding: 4px;
+  margin: 24px auto 0;
+}
+.lp-toggle-opt {
+  border: none;
+  background: transparent;
+  color: var(--lp-text-dim);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lp-toggle-opt.ativo {
+  background: var(--lp-teal);
+  color: var(--lp-bg);
+}
+.lp-toggle-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(30, 246, 221, 0.15);
+  color: var(--lp-teal-soft);
+  padding: 2px 7px;
+  border-radius: 100px;
+}
+.lp-toggle-opt.ativo .lp-toggle-badge {
+  background: rgba(1, 16, 37, 0.2);
+  color: var(--lp-bg);
 }

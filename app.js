@@ -456,6 +456,31 @@ function mostrarTelaApp() {
   document.getElementById("telaLogin").style.display = "none";
   document.getElementById("appLayout").style.display = "flex";
   document.body.style.overflow = "";
+
+  // Se a pessoa clicou em "Assinar Premium/Master" na landing antes de
+  // criar a conta, levamos ela direto para a tela de Planos com o plano
+  // escolhido em destaque — para não perder a intenção de compra.
+  let planoPendente = null;
+  try { planoPendente = localStorage.getItem("fp_plano_pendente"); } catch (e) {}
+  if (planoPendente === "premium" || planoPendente === "master") {
+    try { localStorage.removeItem("fp_plano_pendente"); } catch (e) {}
+    // Espera o app montar antes de navegar e destacar.
+    setTimeout(() => destacarPlanoEscolhido(planoPendente), 600);
+  }
+}
+
+/* Abre a tela de Planos e destaca o plano que a pessoa escolheu na landing */
+function destacarPlanoEscolhido(plano) {
+  trocarTela("planos");
+  const id = plano === "master" ? "planoCardMaster" : "planoCardPremium";
+  const card = document.getElementById(id);
+  if (!card) return;
+  setTimeout(() => {
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("plano-card-escolhido");
+    // Remove o realce depois de um tempo para não ficar permanente
+    setTimeout(() => card.classList.remove("plano-card-escolhido"), 3200);
+  }, 250);
 }
 
 function mostrarLoading(ativo) {
@@ -4816,6 +4841,25 @@ function iniciarNavScroll() {
 function rolarPara(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+/* Toggle Mensal/Anual dos planos na landing */
+(function () {
+  const toggle = document.getElementById("lpPlanosToggle");
+  if (!toggle) return;
+  toggle.addEventListener("click", function (e) {
+    const btn = e.target.closest(".lp-toggle-opt");
+    if (!btn) return;
+    const ciclo = btn.dataset.ciclo;
+    // Marca o botão ativo
+    toggle.querySelectorAll(".lp-toggle-opt").forEach(b => b.classList.remove("ativo"));
+    btn.classList.add("ativo");
+    // Atualiza todos os valores e notas dos planos
+    document.querySelectorAll(".lp-planos-secao [data-mensal]").forEach(el => {
+      const val = el.dataset[ciclo];
+      if (val !== undefined) el.textContent = val;
+    });
+  });
+})();
 document.querySelectorAll('.lp-nav-links a[href^="#"]').forEach(a => {
   a.addEventListener("click", e => {
     e.preventDefault();
@@ -4931,6 +4975,15 @@ function abrirAuth(qual) {
       : document.getElementById("loginEmail");
     campo?.focus();
   }, 120);
+}
+
+/* Clicou em "Assinar Premium/Master" na landing:
+   guarda o plano escolhido e abre o cadastro. Quando a pessoa
+   terminar de entrar no app, cai direto na tela de Planos com
+   o plano dela em destaque (ver mostrarTelaApp). */
+function assinarNaLanding(plano) {
+  try { localStorage.setItem("fp_plano_pendente", plano); } catch (e) {}
+  abrirAuth("cadastro");
 }
 
 function fecharAuth() {
