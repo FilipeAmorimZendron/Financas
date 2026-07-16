@@ -6794,6 +6794,17 @@ function montarResumoFinanceiro() {
     linhas.push("");
   }
 
+  // ─── Lançamentos pendentes (aguardando confirmação) ───
+  const pendentes = state.movimentos.filter(m => m.status === "pendente");
+  if (pendentes.length) {
+    linhas.push("Lançamentos pendentes (aguardando confirmação):");
+    pendentes.slice(0, 10).forEach(m => {
+      const tipo = m.tipo === "entrada" ? "receber" : "pagar";
+      linhas.push(`  - ${m.descricao}: ${tipo} ${fmtMoeda(m.valor)}${m.vencimento ? " (vence " + formatarDataBR(m.vencimento) + ")" : ""}`);
+    });
+    linhas.push("");
+  }
+
   // ─── Objetivos de economia ───
   if (state.objetivos && state.objetivos.length) {
     linhas.push("Objetivos de economia:");
