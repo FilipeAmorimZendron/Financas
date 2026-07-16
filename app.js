@@ -6760,8 +6760,8 @@ initSino();
     if (!conversaIniciada) {
       const nome = primeiroNome();
       const saudacao = nome
-        ? "Olá, " + nome + "! Seja bem-vindo ao Assistente FAZ. O que você gostaria de saber sobre suas finanças hoje?"
-        : "Olá! Seja bem-vindo ao Assistente FAZ. O que você gostaria de saber sobre suas finanças hoje?";
+        ? "Olá, " + nome + "! 👋 Que bom te ver por aqui. Sou o Assistente FAZ e estou aqui para te ajudar a entender seus gastos, economizar e organizar suas finanças. 💰\n\nComo posso te ajudar hoje?"
+        : "Olá! 👋 Que bom te ver por aqui. Sou o Assistente FAZ e estou aqui para te ajudar a entender seus gastos, economizar e organizar suas finanças. 💰\n\nComo posso te ajudar hoje?";
       addMsg(saudacao, "ia");
       conversaIniciada = true;
     }

@@ -7395,17 +7395,17 @@ body.scroll-travado {
 .ia-fab {
   position: fixed;
   bottom: 24px;
-  left: 288px;
-  width: 56px;
-  height: 56px;
+  left: 284px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: var(--teal-600);
+  background: var(--teal-500);
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(23, 29, 49, 0.25);
+  box-shadow: 0 4px 14px rgba(15, 138, 125, 0.35);
   z-index: 300;
   transition: transform 0.15s, background 0.15s;
 }
@@ -7413,7 +7413,7 @@ body.scroll-travado {
   background: var(--teal-500);
   transform: scale(1.05);
 }
-.ia-fab svg { width: 26px; height: 26px; color: #fff; }
+.ia-fab svg { width: 22px; height: 22px; color: #fff; }
 
 .ia-fab[hidden],
 .ia-chat[hidden] {
