@@ -7480,19 +7480,20 @@ body.scroll-travado {
   border-bottom: 1px solid var(--border-soft);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
+  background: var(--teal-dim);
 }
 .ia-chat-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--teal-dim);
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--teal-500);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-.ia-chat-avatar svg { width: 19px; height: 19px; color: var(--teal-400); }
+.ia-chat-avatar svg { width: 20px; height: 20px; color: #fff; }
 .ia-chat-head-texto { flex: 1; min-width: 0; }
 .ia-chat-titulo {
   margin: 0;
@@ -7503,7 +7504,22 @@ body.scroll-travado {
 .ia-chat-sub {
   margin: 0;
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--teal-400);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.ia-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--teal-400);
+  display: inline-block;
+  animation: iaStatusPulse 2s ease-in-out infinite;
+}
+@keyframes iaStatusPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 .ia-chat-fechar {
   width: 30px;
@@ -7561,17 +7577,33 @@ body.scroll-travado {
   align-self: flex-end;
   background: var(--teal-600);
   color: #fff;
-  border-radius: 14px 14px 4px 14px;
+  border-radius: 16px 16px 5px 16px;
 }
 .ia-msg-ia {
   align-self: flex-start;
   background: var(--surface2);
   color: var(--text-primary);
-  border-radius: 14px 14px 14px 4px;
+  border-radius: 16px 16px 16px 5px;
 }
-.ia-msg-carregando {
-  color: var(--text-secondary);
-  font-style: italic;
+.ia-digitando {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 13px 16px;
+}
+.ia-ponto {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--teal-400);
+  display: inline-block;
+  animation: iaPontoPulse 1.2s ease-in-out infinite;
+}
+.ia-ponto:nth-child(2) { animation-delay: 0.2s; }
+.ia-ponto:nth-child(3) { animation-delay: 0.4s; }
+@keyframes iaPontoPulse {
+  0%, 100% { opacity: 0.3; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-3px); }
 }
 
 .ia-chat-input {

@@ -6829,6 +6829,18 @@ initSino();
     return div;
   }
 
+  // Cria o indicador de "digitando" com três pontinhos animados
+  function criarIndicadorDigitando() {
+    const lista = document.getElementById("iaChatMensagens");
+    if (!lista) return null;
+    const div = document.createElement("div");
+    div.className = "ia-msg ia-msg-ia ia-digitando";
+    div.innerHTML = '<span class="ia-ponto"></span><span class="ia-ponto"></span><span class="ia-ponto"></span>';
+    lista.appendChild(div);
+    lista.scrollTop = lista.scrollHeight;
+    return div;
+  }
+
   // Abre o chat (mostra a saudação na primeira vez)
   function abrir() {
     const chat = document.getElementById("iaChat");
@@ -6860,8 +6872,7 @@ initSino();
   // Envia a pergunta para a IA
   async function perguntar(pergunta) {
     addMsg(pergunta, "usuario");
-    const carregando = addMsg("Pensando...", "ia");
-    if (carregando) carregando.classList.add("ia-msg-carregando");
+    const carregando = criarIndicadorDigitando();
     try {
       let resumo = "";
       try { resumo = montarResumoFinanceiro(); } catch (e) { resumo = ""; }
@@ -6911,7 +6922,7 @@ initSino();
   // Atualiza o texto do contador "X de Y perguntas"
   function atualizarContadorIA(usados, limite) {
     const el = document.getElementById("iaContador");
-    if (el) el.textContent = usados + " de " + limite + " perguntas usadas";
+    if (el) el.textContent = (limite - usados) + " de " + limite + " perguntas disponíveis";
   }
 
   // Liga tudo. Usa delegação no documento — funciona mesmo que os
