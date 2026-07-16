@@ -6658,6 +6658,65 @@ async function assinarPlano(plano) {
 }
 
 // Liga o sino de notificações ao carregar
+/* Monta um resumo compacto das finanças do usuário para enviar à IA.
+   Isso dá contexto para a IA responder sobre a situação real do cliente. */
+function montarResumoFinanceiro() {
+  const linhas = [];
+  const hoje = hojeISO();
+  const [ano, mes] = hoje.split("-");
+  const mesAtual = `${ano}-${mes}`;
+
+  // Saldo total e por conta
+  const saldos = saldosPorConta();
+  const saldoTotal = calcularSaldoTotal();
+  linhas.push(`Saldo total: ${fmtMoeda(saldoTotal)}`);
+  if (state.bancos.length) {
+    const contas = state.bancos.map(b => `${b.nome}: ${fmtMoeda(saldos[b.id] ?? 0)}`).join(", ");
+    linhas.push(`Contas: ${contas}`);
+  }
+
+  // Entradas e gastos do mês atual
+  const movsMes = state.movimentos.filter(m => (m.data || "").slice(0,7) === mesAtual && ehPago(m));
+  const entradas = movsMes.filter(m => m.tipo === "entrada").reduce((s,m) => s + m.valor, 0);
+  const gastos = movsMes.filter(m => m.tipo === "gasto").reduce((s,m) => s + m.valor, 0);
+  linhas.push(`Este mês — entradas: ${fmtMoeda(entradas)}, gastos: ${fmtMoeda(gastos)}, saldo do mês: ${fmtMoeda(entradas - gastos)}`);
+
+  // Gastos por categoria (este mês)
+  const porCategoria = {};
+  movsMes.filter(m => m.tipo === "gasto").forEach(m => {
+    const cat = m.categoria || "Sem categoria";
+    porCategoria[cat] = (porCategoria[cat] || 0) + m.valor;
+  });
+  const cats = Object.entries(porCategoria).sort((a,b) => b[1] - a[1]);
+  if (cats.length) {
+    linhas.push("Gastos por categoria este mês: " + cats.map(([c,v]) => `${c}: ${fmtMoeda(v)}`).join(", "));
+  }
+
+  // Metas de gasto
+  if (state.metas.length) {
+    const metas = state.metas.map(meta => {
+      const gasto = movsMes.filter(m => m.tipo === "gasto" && m.categoria === meta.categoria).reduce((s,m) => s + m.valor, 0);
+      return `${meta.categoria}: gastou ${fmtMoeda(gasto)} de ${fmtMoeda(meta.limite)}`;
+    }).join(", ");
+    linhas.push(`Metas de gasto: ${metas}`);
+  }
+
+  // Contas a vencer (próximas)
+  const compromissos = todosCompromissos(somarDias(hoje, 30)).filter(c => c.tipo === "gasto");
+  if (compromissos.length) {
+    const proximas = compromissos.slice(0, 5).map(c => `${c.descricao} (${fmtMoeda(c.valor)} em ${formatarDataBR(c.vencimento)})`).join(", ");
+    linhas.push(`Contas a pagar nos próximos 30 dias: ${proximas}`);
+  }
+
+  // Investimentos
+  if (state.investimentos.length) {
+    const totalInv = state.investimentos.reduce((s,i) => s + (i.criptoId ? valorAtualCripto(i) : valorRendaFixaHoje(i)), 0);
+    linhas.push(`Total investido: ${fmtMoeda(totalInv)} em ${state.investimentos.length} investimento(s)`);
+  }
+
+  return linhas.join("\n");
+}
+
 /* ─── Chat de IA (assistente flutuante) ──────────────────── */
 let iaConversaIniciada = false;
 
@@ -6679,13 +6738,13 @@ function initChatIA() {
     fab.hidden = true;
     // Mensagem de boas-vindas na primeira abertura
     if (!iaConversaIniciada) {
-      adicionarMensagemIA("Oi! Sou seu assistente financeiro. Posso ajudar a entender seus gastos, planejar economias e responder dúvidas sobre finanças. Como posso ajudar?", "ia");
+      adicionarMensagemIA("Oi! Sou seu assistente financeiro e já tenho acesso aos seus dados. Posso analisar seus gastos, ajudar a economizar e responder dúvidas. O que você quer saber?", "ia");
       iaConversaIniciada = true;
     }
     setTimeout(() => campo?.focus(), 100);
   });
 
-  // Fechar
+  // Fechar = minimiza (volta pro botão flutuante, mas mantém a conversa)
   fechar?.addEventListener("click", () => {
     chat.hidden = true;
     fab.hidden = false;
@@ -6728,7 +6787,7 @@ async function perguntarIA(pergunta) {
     const resp = await fetch("/api/chat-ia", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ pergunta })
+      body: JSON.stringify({ pergunta, resumoFinanceiro: montarResumoFinanceiro() })
     });
     const dados = await resp.json();
     digitando.remove();
