@@ -7392,30 +7392,40 @@ body.scroll-travado {
 /* ============================================================
    CHAT DE IA (assistente flutuante)
    ============================================================ */
-.ia-fab {
-  position: fixed;
-  bottom: 24px;
-  left: 284px;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--teal-500);
-  border: none;
+/* Botão do Assistente na sidebar */
+.sidebar-ia-btn {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(15, 138, 125, 0.35);
-  z-index: 300;
-  transition: transform 0.15s, background 0.15s;
-}
-.ia-fab:hover {
+  gap: 8px;
+  padding: 11px 12px;
+  margin: 10px 0 4px;
   background: var(--teal-500);
-  transform: scale(1.05);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
 }
-.ia-fab svg { width: 22px; height: 22px; color: #fff; }
+.sidebar-ia-btn:hover {
+  background: var(--teal-400);
+}
+.sidebar-ia-btn:active {
+  transform: scale(0.98);
+}
+.sidebar-ia-btn svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+/* Esconde o botão do assistente quando a sidebar está recolhida (só ícone) */
+.sidebar-recolhida .sidebar-ia-btn span { display: none; }
+.sidebar-recolhida .sidebar-ia-btn { padding: 11px 0; }
 
-.ia-fab[hidden],
+
 .ia-chat[hidden] {
   display: none !important;
 }
@@ -7558,5 +7568,4 @@ body.scroll-travado {
     bottom: 12px;
     left: 12px;
   }
-  .ia-fab { bottom: 80px; left: 16px; }
 }

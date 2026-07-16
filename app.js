@@ -6666,55 +6666,135 @@ function montarResumoFinanceiro() {
   const [ano, mes] = hoje.split("-");
   const mesAtual = `${ano}-${mes}`;
 
-  // Saldo total e por conta
+  // ─── Perfil e plano do usuário ───
+  const nome = (state.perfil?.nome || "").trim();
+  const plano = (typeof planoAtual === "function") ? planoAtual() : (state.perfil?.plano || "basico");
+  const nomePlano = plano === "master" ? "Master" : plano === "premium" ? "Premium" : "Básico";
+  linhas.push(`Data de hoje: ${formatarDataBR(hoje)}`);
+  if (nome) linhas.push(`Nome do usuário: ${nome}`);
+  linhas.push(`Plano da conta: ${nomePlano}`);
+  linhas.push("");
+
+  // ─── Saldo total e por conta ───
   const saldos = saldosPorConta();
   const saldoTotal = calcularSaldoTotal();
-  linhas.push(`Saldo total: ${fmtMoeda(saldoTotal)}`);
+  linhas.push(`Saldo total (todas as contas): ${fmtMoeda(saldoTotal)}`);
   if (state.bancos.length) {
-    const contas = state.bancos.map(b => `${b.nome}: ${fmtMoeda(saldos[b.id] ?? 0)}`).join(", ");
-    linhas.push(`Contas: ${contas}`);
+    linhas.push("Contas cadastradas:");
+    state.bancos.forEach(b => {
+      linhas.push(`  - ${b.nome}: ${fmtMoeda(saldos[b.id] ?? 0)}`);
+    });
+  } else {
+    linhas.push("Nenhuma conta cadastrada ainda.");
   }
+  linhas.push("");
 
-  // Entradas e gastos do mês atual
+  // ─── Fluxo do mês atual ───
   const movsMes = state.movimentos.filter(m => (m.data || "").slice(0,7) === mesAtual && ehPago(m));
   const entradas = movsMes.filter(m => m.tipo === "entrada").reduce((s,m) => s + m.valor, 0);
   const gastos = movsMes.filter(m => m.tipo === "gasto").reduce((s,m) => s + m.valor, 0);
-  linhas.push(`Este mês — entradas: ${fmtMoeda(entradas)}, gastos: ${fmtMoeda(gastos)}, saldo do mês: ${fmtMoeda(entradas - gastos)}`);
+  linhas.push(`Este mês (${MESES_PT[Number(mes)-1]}/${ano}):`);
+  linhas.push(`  - Entradas: ${fmtMoeda(entradas)}`);
+  linhas.push(`  - Gastos: ${fmtMoeda(gastos)}`);
+  linhas.push(`  - Saldo do mês: ${fmtMoeda(entradas - gastos)}`);
 
   // Gastos por categoria (este mês)
   const porCategoria = {};
   movsMes.filter(m => m.tipo === "gasto").forEach(m => {
-    const cat = m.categoria || "Sem categoria";
+    const cat = m.categoria || "Outros";
     porCategoria[cat] = (porCategoria[cat] || 0) + m.valor;
   });
   const cats = Object.entries(porCategoria).sort((a,b) => b[1] - a[1]);
   if (cats.length) {
-    linhas.push("Gastos por categoria este mês: " + cats.map(([c,v]) => `${c}: ${fmtMoeda(v)}`).join(", "));
+    linhas.push("  - Gastos por categoria:");
+    cats.forEach(([c,v]) => {
+      const pct = gastos > 0 ? Math.round((v/gastos)*100) : 0;
+      linhas.push(`      ${c}: ${fmtMoeda(v)} (${pct}%)`);
+    });
+  }
+  linhas.push("");
+
+  // ─── Histórico dos últimos 3 meses ───
+  const historico = [];
+  for (let i = 1; i <= 3; i++) {
+    const d = new Date(Number(ano), Number(mes)-1-i, 1);
+    const mAno = d.getFullYear();
+    const mMes = String(d.getMonth()+1).padStart(2,"0");
+    const chave = `${mAno}-${mMes}`;
+    const movs = state.movimentos.filter(m => (m.data||"").slice(0,7) === chave && ehPago(m));
+    if (!movs.length) continue;
+    const ent = movs.filter(m => m.tipo === "entrada").reduce((s,m)=>s+m.valor,0);
+    const gas = movs.filter(m => m.tipo === "gasto").reduce((s,m)=>s+m.valor,0);
+    historico.push(`  - ${MESES_PT[d.getMonth()]}/${mAno}: entradas ${fmtMoeda(ent)}, gastos ${fmtMoeda(gas)}, saldo ${fmtMoeda(ent-gas)}`);
+  }
+  if (historico.length) {
+    linhas.push("Histórico dos últimos meses:");
+    linhas.push(...historico);
+    linhas.push("");
   }
 
-  // Metas de gasto
+  // ─── Metas de gasto ───
   if (state.metas.length) {
-    const metas = state.metas.map(meta => {
+    linhas.push("Metas de gasto (limite por categoria):");
+    state.metas.forEach(meta => {
       const gasto = movsMes.filter(m => m.tipo === "gasto" && m.categoria === meta.categoria).reduce((s,m) => s + m.valor, 0);
-      return `${meta.categoria}: gastou ${fmtMoeda(gasto)} de ${fmtMoeda(meta.limite)}`;
-    }).join(", ");
-    linhas.push(`Metas de gasto: ${metas}`);
+      const pct = meta.limite > 0 ? Math.round((gasto/meta.limite)*100) : 0;
+      const situacao = gasto > meta.limite ? " (ESTOUROU)" : "";
+      linhas.push(`  - ${meta.categoria}: gastou ${fmtMoeda(gasto)} de ${fmtMoeda(meta.limite)} (${pct}%)${situacao}`);
+    });
+    linhas.push("");
   }
 
-  // Contas a vencer (próximas)
+  // ─── Objetivos de economia ───
+  if (state.objetivos && state.objetivos.length) {
+    linhas.push("Objetivos de economia:");
+    state.objetivos.forEach(o => {
+      const guardado = o.guardado || o.valorAtual || 0;
+      const alvo = o.valor || o.alvo || 0;
+      const pct = alvo > 0 ? Math.round((guardado/alvo)*100) : 0;
+      linhas.push(`  - ${o.nome}: ${fmtMoeda(guardado)} de ${fmtMoeda(alvo)} (${pct}%)`);
+    });
+    linhas.push("");
+  }
+
+  // ─── Recorrências ativas ───
+  const recAtivas = (state.recorrencias || []).filter(r => r.ativa !== false);
+  if (recAtivas.length) {
+    linhas.push("Contas e receitas recorrentes:");
+    recAtivas.forEach(r => {
+      const tipo = r.tipo === "entrada" ? "recebe" : "paga";
+      linhas.push(`  - ${r.descricao}: ${tipo} ${fmtMoeda(r.valor)} (dia ${r.dia || "?"}, ${r.frequencia || "mensal"})`);
+    });
+    linhas.push("");
+  }
+
+  // ─── Contas a vencer (próximos 30 dias) ───
   const compromissos = todosCompromissos(somarDias(hoje, 30)).filter(c => c.tipo === "gasto");
   if (compromissos.length) {
-    const proximas = compromissos.slice(0, 5).map(c => `${c.descricao} (${fmtMoeda(c.valor)} em ${formatarDataBR(c.vencimento)})`).join(", ");
-    linhas.push(`Contas a pagar nos próximos 30 dias: ${proximas}`);
+    linhas.push("Contas a pagar nos próximos 30 dias:");
+    compromissos.slice(0, 8).forEach(c => {
+      linhas.push(`  - ${c.descricao}: ${fmtMoeda(c.valor)} vence em ${formatarDataBR(c.vencimento)}`);
+    });
+    linhas.push("");
   }
 
-  // Investimentos
+  // ─── Investimentos detalhados ───
   if (state.investimentos.length) {
     const totalInv = state.investimentos.reduce((s,i) => s + (i.criptoId ? valorAtualCripto(i) : valorRendaFixaHoje(i)), 0);
-    linhas.push(`Total investido: ${fmtMoeda(totalInv)} em ${state.investimentos.length} investimento(s)`);
+    linhas.push(`Investimentos (total: ${fmtMoeda(totalInv)}):`);
+    state.investimentos.forEach(inv => {
+      const nomeInv = inv.nome || inv.tipo;
+      const valorAtual = inv.criptoId ? valorAtualCripto(inv) : valorRendaFixaHoje(inv);
+      let detalhe = `  - ${nomeInv} (${inv.tipo}): ${fmtMoeda(valorAtual)}`;
+      if (!inv.criptoId && inv.taxa > 0) {
+        detalhe += `, taxa ${fmtNum(inv.taxa)}% ${inv.taxaPeriodo === "mes" ? "a.m." : "a.a."}`;
+      }
+      linhas.push(detalhe);
+    });
+    linhas.push("");
   }
 
-  return linhas.join("\n");
+  return linhas.join("\n").trim();
 }
 
 initSino();
@@ -6752,11 +6832,9 @@ initSino();
   // Abre o chat (mostra a saudação na primeira vez)
   function abrir() {
     const chat = document.getElementById("iaChat");
-    const fab = document.getElementById("iaFab");
     const campo = document.getElementById("iaChatCampo");
-    if (!chat || !fab) return;
+    if (!chat) return;
     chat.hidden = false;
-    fab.hidden = true;
     if (!conversaIniciada) {
       const nome = primeiroNome();
       const saudacao = nome
@@ -6768,12 +6846,10 @@ initSino();
     setTimeout(function () { if (campo) campo.focus(); }, 100);
   }
 
-  // Minimiza o chat (volta pro botão, mantém a conversa)
+  // Minimiza o chat (mantém a conversa; o botão fica sempre na sidebar)
   function minimizar() {
     const chat = document.getElementById("iaChat");
-    const fab = document.getElementById("iaFab");
     if (chat) chat.hidden = true;
-    if (fab) fab.hidden = false;
   }
 
   // Envia a pergunta para a IA
