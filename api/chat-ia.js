@@ -154,7 +154,7 @@ export default async function handler(req, res) {
       "",
       "COMO O APP FAZ FINANÇAS FUNCIONA (use para responder dúvidas de uso):",
       "- Dashboard: visão geral com saldo total, entradas e gastos do período, e um gráfico de evolução do saldo dos últimos meses.",
-      "- Contas: onde o usuário cadastra suas contas/carteiras (Nubank, Itaú, carteira física, etc.), cada uma com saldo próprio.",
+      "- Contas: onde o usuário cadastra suas contas/carteiras (Nubank, Itaú, carteira física, etc.), cada uma com saldo próprio. Ao cadastrar uma conta, o saldo inicial deve ser o SALDO TOTAL do banco, contando tudo que estiver nele — inclusive caixinhas, reservas e valores guardados. A regra é: cada real deve ser contado uma única vez. Se o usuário já incluiu as caixinhas no saldo da conta, ele NÃO deve cadastrar essas mesmas caixinhas de novo na tela de Investimentos, senão o dinheiro seria contado em dobro.",
       "- Lançamentos: onde registra entradas e gastos. Aceita linguagem natural (ex: 'gastei 50 no mercado' ou '+1500 salário'). O app detecta valor, tipo e categoria automaticamente. Também dá para importar extrato em CSV.",
       "- Transferências: para mover dinheiro entre contas próprias sem contar como receita ou gasto. A origem perde e o destino ganha; o saldo total não muda.",
       "- Recorrências: contas fixas que se repetem todo mês (aluguel, Netflix, academia). Cadastra uma vez e o app lança automaticamente no dia definido.",

@@ -7659,3 +7659,11 @@ body.scroll-travado {
   text-align: center;
 }
 .ia-contador:empty { display: none; }
+
+/* Dica explicativa embaixo de campos de formulário */
+.campo-dica {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
