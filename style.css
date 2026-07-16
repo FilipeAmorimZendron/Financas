@@ -7660,10 +7660,56 @@ body.scroll-travado {
 }
 .ia-contador:empty { display: none; }
 
-/* Dica explicativa embaixo de campos de formulário */
-.campo-dica {
-  margin: 6px 0 0;
+/* Ícone de informação com tooltip (dica) ao lado de rótulos */
+.dica-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: help;
+  color: var(--text-secondary);
+  vertical-align: middle;
+  margin-left: 4px;
+}
+.dica-info svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+.dica-info:hover { color: var(--teal-400); }
+.dica-balao {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 230px;
+  max-width: 60vw;
+  background: var(--surface3, #1a2632);
+  color: var(--text-primary);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 10px 12px;
   font-size: 0.75rem;
   line-height: 1.45;
-  color: var(--text-secondary);
+  font-weight: 400;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s, visibility 0.15s;
+  z-index: 400;
+  pointer-events: none;
+}
+.dica-balao::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--surface3, #1a2632);
+}
+.dica-info:hover .dica-balao,
+.dica-info:focus .dica-balao {
+  opacity: 1;
+  visibility: visible;
 }
