@@ -6749,6 +6749,26 @@ function montarResumoFinanceiro() {
   }
   linhas.push("");
 
+  // ─── Gastos de HOJE ───
+  const movsHoje = state.movimentos.filter(m => (m.data || "").slice(0,10) === hoje && ehPago(m));
+  const gastosHoje = movsHoje.filter(m => m.tipo === "gasto");
+  const entradasHoje = movsHoje.filter(m => m.tipo === "entrada");
+  const totalGastoHoje = gastosHoje.reduce((s,m) => s + m.valor, 0);
+  const totalEntradaHoje = entradasHoje.reduce((s,m) => s + m.valor, 0);
+  linhas.push(`Movimentações de HOJE (${formatarDataBR(hoje)}):`);
+  if (gastosHoje.length) {
+    linhas.push(`  - Gastos de hoje: ${fmtMoeda(totalGastoHoje)} em ${gastosHoje.length} lançamento(s)`);
+    gastosHoje.forEach(m => {
+      linhas.push(`      ${m.descricao}: ${fmtMoeda(m.valor)} (${m.categoria || "Outros"})`);
+    });
+  } else {
+    linhas.push("  - Nenhum gasto registrado hoje.");
+  }
+  if (entradasHoje.length) {
+    linhas.push(`  - Entradas de hoje: ${fmtMoeda(totalEntradaHoje)}`);
+  }
+  linhas.push("");
+
   // ─── Fluxo do mês atual ───
   const movsMes = state.movimentos.filter(m => (m.data || "").slice(0,7) === mesAtual && ehPago(m));
   const entradas = movsMes.filter(m => m.tipo === "entrada").reduce((s,m) => s + m.valor, 0);
