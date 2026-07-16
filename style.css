@@ -6708,7 +6708,8 @@ body.sem-internet .layout { padding-top: 34px; }
   border: 2px solid var(--accent);
 }
 .plano-card-master {
-  border-color: var(--amber-glow);
+  border: 1px solid #b8842a;
+  background: linear-gradient(180deg, rgba(184, 132, 42, 0.05), transparent 40%);
 }
 .plano-selo {
   position: absolute;
@@ -6724,8 +6725,8 @@ body.sem-internet .layout { padding-top: 34px; }
   letter-spacing: 0.03em;
 }
 .plano-selo-master {
-  background: var(--amber);
-  color: #2a1e05;
+  background: #b8842a;
+  color: #fff;
 }
 .plano-nome {
   font-family: 'Sora', sans-serif;
@@ -6789,6 +6790,59 @@ body.sem-internet .layout { padding-top: 34px; }
   color: var(--bg);
 }
 .plano-btn-primario:hover { opacity: 0.9; }
+.plano-btn-master {
+  width: 100%;
+  padding: 11px;
+  border-radius: 10px;
+  background: #b8842a;
+  color: #fff;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.plano-btn-master:hover { opacity: 0.9; }
+
+/* Caixa de destaque da IA nos planos */
+.plano-ia-box {
+  background: rgba(15, 138, 125, 0.12);
+  border-radius: 10px;
+  padding: 11px 13px;
+  margin: 14px 0 12px;
+}
+.plano-ia-box-master {
+  background: rgba(184, 132, 42, 0.12);
+}
+.plano-ia-titulo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--teal-400);
+}
+.plano-ia-box-master .plano-ia-titulo {
+  color: #e0c088;
+}
+.plano-ia-titulo svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.plano-ia-desc {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+.plano-tudo-premium {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
 .plano-card-master .plano-btn-primario {
   background: var(--amber);
   color: #2a1e05;
