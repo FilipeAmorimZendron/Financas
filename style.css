@@ -7395,7 +7395,7 @@ body.scroll-travado {
 .ia-fab {
   position: fixed;
   bottom: 24px;
-  right: 24px;
+  left: 288px;
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -7418,7 +7418,7 @@ body.scroll-travado {
 .ia-chat {
   position: fixed;
   bottom: 24px;
-  right: 24px;
+  left: 288px;
   width: 380px;
   max-width: calc(100vw - 32px);
   height: 520px;
@@ -7552,7 +7552,7 @@ body.scroll-travado {
     width: calc(100vw - 24px);
     height: calc(100vh - 100px);
     bottom: 12px;
-    right: 12px;
+    left: 12px;
   }
-  .ia-fab { bottom: 80px; right: 16px; }
+  .ia-fab { bottom: 80px; left: 16px; }
 }

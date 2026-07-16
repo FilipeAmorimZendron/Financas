@@ -6796,7 +6796,11 @@ async function perguntarIA(pergunta) {
       adicionarMensagemIA(dados.erro || "Desculpe, não consegui responder agora. Tente de novo.", "ia");
       return;
     }
-    adicionarMensagemIA(dados.resposta || "Não consegui gerar uma resposta.", "ia");
+    // Limpa qualquer markdown (asteriscos) que a IA possa ter enviado
+    const respostaLimpa = (dados.resposta || "Não consegui gerar uma resposta.")
+      .replace(/\*\*/g, "")
+      .replace(/\*/g, "");
+    adicionarMensagemIA(respostaLimpa, "ia");
 
   } catch (e) {
     digitando.remove();
