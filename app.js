@@ -6718,6 +6718,7 @@ function montarResumoFinanceiro() {
 }
 
 /* Abre o chat e mostra a saudação personalizada na primeira vez */
+let iaConversaIniciada = false;
 function abrirChatIA() {
   const chat = document.getElementById("iaChat");
   const fab = document.getElementById("iaFab");
@@ -6731,8 +6732,8 @@ function abrirChatIA() {
   if (!iaConversaIniciada) {
     const nome = primeiroNomeUsuario();
     const saudacao = nome
-      ? `Olá, ${nome}! Sou seu assistente financeiro e já tenho acesso aos seus dados. Como posso ajudar você hoje?`
-      : "Olá! Sou seu assistente financeiro e já tenho acesso aos seus dados. Como posso ajudar você hoje?";
+      ? `Olá, ${nome}! Seja bem-vindo ao Assistente FAZ. O que você gostaria de saber sobre suas finanças hoje?`
+      : "Olá! Seja bem-vindo ao Assistente FAZ. O que você gostaria de saber sobre suas finanças hoje?";
     adicionarMensagemIA(saudacao, "ia");
     iaConversaIniciada = true;
   }
@@ -6754,7 +6755,6 @@ function primeiroNomeUsuario() {
 }
 
 /* ─── Chat de IA (assistente flutuante) ──────────────────── */
-let iaConversaIniciada = false;
 
 function initChatIA() {
   const fab = document.getElementById("iaFab");
@@ -6776,11 +6776,14 @@ function initChatIA() {
   });
 
   // Fechar = minimiza (volta pro botão flutuante, mantém a conversa)
-  fechar?.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    chat.hidden = true;
-    fab.hidden = false;
+  // Usa delegação: funciona mesmo clicando no ícone SVG dentro do botão
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#iaChatFechar")) {
+      e.preventDefault();
+      e.stopPropagation();
+      chat.hidden = true;
+      fab.hidden = false;
+    }
   });
 
   // Enviar pergunta
