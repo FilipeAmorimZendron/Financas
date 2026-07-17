@@ -9,6 +9,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="FAZ" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="manifest" href="manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1572,17 +1573,10 @@
   <nav class="lp-nav">
     <div class="lp-nav-inner">
       <div class="lp-logo">
-        <svg class="faz-setas" viewBox="0 0 26 28" fill="none" aria-hidden="true">
-          <path d="M6.5 27V13.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-          <path d="M6.5 8.5L11 14.5H2L6.5 8.5Z" fill="currentColor"/>
-          <path d="M17.5 27V6.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-          <path d="M17.5 1L23 8H12L17.5 1Z" fill="currentColor"/>
-        </svg>
         <span class="lp-logo-text">FAZ<span class="lp-logo-sub">Finanças</span></span>
       </div>
       <div class="lp-nav-links">
         <a href="#recursos">Recursos</a>
-        <a href="#como">Como funciona</a>
         <a href="#planos">Planos</a>
         <a href="#faq">Dúvidas</a>
       </div>
@@ -1595,49 +1589,49 @@
     <div class="lp-hero-content reveal">
       <p class="lp-eyebrow">Controle financeiro inteligente</p>
       <h1 class="lp-title">
-        Saiba exatamente quanto<br>
-        você pode <span class="lp-title-accent">gastar hoje.</span>
+        Cansou de não saber pra onde vai o seu dinheiro?
+        <span class="lp-title-accent">O FAZ resolve isso.</span>
       </h1>
       <p class="lp-sub">
-        O FAZ organiza suas contas, prevê o que sobra e ainda tem um assistente
-        com <strong>IA</strong> que responde suas dúvidas de dinheiro.
-        Sem planilha, sem complicação.
+        Organize suas contas, veja quanto sobra de verdade e tenha um assistente
+        com <strong>IA</strong> que responde suas dúvidas de dinheiro na hora.
       </p>
       <div class="lp-cta-row">
-        <button class="lp-btn-primary" onclick="rolarPara('planos')">Ver planos e preços</button>
-        <button class="lp-btn-ghost" onclick="rolarPara('como')">Ver como funciona</button>
+        <button class="lp-btn-primary" onclick="abrirAuth('cadastro')">Começar agora</button>
+        <button class="lp-btn-ghost lp-btn-ghost-link" onclick="rolarPara('recursos')">Ver vantagens →</button>
       </div>
-      <p class="lp-nota">Comece grátis · Sem cartão de crédito · Cancele quando quiser</p>
+      <p class="lp-nota">Grátis pra começar · Sem cartão de crédito</p>
     </div>
 
     <!-- SIGNATURE: o painel que se recalcula ao vivo -->
     <div class="lp-painel reveal" id="painelDemo">
       <div class="lp-painel-topo">
-        <span class="lp-painel-label">Saldo disponível</span>
-        <span class="lp-painel-pulse"></span>
-      </div>
-      <div class="lp-painel-saldo" id="demoSaldo">R$ 7.800,00</div>
-
-      <div class="lp-painel-linha">
-        <span class="lp-dot lp-dot-amber"></span>
-        <span class="lp-painel-txt">A pagar até dia 20</span>
-        <span class="lp-painel-val lp-val-amber" id="demoPagar">−R$ 1.620,00</span>
-      </div>
-      <div class="lp-painel-linha">
-        <span class="lp-dot lp-dot-teal"></span>
-        <span class="lp-painel-txt">A receber</span>
-        <span class="lp-painel-val lp-val-teal" id="demoReceber">+R$ 800,00</span>
+        <span class="lp-painel-label" id="demoLabel">Você pode gastar até o fim do mês</span>
+        <span class="lp-painel-aovivo"><span class="lp-painel-pulse"></span>ao vivo</span>
       </div>
 
-      <div class="lp-painel-divisor"></div>
+      <div class="lp-painel-heroi">
+        <span class="lp-painel-sobra" id="demoSobra">R$ 1.240,00</span>
+        <span class="lp-painel-tag">sobra real</span>
+      </div>
+      <div class="lp-painel-sublinha">do saldo de <span id="demoSaldo">R$ 6.980,00</span>, já descontando o que está comprometido</div>
 
-      <div class="lp-painel-linha lp-painel-final">
-        <span class="lp-painel-txt-forte">Sobra real</span>
-        <span class="lp-painel-val-forte" id="demoSobra">R$ 6.980,00</span>
+      <div class="lp-painel-grafico" id="demoBarras">
+        <span style="height:38%"></span>
+        <span style="height:52%"></span>
+        <span style="height:44%"></span>
+        <span style="height:66%"></span>
+        <span style="height:58%"></span>
+        <span class="lp-barra-med" style="height:74%"></span>
+        <span class="lp-barra-atual" style="height:90%"></span>
+      </div>
+      <div class="lp-painel-meses">
+        <span>jan</span><span>fev</span><span>mar</span><span>abr</span><span>mai</span><span>jun</span><span>jul</span>
       </div>
 
-      <div class="lp-painel-rodape">
-        <span id="demoStatus">3 contas pendentes · 1 vence amanhã</span>
+      <div class="lp-painel-alerta" id="demoAlerta">
+        <span class="lp-painel-alerta-ico">⚡</span>
+        <span class="lp-painel-alerta-txt" id="demoStatus">Você já usou <strong>78%</strong> do seu orçamento de Lazer este mês.</span>
       </div>
     </div>
   </header>
@@ -1675,6 +1669,145 @@
   </section>
 
   <!-- PLANOS -->
+
+  <!-- BLOCO IA — diferencial (desejo antes dos planos) -->
+  <section class="lp-secao lp-ia-secao" id="ia">
+    <div class="lp-secao-head reveal">
+      <span class="lp-ia-tag">Seu consultor pessoal</span>
+      <h2 class="lp-h2">Tenha um agente financeiro<br>de IA com <span class="lp-ia-destaque">1 clique</span></h2>
+      <p class="lp-secao-sub">
+        Ele conhece as suas contas, seus gastos e suas metas. Pergunte qualquer
+        coisa sobre o seu dinheiro e receba uma resposta na hora — como ter um
+        consultor no bolso.
+      </p>
+    </div>
+
+    <div class="lp-ia-chat reveal">
+      <div class="lp-ia-chat-head">
+        <div class="lp-ia-chat-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4L12 3z"/></svg>
+        </div>
+        <div class="lp-ia-chat-id">
+          <div class="lp-ia-chat-nome">Assistente FAZ</div>
+          <div class="lp-ia-chat-status"><span></span>Online agora</div>
+        </div>
+        <span class="lp-ia-chat-selo">IA</span>
+      </div>
+
+      <div class="lp-ia-bolha lp-ia-bolha-user">Consigo juntar R$ 5.000 até dezembro?</div>
+      <div class="lp-ia-bolha lp-ia-bolha-ia">Consegue sim. Guardando R$ 720,00 por mês você chega lá. Hoje sobra em média R$ 1.240,00, então dá pra separar isso com folga.</div>
+      <div class="lp-ia-bolha lp-ia-bolha-user">Onde eu tô gastando demais?</div>
+      <div class="lp-ia-digitando">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div class="lp-ia-cta reveal">
+      <button class="lp-btn-primary" onclick="rolarPara('planos')">Ver planos com IA</button>
+      <p class="lp-ia-nota">Disponível nos planos Premium e Master</p>
+    </div>
+  </section>
+
+
+  <!-- O PROBLEMA -->
+  <section class="lp-secao lp-problema">
+    <div class="lp-problema-grid">
+      <div class="reveal">
+        <p class="lp-eyebrow">O problema</p>
+        <h2 class="lp-h2">O extrato mostra o passado.<br>Você precisa do futuro.</h2>
+        <p class="lp-p">
+          Seu banco diz que você tem R$ 7.800. Mas o aluguel vence dia 10,
+          a fatura dia 15, e o freela só cai dia 20.
+        </p>
+        <p class="lp-p">
+          <strong>Quanto você realmente pode gastar hoje?</strong>
+          É essa conta que ninguém faz — e é a única que importa.
+        </p>
+      </div>
+      <div class="lp-compare reveal">
+        <div class="lp-compare-card lp-compare-ruim">
+          <div class="lp-compare-tag">O que seu banco mostra</div>
+          <div class="lp-compare-val">R$ 7.800,00</div>
+          <div class="lp-compare-desc">te faz achar que pode gastar tudo</div>
+        </div>
+        <div class="lp-compare-seta">↓</div>
+        <div class="lp-compare-card lp-compare-bom">
+          <div class="lp-compare-tag">O que o FAZ mostra</div>
+          <div class="lp-compare-val">R$ 6.980,00</div>
+          <div class="lp-compare-desc">o que sobra de verdade, já tirando o que vence</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECURSOS -->
+  <section class="lp-secao lp-vantagens-secao" id="recursos">
+    <div class="lp-secao-head reveal">
+      <p class="lp-eyebrow">Por que o FAZ</p>
+      <h2 class="lp-h2">Tudo que você precisa pra<br>tomar as rédeas do seu dinheiro</h2>
+    </div>
+
+    <div class="lp-cards">
+      <div class="lp-card lp-card-destaque lp-card-largo reveal">
+        <div class="lp-card-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></svg>
+        </div>
+        <div class="lp-card-largo-txt">
+          <h3 class="lp-card-titulo">Assistente de IA <span class="lp-card-badge">NOVO</span></h3>
+          <p class="lp-card-desc">
+            Pergunte "onde gastei mais esse mês" e receba a resposta na hora.
+            Um consultor financeiro que conhece seus dados e te ajuda a economizar.
+          </p>
+        </div>
+      </div>
+
+      <div class="lp-card reveal">
+        <div class="lp-card-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+        </div>
+        <h3 class="lp-card-titulo">Contas a pagar</h3>
+        <p class="lp-card-desc">
+          Cadastre o aluguel uma vez. Ele aparece todo mês, avisa quando vence,
+          e só sai do saldo quando você marca como pago.
+        </p>
+      </div>
+
+      <div class="lp-card reveal">
+        <div class="lp-card-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 3v6h-6"/></svg>
+        </div>
+        <h3 class="lp-card-titulo">Investimentos honestos</h3>
+        <p class="lp-card-desc">
+          CDB tem taxa e projeção. Bitcoin não tem — e o app te diz isso.
+          Registre quanto vale hoje e veja o ganho real, sem projeção-fantasia.
+        </p>
+      </div>
+
+      <div class="lp-card reveal">
+        <div class="lp-card-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+        </div>
+        <h3 class="lp-card-titulo">Metas e objetivos</h3>
+        <p class="lp-card-desc">
+          Limite de gasto por categoria. E objetivos de longo prazo — o carro,
+          a viagem — com quanto guardar por mês pra chegar no prazo.
+        </p>
+      </div>
+
+      <div class="lp-card reveal">
+        <div class="lp-card-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v18M5 8l7-5 7 5"/></svg>
+        </div>
+        <h3 class="lp-card-titulo">Lançamento em texto</h3>
+        <p class="lp-card-desc">
+          Escreva "gastei 50 no mercado". O app entende o valor, o tipo
+          e a categoria sozinho. Ou importe o extrato em CSV.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMO FUNCIONA -->
   <section class="lp-secao lp-planos-secao" id="planos">
     <div class="lp-secao-head reveal">
       <p class="lp-eyebrow">Planos</p>
@@ -1739,176 +1872,50 @@
     <p class="lp-planos-rodape">Todos os planos começam com a conta grátis. Você faz o upgrade dentro do app quando quiser.</p>
   </section>
 
-  <!-- O PROBLEMA -->
-  <section class="lp-secao lp-problema">
-    <div class="lp-problema-grid">
-      <div class="reveal">
-        <p class="lp-eyebrow">O problema</p>
-        <h2 class="lp-h2">O extrato mostra o passado.<br>Você precisa do futuro.</h2>
-        <p class="lp-p">
-          Seu banco diz que você tem R$ 7.800. Mas o aluguel vence dia 10,
-          a fatura dia 15, e o freela só cai dia 20.
-        </p>
-        <p class="lp-p">
-          <strong>Quanto você realmente pode gastar hoje?</strong>
-          É essa conta que ninguém faz — e é a única que importa.
-        </p>
-      </div>
-      <div class="lp-compare reveal">
-        <div class="lp-compare-card lp-compare-ruim">
-          <div class="lp-compare-tag">Seu banco</div>
-          <div class="lp-compare-val">R$ 7.800,00</div>
-          <div class="lp-compare-desc">Saldo em conta</div>
-        </div>
-        <div class="lp-compare-seta">→</div>
-        <div class="lp-compare-card lp-compare-bom">
-          <div class="lp-compare-tag">Aqui</div>
-          <div class="lp-compare-val">R$ 6.980,00</div>
-          <div class="lp-compare-desc">O que sobra de verdade</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- RECURSOS -->
-  <section class="lp-secao" id="recursos">
-    <div class="lp-secao-head reveal">
-      <p class="lp-eyebrow">Recursos</p>
-      <h2 class="lp-h2">Feito para quem quer entender,<br>não só registrar.</h2>
-    </div>
-
-    <div class="lp-cards">
-      <div class="lp-card lp-card-destaque reveal">
-        <div class="lp-card-icone">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></svg>
-        </div>
-        <h3 class="lp-card-titulo">Assistente de IA <span class="lp-card-badge">NOVO</span></h3>
-        <p class="lp-card-desc">
-          Pergunte "onde gastei mais esse mês" e receba a resposta na hora.
-          Um consultor financeiro que conhece seus dados e te ajuda a economizar.
-        </p>
-      </div>
-
-      <div class="lp-card reveal">
-        <div class="lp-card-icone">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
-        </div>
-        <h3 class="lp-card-titulo">Contas a pagar</h3>
-        <p class="lp-card-desc">
-          Cadastre o aluguel uma vez. Ele aparece todo mês, avisa quando vence,
-          e só sai do saldo quando você marca como pago.
-        </p>
-      </div>
-
-      <div class="lp-card reveal">
-        <div class="lp-card-icone">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 3v6h-6"/></svg>
-        </div>
-        <h3 class="lp-card-titulo">Investimentos honestos</h3>
-        <p class="lp-card-desc">
-          CDB tem taxa e projeção. Bitcoin não tem — e o app te diz isso.
-          Registre quanto vale hoje e veja o ganho real, sem projeção-fantasia.
-        </p>
-      </div>
-
-      <div class="lp-card reveal">
-        <div class="lp-card-icone">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
-        </div>
-        <h3 class="lp-card-titulo">Metas e objetivos</h3>
-        <p class="lp-card-desc">
-          Limite de gasto por categoria. E objetivos de longo prazo — o carro,
-          a viagem — com quanto guardar por mês pra chegar no prazo.
-        </p>
-      </div>
-
-      <div class="lp-card reveal">
-        <div class="lp-card-icone">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v18M5 8l7-5 7 5"/></svg>
-        </div>
-        <h3 class="lp-card-titulo">Lançamento em texto</h3>
-        <p class="lp-card-desc">
-          Escreva "gastei 50 no mercado". O app entende o valor, o tipo
-          e a categoria sozinho. Ou importe o extrato em CSV.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- COMO FUNCIONA -->
-  <section class="lp-secao lp-como" id="como">
-    <div class="lp-secao-head reveal">
-      <p class="lp-eyebrow">Como funciona</p>
-      <h2 class="lp-h2">Três passos. Sem planilha.</h2>
-    </div>
-
-    <div class="lp-passos">
-      <div class="lp-passo reveal">
-        <div class="lp-passo-num">01</div>
-        <div class="lp-passo-corpo">
-          <h3 class="lp-passo-titulo">Cadastre suas contas</h3>
-          <p class="lp-passo-desc">Nubank, Itaú, carteira física, corretora. Informe o saldo atual de cada uma.</p>
-        </div>
-      </div>
-      <div class="lp-passo reveal">
-        <div class="lp-passo-num">02</div>
-        <div class="lp-passo-corpo">
-          <h3 class="lp-passo-titulo">Registre o que é fixo</h3>
-          <p class="lp-passo-desc">Aluguel, assinaturas, salário. O que se repete, você cadastra uma vez só.</p>
-        </div>
-      </div>
-      <div class="lp-passo reveal">
-        <div class="lp-passo-num">03</div>
-        <div class="lp-passo-corpo">
-          <h3 class="lp-passo-titulo">Veja o que sobra</h3>
-          <p class="lp-passo-desc">O painel mostra o saldo real, o que está comprometido e o que vence essa semana.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- Depoimentos -->
   <section class="lp-secao lp-depoimentos-secao">
     <div class="lp-secao-head reveal">
       <p class="lp-eyebrow">O que dizem por aí</p>
       <h2 class="lp-h2">Quem usa, recomenda</h2>
     </div>
-    <div class="lp-depoimentos-grid">
-      <div class="lp-depoimento reveal">
-        <div class="lp-depo-estrelas">★★★★★</div>
-        <div class="lp-depo-titulo">Mudou minha relação com dinheiro</div>
-        <p class="lp-depo-texto">Sempre me perdia nas contas. Com o FAZ, em duas semanas eu já sabia exatamente pra onde ia cada real. O assistente de IA me ajudou a cortar gastos que eu nem via.</p>
-        <div class="lp-depo-autor">Marina S.</div>
-      </div>
-      <div class="lp-depoimento reveal">
-        <div class="lp-depo-estrelas">★★★★★</div>
-        <div class="lp-depo-titulo">Simples e direto ao ponto</div>
-        <p class="lp-depo-texto">Testei vários apps e sempre desistia por serem complicados. Esse é diferente: lanço um gasto em segundos e a categoria já vem certa. Uso todo dia.</p>
-        <div class="lp-depo-autor">Rafael M.</div>
-      </div>
-      <div class="lp-depoimento reveal">
-        <div class="lp-depo-estrelas">★★★★★</div>
-        <div class="lp-depo-titulo">A IA vale cada centavo</div>
-        <p class="lp-depo-texto">Poder perguntar "onde gastei mais esse mês" e receber a resposta na hora é surreal. Parece que tenho um consultor financeiro no bolso. Migrei pro Master e não me arrependo.</p>
-        <div class="lp-depo-autor">Camila R.</div>
-      </div>
-      <div class="lp-depoimento reveal">
-        <div class="lp-depo-estrelas">★★★★★</div>
-        <div class="lp-depo-titulo">Finalmente organizei minha vida</div>
-        <p class="lp-depo-texto">Consegui juntar pra minha reserva de emergência acompanhando as metas. Ver o progresso me motiva a continuar. Recomendo demais.</p>
-        <div class="lp-depo-autor">Diego A.</div>
-      </div>
-      <div class="lp-depoimento reveal">
-        <div class="lp-depo-estrelas">★★★★★</div>
-        <div class="lp-depo-titulo">Controle dos investimentos num lugar só</div>
-        <p class="lp-depo-texto">Tenho CDB, cripto e ações, e acompanhar tudo junto sempre foi um caos. Aqui vejo o rendimento de cada um sem planilha nenhuma. Excelente.</p>
-        <div class="lp-depo-autor">Patrícia L.</div>
-      </div>
-      <div class="lp-depoimento reveal">
-        <div class="lp-depo-estrelas">★★★★★</div>
-        <div class="lp-depo-titulo">Vale muito a pena</div>
-        <p class="lp-depo-texto">Rápido, bonito e fácil de usar. Em poucos dias já tinha o controle total das minhas finanças. Melhor decisão que tomei esse ano.</p>
-        <div class="lp-depo-autor">Lucas F.</div>
+    <div class="lp-depo-marquee">
+      <div class="lp-depo-track">
+        <div class="lp-depoimento">
+          <div class="lp-depo-estrelas">★★★★★</div>
+          <div class="lp-depo-titulo">Mudou minha relação com dinheiro</div>
+          <p class="lp-depo-texto">Sempre me perdia nas contas. Com o FAZ, em duas semanas eu já sabia exatamente pra onde ia cada real. O assistente de IA me ajudou a cortar gastos que eu nem via.</p>
+          <div class="lp-depo-autor">Marina Sampaio</div>
+        </div>
+        <div class="lp-depoimento">
+          <div class="lp-depo-estrelas">★★★★<span class="lp-estrela-off">★</span></div>
+          <div class="lp-depo-titulo">Simples e direto ao ponto</div>
+          <p class="lp-depo-texto">Testei vários apps e sempre desistia por serem complicados. Esse é diferente: lanço um gasto em segundos e a categoria já vem certa. Uso todo dia.</p>
+          <div class="lp-depo-autor">Rafael Monteiro</div>
+        </div>
+        <div class="lp-depoimento lp-depo-ia">
+          <div class="lp-depo-estrelas">★★★★★</div>
+          <div class="lp-depo-titulo">A IA vale cada centavo</div>
+          <p class="lp-depo-texto">Poder perguntar "onde gastei mais esse mês" e receber a resposta na hora é surreal. Parece que tenho um consultor financeiro no bolso. Migrei pro Master e não me arrependo.</p>
+          <div class="lp-depo-autor">Camila Ribeiro</div>
+        </div>
+        <div class="lp-depoimento">
+          <div class="lp-depo-estrelas">★★★★★</div>
+          <div class="lp-depo-titulo">Finalmente organizei minha vida</div>
+          <p class="lp-depo-texto">Consegui juntar pra minha reserva de emergência acompanhando as metas. Ver o progresso me motiva a continuar. Recomendo demais.</p>
+          <div class="lp-depo-autor">Diego Almeida</div>
+        </div>
+        <div class="lp-depoimento">
+          <div class="lp-depo-estrelas">★★★★<span class="lp-estrela-off">★</span></div>
+          <div class="lp-depo-titulo">Investimentos num lugar só</div>
+          <p class="lp-depo-texto">Tenho CDB, cripto e ações, e acompanhar tudo junto sempre foi um caos. Aqui vejo o rendimento de cada um sem planilha nenhuma. Faltou só conexão com a corretora.</p>
+          <div class="lp-depo-autor">Patrícia Lourenço</div>
+        </div>
+        <div class="lp-depoimento">
+          <div class="lp-depo-estrelas">★★★★★</div>
+          <div class="lp-depo-titulo">Vale muito a pena</div>
+          <p class="lp-depo-texto">Rápido, bonito e fácil de usar. Em poucos dias já tinha o controle total das minhas finanças. Melhor decisão que tomei esse ano.</p>
+          <div class="lp-depo-autor">Lucas Fernandes</div>
+        </div>
       </div>
     </div>
   </section>
@@ -1947,8 +1954,8 @@
       </details>
 
       <details class="lp-faq-item reveal">
-        <summary>É grátis?</summary>
-        <p>O plano Básico é grátis pra sempre e já resolve o essencial. Se quiser cripto ao vivo, contas ilimitadas e recursos avançados, tem o Premium e o Master — mas você só paga se quiser, e faz o upgrade dentro do app.</p>
+        <summary>Posso cancelar quando quiser?</summary>
+        <p>Pode, sem burocracia. Você cancela o plano pago dentro do app a qualquer momento e continua com a conta Básica, que é grátis pra sempre. Sem multa, sem ligação, sem letras miúdas.</p>
       </details>
     </div>
   </section>
@@ -1975,20 +1982,43 @@
   <!-- RODAPÉ -->
   <footer class="lp-rodape">
     <div class="lp-rodape-inner">
-      <div class="lp-logo">
-        <svg class="faz-setas" viewBox="0 0 26 28" fill="none" aria-hidden="true">
-          <path d="M6.5 27V13.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-          <path d="M6.5 8.5L11 14.5H2L6.5 8.5Z" fill="currentColor"/>
-          <path d="M17.5 27V6.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-          <path d="M17.5 1L23 8H12L17.5 1Z" fill="currentColor"/>
-        </svg>
-        <span class="lp-logo-text">FAZ<span class="lp-logo-sub">Finanças</span></span>
+      <div class="lp-rodape-topo">
+        <div class="lp-logo">
+          <svg class="faz-setas" viewBox="0 0 26 28" fill="none" aria-hidden="true">
+            <path d="M6.5 27V13.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            <path d="M6.5 8.5L11 14.5H2L6.5 8.5Z" fill="currentColor"/>
+            <path d="M17.5 27V6.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            <path d="M17.5 1L23 8H12L17.5 1Z" fill="currentColor"/>
+          </svg>
+          <span class="lp-logo-text">FAZ<span class="lp-logo-sub">Finanças</span></span>
+        </div>
+
+        <div class="lp-rodape-links">
+          <a href="#recursos">Recursos</a>
+          <a href="#planos">Planos</a>
+          <a href="#faq">Dúvidas</a>
+          <button onclick="abrirDocumento('privacidade')">Privacidade</button>
+          <button onclick="abrirDocumento('termos')">Termos</button>
+        </div>
+
+        <div class="lp-rodape-social">
+          <a class="lp-social-btn" href="https://instagram.com/fazfinancas" target="_blank" rel="noopener" aria-label="Instagram">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="2" width="20" height="20" rx="5.5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+          </a>
+          <a class="lp-social-btn" href="mailto:contato@fazfinancas.com.br" aria-label="E-mail">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M3 6l9 6.5L21 6"/></svg>
+          </a>
+        </div>
       </div>
-      <div class="lp-rodape-links">
-        <button onclick="abrirDocumento('privacidade')">Privacidade</button>
-        <button onclick="abrirDocumento('termos')">Termos</button>
+
+      <div class="lp-rodape-base">
+        <p class="lp-rodape-nota">© 2025 FAZ Finanças. Uma ferramenta de organização. Não somos instituição financeira nem damos consultoria de investimentos.</p>
+        <div class="lp-rodape-contato">
+          <span>@fazfinancas</span>
+          <span class="lp-rodape-sep">·</span>
+          <span>contato@fazfinancas.com.br</span>
+        </div>
       </div>
-      <p class="lp-rodape-nota">Uma ferramenta de organização. Não somos instituição financeira nem damos consultoria de investimentos.</p>
     </div>
   </footer>
 </div>

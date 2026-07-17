@@ -4869,23 +4869,25 @@ document.querySelectorAll('.lp-nav-links a[href^="#"]').forEach(a => {
 
 /* ─── SIGNATURE: o painel que se recalcula ─────────────────
    Mostra o produto pensando, em vez de uma ilustração dele.
-   Alterna entre cenários reais — o que muda é o que importa. */
+   Cada cenário é coerente: sobra, saldo, gráfico e alerta contam a mesma história. */
 const CENARIOS_DEMO = [
   {
-    saldo: 7800, pagar: 1620, receber: 800,
-    status: "3 contas pendentes · 1 vence amanhã"
+    sobra: 1240, saldo: 6980,
+    barras: [38, 52, 44, 66, 58, 74, 90],
+    alerta: 'Você já usou <strong>78%</strong> do seu orçamento de Lazer este mês.',
+    tom: "amber"
   },
   {
-    saldo: 6980, pagar: 340, receber: 0,
-    status: "Aluguel pago · fatura vence em 6 dias"
+    sobra: 2860, saldo: 8400,
+    barras: [44, 58, 50, 70, 64, 80, 96],
+    alerta: 'Boa! Você está <strong>R$ 620,00</strong> à frente do mês passado.',
+    tom: "teal"
   },
   {
-    saldo: 12450, pagar: 2890, receber: 3200,
-    status: "Salário cai dia 5 · 4 contas a pagar"
-  },
-  {
-    saldo: 3210, pagar: 2100, receber: 1500,
-    status: "Atenção: 1 conta atrasada há 2 dias"
+    sobra: 540, saldo: 5120,
+    barras: [52, 44, 60, 48, 66, 58, 40],
+    alerta: 'Atenção: faltam <strong>R$ 890,00</strong> de contas até dia 20.',
+    tom: "amber"
   }
 ];
 
@@ -4914,26 +4916,32 @@ function trocarCenarioDemo() {
   const proximo = CENARIOS_DEMO[(demoIndice + 1) % CENARIOS_DEMO.length];
   demoIndice = (demoIndice + 1) % CENARIOS_DEMO.length;
 
-  const elSaldo   = document.getElementById("demoSaldo");
-  const elPagar   = document.getElementById("demoPagar");
-  const elReceber = document.getElementById("demoReceber");
-  const elSobra   = document.getElementById("demoSobra");
-  const elStatus  = document.getElementById("demoStatus");
+  const elSobra  = document.getElementById("demoSobra");
+  const elSaldo  = document.getElementById("demoSaldo");
+  const elBarras = document.getElementById("demoBarras");
+  const elAlerta = document.getElementById("demoAlerta");
+  const elStatus = document.getElementById("demoStatus");
 
-  const sobraDe   = demoAtual.saldo - demoAtual.pagar + demoAtual.receber;
-  const sobraPara = proximo.saldo - proximo.pagar + proximo.receber;
+  // Número herói (sobra) e o saldo de referência animam juntos
+  animarNumero(elSobra, demoAtual.sobra, proximo.sobra, 1000);
+  if (elSaldo) elSaldo.textContent = fmtDemo(proximo.saldo);
 
-  animarNumero(elSaldo,   demoAtual.saldo,   proximo.saldo,   900);
-  animarNumero(elPagar,   demoAtual.pagar,   proximo.pagar,   900, "−");
-  animarNumero(elReceber, demoAtual.receber, proximo.receber, 900, "+");
-  animarNumero(elSobra,   sobraDe,           sobraPara,       1100);
+  // Barras do gráfico sobem/descem de forma coerente
+  if (elBarras) {
+    const barras = elBarras.children;
+    for (let i = 0; i < barras.length; i++) {
+      barras[i].style.height = (proximo.barras[i] || 0) + "%";
+    }
+  }
 
-  if (elStatus) {
-    elStatus.style.opacity = "0";
+  // Alerta troca de texto e de tom (teal = positivo, amber = atenção)
+  if (elAlerta && elStatus) {
+    elAlerta.style.opacity = "0";
     setTimeout(() => {
-      elStatus.textContent = proximo.status;
-      elStatus.style.opacity = "1";
-    }, 260);
+      elStatus.innerHTML = proximo.alerta;
+      elAlerta.classList.toggle("lp-alerta-teal", proximo.tom === "teal");
+      elAlerta.style.opacity = "1";
+    }, 280);
   }
 
   demoAtual = { ...proximo };
@@ -5000,11 +5008,25 @@ document.addEventListener("keydown", e => {
   }
 });
 
+/* Duplica os cards de depoimento para o marquee rolar em loop sem emenda */
+function duplicarDepoimentos() {
+  const track = document.querySelector(".lp-depo-track");
+  if (!track || track.dataset.duplicado) return;
+  const originais = Array.from(track.children);
+  originais.forEach(card => {
+    const clone = card.cloneNode(true);
+    clone.setAttribute("aria-hidden", "true");
+    track.appendChild(clone);
+  });
+  track.dataset.duplicado = "1";
+}
+
 /* ─── Boot da landing ─────────────────────────────────────── */
 function iniciarLanding() {
   iniciarRevelacao();
   iniciarNavScroll();
   iniciarPainelDemo();
+  duplicarDepoimentos();
 }
 
 
