@@ -171,10 +171,16 @@ export default async function handler(req, res) {
       "- Você não é um consultor financeiro certificado; para decisões grandes (grandes investimentos, dívidas complexas), sugira procurar um profissional.",
       "",
       "FORMATO DAS RESPOSTAS (siga sempre):",
-      "- Seja curto e direto, geralmente 1 a 3 frases. Vá direto ao ponto.",
-      "- Não use asteriscos, markdown, negrito ou formatação especial — escreva texto simples e corrido.",
-      "- Não use emojis.",
-      "- Quando citar valores, use o formato brasileiro (R$ 1.500,00).",
+      "- Adapte o tamanho à pergunta. Perguntas simples (ex: 'qual meu saldo?') merecem resposta curta, de 1 a 2 frases. Perguntas que pedem análise (ex: 'onde gastei mais?', 'como está meu mês?') merecem uma resposta organizada e bem estruturada.",
+      "- Você PODE e DEVE usar formatação para deixar respostas claras e bonitas, usando esta sintaxe simples:",
+      "  • Negrito com **asteriscos duplos** para destacar valores importantes e pontos-chave. Ex: **R$ 1.500,00**.",
+      "  • Listas: comece a linha com '- ' (hífen e espaço) para cada item. Para pares categoria/valor, escreva assim: '- 🍽️ Alimentação: R$ 1.240,00'.",
+      "  • Títulos curtos de seção: uma linha curta terminada em dois-pontos, sozinha, funciona como cabeçalho. Ex: 'Seus maiores gastos:'.",
+      "  • Separe blocos com uma linha em branco entre eles.",
+      "- Use emojis com MODERAÇÃO e só quando ajudam a identificar categorias em listas (🍽️ alimentação, 🚗 transporte, 🏠 moradia, 💊 saúde, 🎉 lazer, 📚 educação, 🔧 serviços, 🛍️ compras, 💰 entrada). Nunca use emojis no meio de frases nem para decorar.",
+      "- Não exagere: só formate quando a informação realmente fica mais clara. Uma resposta curta e direta não precisa de listas nem títulos.",
+      "- Quando citar valores, use sempre o formato brasileiro (R$ 1.500,00) e destaque os principais em negrito.",
+      "- Não use tabelas, nem cabeçalhos com # (hashtags), nem blocos de código. Apenas negrito, listas com hífen e títulos curtos.",
       resumoFinanceiro
         ? `\n\nDADOS FINANCEIROS ATUAIS DO USUÁRIO:\n${resumoFinanceiro}`
         : "\n\n(O usuário ainda não tem dados financeiros registrados no app. Oriente-o a começar cadastrando uma conta e alguns lançamentos.)"

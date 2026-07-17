@@ -6994,13 +6994,63 @@ initSino();
     } catch (e) { return ""; }
   }
 
+  // Converte a formatação simples da IA (negrito, listas, títulos) em HTML bonito.
+  // Escapa o HTML antes, por segurança (nunca injeta tag crua do texto recebido).
+  function formatarRespostaIA(texto) {
+    const linhas = esc(texto).split("\n");
+    let html = "";
+    let emLista = false;
+    const fecharLista = () => { if (emLista) { html += "</ul>"; emLista = false; } };
+
+    for (let linha of linhas) {
+      const t = linha.trim();
+      if (t === "") { fecharLista(); continue; }
+
+      // Item de lista: começa com "- " ou "• "
+      if (/^[-•]\s+/.test(t)) {
+        if (!emLista) { html += '<ul class="ia-lista">'; emLista = true; }
+        let item = t.replace(/^[-•]\s+/, "");
+        // Par "rótulo: valor" vira duas colunas alinhadas
+        const par = item.match(/^(.+?):\s*(R\$\s*[\d.,]+.*)$/);
+        if (par) {
+          item = '<span class="ia-item-rot">' + aplicarNegrito(par[1]) + '</span>' +
+                 '<span class="ia-item-val">' + aplicarNegrito(par[2]) + '</span>';
+        } else {
+          item = aplicarNegrito(item);
+        }
+        html += "<li>" + item + "</li>";
+        continue;
+      }
+
+      fecharLista();
+
+      // Título curto de seção: linha curta terminada em ":"
+      if (/:$/.test(t) && t.length <= 42 && !/\d/.test(t.slice(-3, -1))) {
+        html += '<div class="ia-titulo">' + aplicarNegrito(t.replace(/:$/, "")) + "</div>";
+      } else {
+        html += "<p>" + aplicarNegrito(t) + "</p>";
+      }
+    }
+    fecharLista();
+    return html;
+  }
+
+  // Aplica **negrito** (o texto já vem escapado, então isso é seguro)
+  function aplicarNegrito(s) {
+    return s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  }
+
   // Adiciona uma mensagem no chat
   function addMsg(texto, quem) {
     const lista = document.getElementById("iaChatMensagens");
     if (!lista) return null;
     const div = document.createElement("div");
     div.className = "ia-msg ia-msg-" + quem;
-    div.textContent = texto;
+    if (quem === "ia") {
+      div.innerHTML = formatarRespostaIA(texto);
+    } else {
+      div.textContent = texto;
+    }
     lista.appendChild(div);
     lista.scrollTop = lista.scrollHeight;
     return div;

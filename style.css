@@ -7935,6 +7935,42 @@ body.scroll-travado {
   background: var(--surface2);
   color: var(--text-primary);
   border-radius: 16px 16px 16px 5px;
+  white-space: normal;
+}
+/* ─── Formatação das respostas da IA ─── */
+.ia-msg-ia p { margin: 0 0 8px; }
+.ia-msg-ia p:last-child { margin-bottom: 0; }
+.ia-msg-ia strong { color: var(--teal-400); font-weight: 600; }
+.ia-titulo {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 2px 0 8px;
+}
+.ia-msg-ia .ia-titulo:first-child { margin-top: 0; }
+.ia-lista {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ia-lista:last-child { margin-bottom: 0; }
+.ia-lista li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ia-item-rot { color: var(--text-secondary); flex: 1; }
+.ia-item-val {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ia-lista li:not(:has(.ia-item-val)) {
+  display: list-item;
+  margin-left: 18px;
+  list-style: disc;
 }
 .ia-digitando {
   display: flex;
