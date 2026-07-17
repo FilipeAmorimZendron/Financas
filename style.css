@@ -7163,6 +7163,27 @@ body.sem-internet .layout { padding-top: 34px; }
   letter-spacing: 0.03em;
   margin-left: 4px;
 }
+/* Item de conexão bancária em destaque (Master) */
+.plano-item-destaque {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.plano-item-destaque svg { color: var(--teal-500); }
+.lp-plano-destaque-item {
+  font-weight: 600;
+  color: var(--lp-text);
+}
+.lp-plano-breve {
+  padding: 1px 7px;
+  border-radius: 100px;
+  background: rgba(214,158,46,0.15);
+  color: var(--lp-amber, #d69e2e);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-left: 4px;
+}
 .planos-rodape {
   text-align: center;
   font-size: 12px;

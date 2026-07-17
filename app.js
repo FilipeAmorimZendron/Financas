@@ -5329,9 +5329,9 @@ function mapPerfil(p) {
 
 /* Limites de cada plano. Ajustável com o tempo. */
 const LIMITES_PLANO = {
-  basico:  { contas: 2,        metas: 5,        investimentos: false, recorrencias: false, relatorios: false, exportar: false },
-  premium: { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true,  ia: true },
-  master:  { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true,  ia: true }
+  basico:  { contas: 2,        metas: 5,        investimentos: false, recorrencias: false, relatorios: false, exportar: false, ia: false, importarExtrato: false, conectarBanco: false },
+  premium: { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true,  ia: true,  importarExtrato: true,  conectarBanco: false },
+  master:  { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true,  ia: true,  importarExtrato: true,  conectarBanco: true }
 };
 
 /* Retorna o plano ATIVO do usuário. Só vale premium/master se a assinatura estiver ativa. */
@@ -5376,11 +5376,11 @@ function pedirUpgrade(msg, titulo) {
         <div class="bloqueio-premium-planos">
           <div class="bloqueio-plano">
             <span class="bloqueio-plano-nome">Premium</span>
-            <span class="bloqueio-plano-preco">R$ 19,90<small>/mês</small></span>
+            <span class="bloqueio-plano-preco">R$ 25,90<small>/mês</small></span>
           </div>
           <div class="bloqueio-plano">
             <span class="bloqueio-plano-nome">Master</span>
-            <span class="bloqueio-plano-preco">R$ 29,90<small>/mês</small></span>
+            <span class="bloqueio-plano-preco">R$ 47,90<small>/mês</small></span>
           </div>
         </div>
         <div class="upgrade-modal-btns">
@@ -7132,9 +7132,8 @@ initSino();
         return;
       }
 
-      const limpa = (dados.resposta || "Não consegui gerar uma resposta.")
-        .replace(/\*\*/g, "").replace(/\*/g, "");
-      addMsg(limpa, "ia");
+      const resposta = dados.resposta || "Não consegui gerar uma resposta.";
+      addMsg(resposta, "ia");
 
       // Atualiza o contador de usos
       if (dados.usos) {

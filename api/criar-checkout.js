@@ -8,8 +8,8 @@
 
 // ---- Configuração dos planos (valores em reais) ----
 const PLANOS = {
-  premium: { mensal: 19.9, anual: 214.8, nome: "FAZ Finanças Premium" },
-  master:  { mensal: 29.9, anual: 310.8, nome: "FAZ Finanças Master" },
+  premium: { mensal: 25.9, anual: 264.0, nome: "FAZ Finanças Premium" },
+  master:  { mensal: 47.9, anual: 488.4, nome: "FAZ Finanças Master" },
 };
 
 // Sandbox por padrão. Em produção troque para https://api.asaas.com/v3
