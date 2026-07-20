@@ -113,6 +113,10 @@ export default async function handler(req, res) {
           cycle: ciclo === "anual" ? "YEARLY" : "MONTHLY",
           nextDueDate: nextDueDate,
           endDate: endDate,
+          // Repete a referência aqui: sem isso a assinatura (e as cobranças que
+          // ela gera todo mês) não sabem a qual usuário pertencem, e o webhook
+          // não consegue liberar o plano.
+          externalReference: `${userId}|${plano}|${ciclo}`,
         },
         externalReference: `${userId}|${plano}|${ciclo}`,
       }),

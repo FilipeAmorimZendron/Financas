@@ -17,6 +17,30 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 // coloque o mesmo valor aqui na Vercel como ASAAS_WEBHOOK_TOKEN para validar a origem.
 const WEBHOOK_TOKEN = process.env.ASAAS_WEBHOOK_TOKEN || null;
 
+// Acesso à API do Asaas: usamos para descobrir o usuário quando o evento de
+// pagamento não traz o externalReference (ele fica na assinatura, não na cobrança).
+const ASAAS_URL = process.env.ASAAS_URL || "https://api-sandbox.asaas.com/v3";
+const ASAAS_KEY = process.env.ASAAS_KEY;
+
+/* Busca a referência (userId|plano|ciclo) na assinatura que gerou a cobrança */
+async function refDaAssinatura(subscriptionId) {
+  if (!subscriptionId || !ASAAS_KEY) return "";
+  try {
+    const resp = await fetch(`${ASAAS_URL}/subscriptions/${subscriptionId}`, {
+      headers: { access_token: ASAAS_KEY }
+    });
+    if (!resp.ok) {
+      console.error("Falha ao buscar assinatura no Asaas:", resp.status);
+      return "";
+    }
+    const assinatura = await resp.json();
+    return assinatura.externalReference || "";
+  } catch (e) {
+    console.error("Erro ao consultar assinatura:", e);
+    return "";
+  }
+}
+
 // Eventos que significam "pagou / assinatura ativa"
 const EVENTOS_ATIVA = [
   "PAYMENT_RECEIVED",
@@ -80,11 +104,29 @@ export default async function handler(req, res) {
     const pagamento = body.payment || {};
 
     // O externalReference vem no formato userId|plano|ciclo
-    const ref = pagamento.externalReference || "";
+    let ref = pagamento.externalReference || "";
+
+    // Diagnóstico: mostra os campos que usamos para identificar o usuário
+    console.log("DIAGNOSTICO webhook:", JSON.stringify({
+      evento: evento,
+      externalReference: pagamento.externalReference || "(vazio)",
+      subscription: pagamento.subscription || "(sem)",
+      customer: pagamento.customer || "(sem)",
+      paymentId: pagamento.id || "(sem)",
+      camposDoPayment: Object.keys(pagamento)
+    }));
+
+    // Se a cobrança não trouxe a referência, ela está na assinatura que a gerou.
+    if (!ref && pagamento.subscription) {
+      ref = await refDaAssinatura(pagamento.subscription);
+      console.log("Referência buscada na assinatura:", ref || "(não encontrada)");
+    }
+
     const [userId, plano, ciclo] = ref.split("|");
 
     // Se não conseguimos identificar o usuário, não há o que fazer.
     if (!userId) {
+      console.error("DIAGNOSTICO: sem externalReference — não dá para saber o usuário");
       return res.status(200).json({ ok: true, motivo: "sem externalReference" });
     }
 
