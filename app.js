@@ -483,6 +483,53 @@ function destacarPlanoEscolhido(plano) {
   }, 250);
 }
 
+/* ============================================================
+   RETORNO DO CHECKOUT (Asaas)
+   O Asaas devolve o usuário com ?assinatura=sucesso|cancelada|expirada.
+   Como o webhook pode demorar alguns segundos para liberar o plano,
+   recarregamos o perfil algumas vezes antes de desistir.
+   ============================================================ */
+async function tratarRetornoAssinatura() {
+  const params = new URLSearchParams(window.location.search);
+  const status = params.get("assinatura");
+  if (!status) return;
+
+  // Limpa a URL para não repetir a mensagem se a pessoa recarregar a página
+  window.history.replaceState({}, document.title, window.location.pathname);
+
+  if (status === "cancelada") {
+    toast("Pagamento cancelado. Você continua no plano atual.", "info");
+    return;
+  }
+  if (status === "expirada") {
+    toast("O tempo do checkout expirou. Tente assinar novamente.", "warning");
+    return;
+  }
+  if (status !== "sucesso") return;
+
+  // Pagamento aprovado: espera o webhook liberar o plano
+  mostrarLoading(true, "Confirmando seu pagamento", "Isso leva alguns segundos...");
+  try {
+    for (let tentativa = 0; tentativa < 6; tentativa++) {
+      await new Promise(r => setTimeout(r, 2500));
+      await carregarDadosNuvem();
+      const plano = planoAtual();
+      if (plano === "premium" || plano === "master") {
+        renderTudo();
+        mostrarLoading(false);
+        toast(`Pagamento confirmado! Seu plano ${plano === "master" ? "Master" : "Premium"} já está ativo. 🎉`, "success");
+        return;
+      }
+    }
+    // Passou do tempo: o pagamento pode estar em processamento
+    mostrarLoading(false);
+    toast("Recebemos seu pagamento! A liberação pode levar alguns minutos. Se não ativar, fale com o suporte.", "info");
+  } catch (e) {
+    mostrarLoading(false);
+    console.error("Erro ao confirmar assinatura:", e);
+  }
+}
+
 /* Mostra o overlay de carregamento.
    mostrarLoading(true) → mensagem padrão
    mostrarLoading(true, "Lendo seu extrato", "Isso pode levar alguns segundos...") */
@@ -7244,6 +7291,7 @@ async function iniciar() {
       renderTudo();
       injetarBotoesGuia();
       trocarTela("dashboard");
+      await tratarRetornoAssinatura();
     } catch(e) {
       localStorage.removeItem("fp_token");
       localStorage.removeItem("fp_user");
