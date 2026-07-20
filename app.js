@@ -746,6 +746,7 @@ function invalidarCacheSaldos() { _cacheSaldos = null; }
 function saldosPorConta() {
   if (_cacheSaldos) return _cacheSaldos;
 
+  const hoje = hojeISO();
   const saldos = {};
   const desde = {};
   state.bancos.forEach(b => {
@@ -761,10 +762,13 @@ function saldosPorConta() {
     if (saldos[m.bancoId] === undefined) continue;
     // Ignora o que é anterior à data do saldo inicial
     if (desde[m.bancoId] && m.data < desde[m.bancoId]) continue;
+    // Ignora o que ainda não aconteceu: o dinheiro não saiu/entrou de fato
+    if (m.data > hoje) continue;
     saldos[m.bancoId] += (m.tipo === "entrada" ? m.valor : -m.valor);
   }
   // Uma única passada pelas transferências
   for (const t of state.transferencias) {
+    if (t.data > hoje) continue;
     if (saldos[t.destino] !== undefined && !(desde[t.destino] && t.data < desde[t.destino])) {
       saldos[t.destino] += t.valor;
     }
@@ -2359,11 +2363,17 @@ function gravarMemoriaCategoria(descricao, categoria) {
 function abrirRevisao(lancamentos, duvidas, resumo, bancoId) {
   const memoria = lerMemoriaCategorias();
   const porData = (a, b) => String(a.data || "").localeCompare(String(b.data || ""));
+  // Normaliza o tipo: o app usa "gasto", mas a IA pode devolver "saida"
+  const norm = (x) => {
+    const t = (x.tipo === "saida" || x.tipo === "debito" || x.tipo === "débito") ? "gasto" : x.tipo;
+    return { ...x, tipo: t };
+  };
 
   // Dúvidas que o usuário já respondeu no passado são resolvidas sozinhas
   const duvidasRestantes = [];
   const jaResolvidas = [];
-  duvidas.forEach(d => {
+  duvidas.forEach(d0 => {
+    const d = norm(d0);
     const lembrada = memoria[chaveMemoria(d.descricao)];
     if (lembrada) {
       jaResolvidas.push({ ...d, categoria: lembrada });
@@ -2373,7 +2383,7 @@ function abrirRevisao(lancamentos, duvidas, resumo, bancoId) {
   });
 
   revisaoDados = {
-    itens: lancamentos.map(l => ({ ...l })).concat(jaResolvidas).sort(porData),
+    itens: lancamentos.map(norm).concat(jaResolvidas).sort(porData),
     duvidas: duvidasRestantes.sort(porData),
     bancoId
   };
@@ -2514,13 +2524,16 @@ function atualizarBotaoRevisao() {
   }
 }
 
-/* Confere se um lançamento vindo da IA é válido antes de salvar */
+/* Confere se um lançamento vindo da IA é válido antes de salvar.
+   Também normaliza "saida" para "gasto", que é a convenção do app. */
 function lancamentoValido(m) {
   if (!m || typeof m !== "object") return false;
+  // Rede de segurança: se a IA devolver "saida", converte para o padrão do app
+  if (m.tipo === "saida" || m.tipo === "débito" || m.tipo === "debito") m.tipo = "gasto";
   const dataOk = typeof m.data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(m.data);
   const valor = Number(m.valor);
   const valorOk = Number.isFinite(valor) && valor > 0;
-  const tipoOk = m.tipo === "entrada" || m.tipo === "saida";
+  const tipoOk = m.tipo === "entrada" || m.tipo === "gasto";
   const descOk = typeof m.descricao === "string" && m.descricao.trim().length > 0;
   return dataOk && valorOk && tipoOk && descOk;
 }
