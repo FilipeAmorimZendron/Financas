@@ -497,7 +497,7 @@ button, input, textarea, select {
   align-items: end;
 }
 .form-grid-large    { grid-template-columns: 1fr 200px 160px; }
-.form-grid-contas   { grid-template-columns: 1fr 190px 150px 76px 160px; }
+.form-grid-contas   { grid-template-columns: 1fr; max-width: 620px; }
 .form-grid-import   { grid-template-columns: 200px 1fr 140px; }
 .form-grid-filtro   { grid-template-columns: 180px 180px 180px 140px 140px; }
 
@@ -8628,3 +8628,15 @@ body.scroll-travado {
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(350%); }
 }
+
+/* Formulário de contas em coluna única */
+.form-nota-conta {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  margin: 4px 0 0;
+  opacity: 0.85;
+}
+/* O seletor de cor não precisa esticar na largura toda */
+.form-grid-contas .field-cor { align-items: flex-start; }
+.form-grid-contas .field-cor .cor-btn { min-width: 92px; }

@@ -261,7 +261,7 @@
               </select>
             </div>
             <div class="field">
-              <label for="saldoBanco">Saldo inicial (R$)
+              <label for="saldoBanco">Saldo atual (R$)
                 <span class="dica-info" tabindex="0" aria-label="Ajuda sobre saldo inicial">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                   <span class="dica-balao">Coloque o saldo total do banco, contando tudo que tiver nele — inclusive caixinhas, reservas e valores guardados.</span>
@@ -270,10 +270,10 @@
               <input type="number" id="saldoBanco" step="0.01" placeholder="0,00" required />
             </div>
             <div class="field">
-              <label for="saldoData">Esse saldo é de que dia?
+              <label for="saldoData">Saldo referente a
                 <span class="dica-info" tabindex="0" aria-label="Ajuda sobre a data do saldo">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                  <span class="dica-balao">Importante: só contam os lançamentos a partir dessa data. Se você informar o saldo de hoje e depois importar um extrato antigo, aqueles gastos não serão descontados de novo — porque já estavam embutidos no saldo.</span>
+                  <span class="dica-balao">De que dia é o saldo que você informou. O app conta os lançamentos a partir dessa data — o que for anterior já está embutido nesse valor. Você escolhe o ponto de partida: o saldo de hoje, ou o de um mês atrás para importar o histórico.</span>
                 </span>
               </label>
               <input type="date" id="saldoData" required />
@@ -292,6 +292,7 @@
             <div class="field field-button">
               <button type="submit" class="btn-primary">Adicionar conta</button>
             </div>
+            <p class="form-nota-conta">Informe o saldo da conta e de que dia ele é. O app conta os lançamentos a partir dessa data — o que for anterior já está embutido no valor informado.</p>
           </form>
         </div>
         <div class="panel">
