@@ -41,6 +41,36 @@ async function refDaAssinatura(subscriptionId) {
   }
 }
 
+/* Último recurso: o cliente do Asaas guarda o userId na referência externa.
+   O cliente é criado por nós em criar-checkout.js com externalReference = userId. */
+async function userIdDoCliente(customerId) {
+  if (!customerId || !ASAAS_KEY) return "";
+  try {
+    const resp = await fetch(`${ASAAS_URL}/customers/${customerId}`, {
+      headers: { access_token: ASAAS_KEY }
+    });
+    if (!resp.ok) {
+      console.error("Falha ao buscar cliente no Asaas:", resp.status);
+      return "";
+    }
+    const cliente = await resp.json();
+    return cliente.externalReference || "";
+  } catch (e) {
+    console.error("Erro ao consultar cliente:", e);
+    return "";
+  }
+}
+
+/* Descobre o plano a partir do valor pago, quando não sabemos pela referência.
+   Precisa bater com os preços de criar-checkout.js. */
+function planoPeloValor(valor) {
+  const v = Number(valor) || 0;
+  if (v >= 400) return "master";   // anual master (488,40)
+  if (v >= 200) return "premium";  // anual premium (264,00)
+  if (v >= 40)  return "master";   // mensal master (47,90)
+  return "premium";                // mensal premium (25,90)
+}
+
 // Eventos que significam "pagou / assinatura ativa"
 const EVENTOS_ATIVA = [
   "PAYMENT_RECEIVED",
@@ -122,7 +152,17 @@ export default async function handler(req, res) {
       console.log("Referência buscada na assinatura:", ref || "(não encontrada)");
     }
 
-    const [userId, plano, ciclo] = ref.split("|");
+    let [userId, plano, ciclo] = ref.split("|");
+
+    // Último recurso: o cliente do Asaas guarda o userId.
+    // Nesse caminho não sabemos o plano pela referência, então deduzimos pelo valor pago.
+    if (!userId && pagamento.customer) {
+      userId = await userIdDoCliente(pagamento.customer);
+      if (userId) {
+        plano = planoPeloValor(pagamento.value);
+        console.log("Usuário identificado pelo cliente Asaas:", userId, "| plano pelo valor:", plano);
+      }
+    }
 
     // Se não conseguimos identificar o usuário, não há o que fazer.
     if (!userId) {
