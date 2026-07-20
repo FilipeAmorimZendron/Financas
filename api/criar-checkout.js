@@ -75,9 +75,14 @@ export default async function handler(req, res) {
     }
 
     // --- 2. Cria o checkout recorrente ---
-    const proximoVencimento = new Date();
-    proximoVencimento.setDate(proximoVencimento.getDate() + 1); // amanhã
-    const nextDueDate = proximoVencimento.toISOString().slice(0, 10);
+    // A primeira cobrança vence HOJE, para o cartão ser processado na hora
+    // e o plano ser liberado imediatamente após o pagamento.
+    // (Se colocarmos uma data futura, o Asaas apenas agenda e a cobrança
+    //  fica "aguardando pagamento", sem confirmar o acesso do cliente.)
+    // Usamos a data no fuso de São Paulo: toISOString() usa UTC e, após as
+    // 21h no Brasil, já teria virado para o dia seguinte.
+    const hojeBR = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    const nextDueDate = hojeBR;
 
     // Data de término da assinatura (bem no futuro, ~10 anos)
     const fim = new Date();
