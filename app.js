@@ -2091,6 +2091,141 @@ function arquivoParaBase64(arquivo) {
 }
 
 /* ============================================================
+   EXTRATO ENVIADO PELO CHAT DA IA
+   Mesmo fluxo da tela de Lançamentos, mas iniciado pela conversa.
+   ============================================================ */
+
+// Guarda o arquivo enquanto o usuário escolhe a conta de destino
+let extratoChatPendente = null;
+
+async function enviarExtratoNoChat(arquivo) {
+  const lista = document.getElementById("iaChatMensagens");
+  const addChat = (txt, quem) => {
+    if (!lista) return null;
+    const div = document.createElement("div");
+    div.className = "ia-msg ia-msg-" + quem;
+    if (quem === "ia") {
+      // Formatação simples (a função rica é privada do módulo do chat)
+      div.innerHTML = esc(txt).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    } else {
+      div.textContent = txt;
+    }
+    lista.appendChild(div);
+    lista.scrollTop = lista.scrollHeight;
+    return div;
+  };
+
+  if (!podeUsar("importarExtrato")) {
+    addChat("A leitura de extrato está disponível nos planos Premium e Master.", "ia");
+    return;
+  }
+  if (arquivo.size > 5 * 1024 * 1024) {
+    addChat("Esse arquivo é maior que 5 MB. Envie um menor, por favor.", "ia");
+    return;
+  }
+  if (!state.bancos.length) {
+    addChat("Antes de importar, cadastre pelo menos uma conta na tela de Contas.", "ia");
+    return;
+  }
+
+  addChat(`Enviei o extrato: ${arquivo.name}`, "user");
+
+  // Uma conta só? usa ela. Várias? pergunta qual.
+  if (state.bancos.length === 1) {
+    processarExtratoChat(arquivo, state.bancos[0].id, addChat);
+  } else {
+    extratoChatPendente = arquivo;
+    const opcoes = state.bancos.map(b =>
+      `<button type="button" class="rev-opcao" onclick="escolherContaExtratoChat('${b.id}')">${esc(b.nome)}</button>`
+    ).join("");
+    const div = addChat("Para qual conta devo importar esses lançamentos?", "ia");
+    if (div) {
+      const box = document.createElement("div");
+      box.className = "ia-chat-opcoes";
+      box.innerHTML = opcoes;
+      div.appendChild(box);
+    }
+  }
+}
+
+function escolherContaExtratoChat(bancoId) {
+  const arquivo = extratoChatPendente;
+  extratoChatPendente = null;
+  if (!arquivo) return;
+
+  const lista = document.getElementById("iaChatMensagens");
+  const addChat = (txt, quem) => {
+    if (!lista) return null;
+    const div = document.createElement("div");
+    div.className = "ia-msg ia-msg-" + quem;
+    if (quem === "ia") {
+      // Formatação simples (a função rica é privada do módulo do chat)
+      div.innerHTML = esc(txt).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    } else {
+      div.textContent = txt;
+    }
+    lista.appendChild(div);
+    lista.scrollTop = lista.scrollHeight;
+    return div;
+  };
+
+  const conta = state.bancos.find(b => b.id === bancoId);
+  addChat(conta ? conta.nome : "Essa conta", "user");
+  processarExtratoChat(arquivo, bancoId, addChat);
+}
+
+async function processarExtratoChat(arquivo, bancoId, addChat) {
+  const pensando = addChat("Deixa comigo, estou lendo o extrato...", "ia");
+
+  try {
+    const ehBinario = arquivo.type === "application/pdf" || arquivo.type.startsWith("image/");
+    let corpo;
+    if (ehBinario) {
+      corpo = { arquivoBase64: await arquivoParaBase64(arquivo), tipoArquivo: arquivo.type };
+    } else {
+      corpo = { texto: await arquivo.text() };
+    }
+    corpo.token = localStorage.getItem("fp_token") || "";
+    corpo.hoje = hojeISO();
+
+    const resp = await fetch("/api/ler-extrato", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(corpo)
+    });
+    const dados = await resp.json();
+
+    pensando?.remove();
+
+    if (!resp.ok) {
+      if (dados.erro === "upgrade") {
+        addChat(dados.motivo || "Esse recurso está nos planos pagos.", "ia");
+      } else {
+        addChat(dados.erro || "Não consegui ler esse extrato. Tente outro arquivo.", "ia");
+      }
+      return;
+    }
+
+    const lancamentos = dados.lancamentos || [];
+    const duvidas = dados.duvidas || [];
+
+    if (!lancamentos.length && !duvidas.length) {
+      addChat("Não encontrei transações nesse arquivo. Confira se é mesmo um extrato.", "ia");
+      return;
+    }
+
+    const total = lancamentos.length + duvidas.length;
+    addChat(`Pronto! Encontrei **${total} lançamento(s)**. Abri a tela de revisão para você conferir antes de salvar.`, "ia");
+    abrirRevisao(lancamentos, duvidas, dados.resumo, bancoId);
+
+  } catch (err) {
+    pensando?.remove();
+    addChat("Deu um problema ao ler o arquivo. Tente de novo.", "ia");
+    console.error(err);
+  }
+}
+
+/* ============================================================
    REVISÃO DO EXTRATO LIDO PELA IA
    A IA organiza, mas nada é salvo sem o aval do usuário.
    O que ela não soube vira pergunta; o resto pode ser corrigido.
@@ -7369,6 +7504,21 @@ initSino();
         const texto = campo && campo.value ? campo.value.trim() : "";
         if (texto) { campo.value = ""; perguntar(texto); }
         return;
+      }
+      // Anexar extrato (clicou no clipe)
+      if (e.target.closest("#iaChatAnexo")) {
+        e.preventDefault();
+        document.getElementById("iaChatArquivo")?.click();
+        return;
+      }
+    });
+
+    // Escolheu um arquivo no chat: manda para a IA organizar
+    document.addEventListener("change", function (e) {
+      if (e.target && e.target.id === "iaChatArquivo") {
+        const arquivo = e.target.files && e.target.files[0];
+        e.target.value = ""; // permite reenviar o mesmo arquivo depois
+        if (arquivo) enviarExtratoNoChat(arquivo);
       }
     });
 

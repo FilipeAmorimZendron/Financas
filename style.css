@@ -8518,3 +8518,28 @@ body.scroll-travado {
   .rev-item { flex-wrap: wrap; }
   .rev-item-desc { width: 100%; white-space: normal; }
 }
+
+/* Botão de anexar extrato no chat da IA */
+.ia-chat-anexo {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: color 0.18s, background 0.18s;
+}
+.ia-chat-anexo svg { width: 18px; height: 18px; }
+.ia-chat-anexo:hover { color: var(--teal-500); background: var(--teal-dim); }
+
+/* Opções de conta oferecidas dentro do chat */
+.ia-chat-opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
