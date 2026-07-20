@@ -269,6 +269,15 @@
               </label>
               <input type="number" id="saldoBanco" step="0.01" placeholder="0,00" required />
             </div>
+            <div class="field">
+              <label for="saldoData">Esse saldo é de que dia?
+                <span class="dica-info" tabindex="0" aria-label="Ajuda sobre a data do saldo">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                  <span class="dica-balao">Importante: só contam os lançamentos a partir dessa data. Se você informar o saldo de hoje e depois importar um extrato antigo, aqueles gastos não serão descontados de novo — porque já estavam embutidos no saldo.</span>
+                </span>
+              </label>
+              <input type="date" id="saldoData" required />
+            </div>
             <div class="field field-cor">
               <label for="btnCor">Cor</label>
               <button type="button" class="cor-btn" id="btnCor" onclick="abrirCorPop('corPop')" title="Escolher cor">
@@ -1357,6 +1366,12 @@
             <span class="dica-balao">Saldo total do banco, contando tudo — inclusive caixinhas e reservas.</span>
           </span>
         </label><input type="number" id="editContaSaldo" step="0.01" required /></div>
+        <div class="field"><label>Esse saldo é de que dia?
+          <span class="dica-info" tabindex="0" aria-label="Ajuda sobre a data do saldo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span class="dica-balao">Só contam os lançamentos a partir dessa data. O que for anterior já está embutido no saldo informado.</span>
+          </span>
+        </label><input type="date" id="editContaSaldoData" required /></div>
         <div class="field">
           <label>Cor</label>
           <div class="cor-grade cor-grade-modal" id="editCorPicker"></div>

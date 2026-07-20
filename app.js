@@ -390,7 +390,7 @@ async function carregarDadosNuvem() {
       dbSelect("perfil").catch(()=>[])
     ]);
     // Mapear campos do banco para o formato do app
-    state.bancos         = contas.map(c => ({ id:c.id, nome:c.nome, tipo:c.tipo, saldoInicial: Number(c.saldo_inicial), cor: c.cor || null }));
+    state.bancos         = contas.map(c => ({ id:c.id, nome:c.nome, tipo:c.tipo, saldoInicial: Number(c.saldo_inicial), saldoData: c.saldo_data || null, cor: c.cor || null }));
     state.movimentos     = movimentos.map(m => ({ id:m.id, descricao:m.descricao, bancoId:m.conta_id, data:m.data, valor:Number(m.valor), tipo:m.tipo, categoria:m.categoria, recorrenciaId:m.recorrencia_id, status:m.status||"pago", vencimento:m.vencimento||null, pagoEm:m.pago_em||null }));
     state.transferencias = transferencias.map(t => ({ id:t.id, origem:t.conta_origem, destino:t.conta_destino, valor:Number(t.valor), data:t.data, descricao:t.descricao||"" }));
     state.recorrencias   = recorrencias.map(r => ({
@@ -747,18 +747,30 @@ function saldosPorConta() {
   if (_cacheSaldos) return _cacheSaldos;
 
   const saldos = {};
-  state.bancos.forEach(b => { saldos[b.id] = b.saldoInicial; });
+  const desde = {};
+  state.bancos.forEach(b => {
+    saldos[b.id] = b.saldoInicial;
+    // A partir de que data o saldo informado vale. Lançamentos anteriores
+    // já estavam embutidos nesse valor e não devem ser somados de novo.
+    desde[b.id] = b.saldoData || null;
+  });
 
   // Uma única passada pelos movimentos
   for (const m of state.movimentos) {
     if (!ehPago(m)) continue;
     if (saldos[m.bancoId] === undefined) continue;
+    // Ignora o que é anterior à data do saldo inicial
+    if (desde[m.bancoId] && m.data < desde[m.bancoId]) continue;
     saldos[m.bancoId] += (m.tipo === "entrada" ? m.valor : -m.valor);
   }
   // Uma única passada pelas transferências
   for (const t of state.transferencias) {
-    if (saldos[t.destino] !== undefined) saldos[t.destino] += t.valor;
-    if (saldos[t.origem]  !== undefined) saldos[t.origem]  -= t.valor;
+    if (saldos[t.destino] !== undefined && !(desde[t.destino] && t.data < desde[t.destino])) {
+      saldos[t.destino] += t.valor;
+    }
+    if (saldos[t.origem] !== undefined && !(desde[t.origem] && t.data < desde[t.origem])) {
+      saldos[t.origem] -= t.valor;
+    }
   }
 
   _cacheSaldos = saldos;
@@ -1951,6 +1963,7 @@ document.getElementById("btnTema")?.addEventListener("click", () => {
 formBanco?.addEventListener("submit", async e => {
   e.preventDefault();
   const nome = nomeBancoInput.value.trim(), tipo = tipoBancoInput.value, saldoInicial = Number(saldoBancoInput.value);
+  const saldoData = document.getElementById("saldoData")?.value || hojeISO();
   if (!nome||!tipo) { toast("Preencha todos os campos.","error"); return; }
   // Bloqueio de plano: básico pode ter no máximo N contas
   const limiteContas = limitesAtuais().contas;
@@ -1959,9 +1972,11 @@ formBanco?.addEventListener("submit", async e => {
     return;
   }
   try {
-    const novo = await dbInsert("contas", { nome, tipo, saldo_inicial: saldoInicial, cor: _corEscolhida });
-    state.bancos.push({ id:novo.id, nome:novo.nome, tipo:novo.tipo, saldoInicial:Number(novo.saldo_inicial), cor: novo.cor || null });
+    const novo = await dbInsert("contas", { nome, tipo, saldo_inicial: saldoInicial, saldo_data: saldoData, cor: _corEscolhida });
+    state.bancos.push({ id:novo.id, nome:novo.nome, tipo:novo.tipo, saldoInicial:Number(novo.saldo_inicial), saldoData: novo.saldo_data || null, cor: novo.cor || null });
     formBanco.reset();
+    const campoData = document.getElementById("saldoData");
+    if (campoData) campoData.value = hojeISO();
     _corEscolhida = null;
     atualizarAmostraCor(); renderTudo();
     toast(`Conta "${nome}" adicionada!`,"success");
@@ -2247,7 +2262,7 @@ function escolherContaExtratoChat(bancoId) {
 }
 
 async function processarExtratoChat(arquivo, bancoId, addChat) {
-  const pensando = addChat("Deixa comigo, estou lendo o extrato...", "ia");
+  const pensando = addChat("Estou lendo o arquivo que você enviou. Dependendo do tamanho, isso pode levar até alguns minutos — pode deixar a janela aberta que eu aviso quando terminar.", "ia");
 
   try {
     const ehBinario = (arquivo.type || "") === "application/pdf" || (arquivo.type || "").startsWith("image/");
@@ -2935,6 +2950,8 @@ function abrirEditarConta(id) {
   document.getElementById("editContaNome").value  = b.nome;
   document.getElementById("editContaTipo").value  = b.tipo;
   document.getElementById("editContaSaldo").value = b.saldoInicial;
+  const campoEditData = document.getElementById("editContaSaldoData");
+  if (campoEditData) campoEditData.value = b.saldoData || hojeISO();
   iniciarCorPickerEdit(b.cor || null);
   abrirModal("conta");
 }
@@ -2945,12 +2962,13 @@ document.getElementById("formEditarConta")?.addEventListener("submit", async e =
     nome:         document.getElementById("editContaNome").value.trim(),
     tipo:         document.getElementById("editContaTipo").value,
     saldo_inicial: Number(document.getElementById("editContaSaldo").value),
+    saldo_data: document.getElementById("editContaSaldoData")?.value || hojeISO(),
     cor:          _corEscolhidaEdit,
   };
   try {
     const att = await dbUpdate("contas", id, dados);
     const idx = state.bancos.findIndex(b=>b.id===id);
-    if (idx>=0) state.bancos[idx] = { id:att.id, nome:att.nome, tipo:att.tipo, saldoInicial:Number(att.saldo_inicial), cor: att.cor || null };
+    if (idx>=0) state.bancos[idx] = { id:att.id, nome:att.nome, tipo:att.tipo, saldoInicial:Number(att.saldo_inicial), saldoData: att.saldo_data || null, cor: att.cor || null };
     fecharModal("conta"); renderTudo(); toast("Conta atualizada!","success");
   } catch(err) { tratarErro(err); }
 });
@@ -7226,6 +7244,8 @@ async function iniciar() {
 
   if(dataMovimentoInput) dataMovimentoInput.value = hojeISO();
   if(transDataInput)     transDataInput.value     = hojeISO();
+  const campoSaldoData = document.getElementById("saldoData");
+  if (campoSaldoData && !campoSaldoData.value) campoSaldoData.value = hojeISO();
   atualizarCamposFiltro();
 }
 
