@@ -16,7 +16,7 @@ const PLANOS = {
 const ASAAS_URL = process.env.ASAAS_URL || "https://api-sandbox.asaas.com/v3";
 
 // URL do seu site (pra onde o usuário volta depois de pagar)
-const SITE_URL = process.env.SITE_URL || "https://financas-eta-two.vercel.app";
+const SITE_URL = process.env.SITE_URL || "https://fazfinancas.com";
 
 export default async function handler(req, res) {
   // Só aceita POST
