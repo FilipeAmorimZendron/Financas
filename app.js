@@ -2024,64 +2024,270 @@ formImportarExtrato?.addEventListener("submit", async e => {
     return;
   }
 
+  // Recurso pago: importar extrato é do Premium e Master
+  if (!podeUsar("importarExtrato")) {
+    pedirUpgrade("A leitura de extrato está disponível nos planos Premium e Master.", "Importar extrato");
+    return;
+  }
+
   mostrarLoading(true);
   try {
-    const texto = await arquivo.text();
-    const formato = detectarFormato(texto, arquivo.name);
-    const movs = formato === "ofx" ? parseOFX(texto) : parseCSVExtrato(texto);
+    const ehArquivoBinario = arquivo.type === "application/pdf" || arquivo.type.startsWith("image/");
+    let corpo;
 
-    if (!movs.length) {
-      toast(
-        formato === "ofx"
-          ? "Nenhuma transação encontrada no arquivo OFX."
-          : "Nenhum lançamento válido. O CSV precisa ter data, descrição e valor.",
-        "warning"
-      );
+    if (ehArquivoBinario) {
+      // PDF ou imagem: manda em base64 para a IA ler
+      const base64 = await arquivoParaBase64(arquivo);
+      corpo = { arquivoBase64: base64, tipoArquivo: arquivo.type };
+    } else {
+      // CSV/OFX: manda o texto
+      const texto = await arquivo.text();
+      corpo = { texto };
+    }
+
+    corpo.token = localStorage.getItem("fp_token") || "";
+    corpo.hoje = hojeISO();
+
+    const resp = await fetch("/api/ler-extrato", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(corpo)
+    });
+
+    const dados = await resp.json();
+
+    if (!resp.ok) {
+      if (dados.erro === "upgrade") {
+        pedirUpgrade(dados.motivo || "Recurso disponível nos planos pagos.", "Importar extrato");
+        return;
+      }
+      toast(dados.erro || "Não foi possível ler o extrato.", "error");
       return;
     }
 
-    // Evita importar o mesmo lançamento duas vezes
-    const jaExiste = (m) => state.movimentos.some(x =>
-      x.bancoId === bancoId &&
-      x.data === m.data &&
-      Math.abs(x.valor - m.valor) < 0.005 &&
-      x.descricao.toLowerCase() === m.descricao.toLowerCase()
-    );
+    const lancamentos = dados.lancamentos || [];
+    const duvidas = dados.duvidas || [];
 
-    const novos = movs.filter(m => !jaExiste(m));
-    const dup = movs.length - novos.length;
-
-    if (!novos.length) {
-      toast("Todos os lançamentos desse arquivo já foram importados.", "info");
+    if (!lancamentos.length && !duvidas.length) {
+      toast("Nenhuma transação encontrada nesse arquivo.", "warning");
       return;
     }
 
-    for (const m of novos) {
-      const novo = await dbInsert("movimentos", {
-        descricao: m.descricao, conta_id: bancoId, data: m.data,
-        valor: m.valor, tipo: m.tipo, categoria: m.categoria,
-        status: "pago", pago_em: m.data
-      });
-      state.movimentos.push({
-        id:novo.id, descricao:novo.descricao, bancoId:novo.conta_id, data:novo.data,
-        valor:Number(novo.valor), tipo:novo.tipo, categoria:novo.categoria,
-        status:"pago", vencimento:null, pagoEm:novo.data
-      });
-    }
-
-    formImportarExtrato.reset();
-    resetarDropImport();
-    renderTudo();
-
-    const msg = dup > 0
-      ? `${novos.length} lançamento(s) importado(s). ${dup} já existia(m) e foram ignorados.`
-      : `${novos.length} lançamento(s) importado(s) do ${formato.toUpperCase()}.`;
-    toast(msg, "success");
+    abrirRevisao(lancamentos, duvidas, dados.resumo, bancoId);
 
   } catch(err) {
     tratarErro(err);
   } finally { mostrarLoading(false); }
 });
+
+/* Converte um arquivo em base64 (sem o prefixo data:) */
+function arquivoParaBase64(arquivo) {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onload = () => resolve(String(leitor.result).split(",")[1]);
+    leitor.onerror = () => reject(new Error("Não consegui ler o arquivo."));
+    leitor.readAsDataURL(arquivo);
+  });
+}
+
+/* ============================================================
+   REVISÃO DO EXTRATO LIDO PELA IA
+   A IA organiza, mas nada é salvo sem o aval do usuário.
+   O que ela não soube vira pergunta; o resto pode ser corrigido.
+   ============================================================ */
+
+const CATEGORIAS_APP = [
+  "Alimentação", "Transporte", "Moradia", "Saúde",
+  "Lazer", "Educação", "Serviços", "Compras", "Outros"
+];
+
+let revisaoDados = { itens: [], duvidas: [], bancoId: null };
+
+function abrirRevisao(lancamentos, duvidas, resumo, bancoId) {
+  revisaoDados = {
+    itens: lancamentos.map(l => ({ ...l })),
+    duvidas: duvidas.map(d => ({ ...d, resposta: null })),
+    bancoId
+  };
+
+  const el = document.getElementById("revisaoResumo");
+  if (el) {
+    const total = lancamentos.length + duvidas.length;
+    el.textContent = resumo || `${total} lançamento(s) encontrado(s) · revise antes de salvar`;
+  }
+
+  renderRevisao();
+  document.getElementById("revisaoOverlay").style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+function fecharRevisao() {
+  document.getElementById("revisaoOverlay").style.display = "none";
+  document.body.style.overflow = "";
+  revisaoDados = { itens: [], duvidas: [], bancoId: null };
+}
+
+function renderRevisao() {
+  const corpo = document.getElementById("revisaoCorpo");
+  if (!corpo) return;
+
+  const pendentes = revisaoDados.duvidas.filter(d => !d.resposta);
+  let html = "";
+
+  // 1) O que a IA não soube — precisa da ajuda do usuário
+  if (revisaoDados.duvidas.length) {
+    html += `<div class="rev-bloco-duvidas">
+      <div class="rev-bloco-titulo">${pendentes.length
+        ? `${pendentes.length} ${pendentes.length === 1 ? "item precisa" : "itens precisam"} da sua ajuda`
+        : "Tudo respondido, obrigado!"}</div>`;
+
+    revisaoDados.duvidas.forEach((d, i) => {
+      const respondida = !!d.resposta;
+      html += `<div class="rev-duvida ${respondida ? "rev-duvida-ok" : ""}">
+        <div class="rev-duvida-topo">
+          <span class="rev-duvida-desc">${esc(d.descricao || "")}</span>
+          <span class="rev-duvida-val ${d.tipo === "entrada" ? "rev-val-entrada" : "rev-val-saida"}">
+            ${d.tipo === "entrada" ? "+" : "−"}${fmtMoeda(Number(d.valor) || 0)}
+          </span>
+        </div>
+        <div class="rev-duvida-pergunta">${esc(d.data || "")} · ${esc(d.pergunta || "Qual categoria?")}</div>
+        <div class="rev-duvida-opcoes">
+          ${(d.opcoes || CATEGORIAS_APP).map(op => `
+            <button type="button" class="rev-opcao ${d.resposta === op ? "rev-opcao-ativa" : ""}"
+              onclick="responderDuvida(${i}, '${esc(op).replace(/'/g, "\\'")}')">${esc(op)}</button>
+          `).join("")}
+          <button type="button" class="rev-opcao rev-opcao-ignorar ${d.resposta === "__ignorar" ? "rev-opcao-ativa" : ""}"
+            onclick="responderDuvida(${i}, '__ignorar')">Não importar</button>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // 2) O que a IA já resolveu — conferir e corrigir se quiser
+  if (revisaoDados.itens.length) {
+    html += `<div class="rev-bloco-ok">
+      <div class="rev-bloco-titulo-ok">${revisaoDados.itens.length} já categorizados pela IA — clique na categoria para trocar</div>
+      <div class="rev-lista">`;
+
+    revisaoDados.itens.forEach((it, i) => {
+      html += `<div class="rev-item">
+        <span class="rev-item-data">${esc((it.data || "").slice(8, 10))}/${esc((it.data || "").slice(5, 7))}</span>
+        <span class="rev-item-desc">${esc(it.descricao || "")}</span>
+        <select class="rev-item-cat" onchange="trocarCategoriaItem(${i}, this.value)">
+          ${CATEGORIAS_APP.concat(it.tipo === "entrada" ? ["Entrada"] : []).map(c =>
+            `<option value="${esc(c)}" ${it.categoria === c ? "selected" : ""}>${esc(c)}</option>`
+          ).join("")}
+        </select>
+        <span class="rev-item-val ${it.tipo === "entrada" ? "rev-val-entrada" : "rev-val-saida"}">
+          ${it.tipo === "entrada" ? "+" : "−"}${fmtMoeda(Number(it.valor) || 0)}
+        </span>
+        <button type="button" class="rev-item-remover" onclick="removerItemRevisao(${i})" aria-label="Remover">✕</button>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  }
+
+  corpo.innerHTML = html;
+  atualizarBotaoRevisao();
+}
+
+function responderDuvida(indice, opcao) {
+  const d = revisaoDados.duvidas[indice];
+  if (!d) return;
+  d.resposta = opcao;
+  renderRevisao();
+}
+
+function trocarCategoriaItem(indice, categoria) {
+  const it = revisaoDados.itens[indice];
+  if (it) it.categoria = categoria;
+}
+
+function removerItemRevisao(indice) {
+  revisaoDados.itens.splice(indice, 1);
+  renderRevisao();
+}
+
+function atualizarBotaoRevisao() {
+  const btn = document.getElementById("btnSalvarRevisao");
+  if (!btn) return;
+  const pendentes = revisaoDados.duvidas.filter(d => !d.resposta).length;
+  const total = revisaoDados.itens.length +
+                revisaoDados.duvidas.filter(d => d.resposta && d.resposta !== "__ignorar").length;
+
+  if (pendentes > 0) {
+    btn.disabled = true;
+    btn.textContent = `Responda ${pendentes} ${pendentes === 1 ? "pergunta" : "perguntas"} acima`;
+  } else {
+    btn.disabled = false;
+    btn.textContent = total ? `Salvar ${total} lançamento(s)` : "Nada para salvar";
+  }
+}
+
+async function salvarRevisao() {
+  const bancoId = revisaoDados.bancoId;
+  if (!bancoId) return;
+
+  // Junta os itens já certos com as dúvidas respondidas
+  const paraSalvar = revisaoDados.itens.slice();
+  revisaoDados.duvidas.forEach(d => {
+    if (d.resposta && d.resposta !== "__ignorar") {
+      paraSalvar.push({
+        data: d.data, descricao: d.descricao, valor: d.valor,
+        tipo: d.tipo, categoria: d.resposta
+      });
+    }
+  });
+
+  if (!paraSalvar.length) { fecharRevisao(); return; }
+
+  // Não importa o que já existe
+  const jaExiste = (m) => state.movimentos.some(x =>
+    x.bancoId === bancoId &&
+    x.data === m.data &&
+    Math.abs(x.valor - Number(m.valor)) < 0.005 &&
+    (x.descricao || "").toLowerCase() === (m.descricao || "").toLowerCase()
+  );
+
+  const novos = paraSalvar.filter(m => !jaExiste(m));
+  const dup = paraSalvar.length - novos.length;
+
+  if (!novos.length) {
+    toast("Todos esses lançamentos já estavam no app.", "info");
+    fecharRevisao();
+    return;
+  }
+
+  mostrarLoading(true);
+  try {
+    for (const m of novos) {
+      const novo = await dbInsert("movimentos", {
+        descricao: m.descricao, conta_id: bancoId, data: m.data,
+        valor: Number(m.valor), tipo: m.tipo, categoria: m.categoria,
+        status: "pago", pago_em: m.data
+      });
+      state.movimentos.push({
+        id: novo.id, descricao: novo.descricao, bancoId: novo.conta_id, data: novo.data,
+        valor: Number(novo.valor), tipo: novo.tipo, categoria: novo.categoria,
+        status: "pago", vencimento: null, pagoEm: novo.data
+      });
+    }
+
+    fecharRevisao();
+    formImportarExtrato?.reset();
+    resetarDropImport();
+    renderTudo();
+
+    toast(dup > 0
+      ? `${novos.length} lançamento(s) salvos. ${dup} já existia(m).`
+      : `${novos.length} lançamento(s) salvos.`, "success");
+
+  } catch (err) {
+    tratarErro(err);
+  } finally { mostrarLoading(false); }
+}
 
 /* ─── Área de arrastar/soltar ────────────────────────────── */
 
