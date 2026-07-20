@@ -1552,9 +1552,21 @@
   </div>
 
   <!-- LOADING OVERLAY -->
-  <div id="loadingOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:99999;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
-    <div class="loading-spinner"></div>
-    <span style="color:#fff;font-size:14px;font-family:DM Sans,sans-serif">Carregando...</span>
+  <div id="loadingOverlay" class="loading-overlay" style="display:none">
+    <div class="loading-caixa">
+      <div class="loading-anel">
+        <svg viewBox="0 0 64 64" class="loading-svg">
+          <circle cx="32" cy="32" r="27" class="loading-trilha"/>
+          <circle cx="32" cy="32" r="27" class="loading-arco"/>
+        </svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="loading-faisca"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4L12 3z"/></svg>
+      </div>
+      <div class="loading-textos">
+        <div class="loading-titulo" id="loadingTitulo">Carregando</div>
+        <div class="loading-sub" id="loadingSub">Só um instante...</div>
+      </div>
+      <div class="loading-barra"><span></span></div>
+    </div>
   </div>
 
   <!-- SPLASH SCREEN -->

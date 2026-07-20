@@ -376,7 +376,7 @@ async function dbDelete(tabela, id) {
 
 /* Carregar todos os dados do usuário */
 async function carregarDadosNuvem() {
-  mostrarLoading(true);
+  mostrarLoading(true, "Carregando seus dados", "Buscando contas, lançamentos e metas...");
   try {
     const [contas, movimentos, transferencias, recorrencias, metas, objetivos, investimentos, recPagamentos, perfilRows] = await Promise.all([
       dbSelect("contas"),
@@ -483,9 +483,19 @@ function destacarPlanoEscolhido(plano) {
   }, 250);
 }
 
-function mostrarLoading(ativo) {
+/* Mostra o overlay de carregamento.
+   mostrarLoading(true) → mensagem padrão
+   mostrarLoading(true, "Lendo seu extrato", "Isso pode levar alguns segundos...") */
+function mostrarLoading(ativo, titulo, sub) {
   const el = document.getElementById("loadingOverlay");
-  if (el) el.style.display = ativo ? "flex" : "none";
+  if (!el) return;
+  if (ativo) {
+    const t = document.getElementById("loadingTitulo");
+    const s = document.getElementById("loadingSub");
+    if (t) t.textContent = titulo || "Carregando";
+    if (s) s.textContent = sub || "Só um instante...";
+  }
+  el.style.display = ativo ? "flex" : "none";
 }
 
 /* Alternar entre login e cadastro */
@@ -1020,6 +1030,14 @@ function atualizarSelectContas() {
   const opts = state.bancos.map(b=>`<option value="${b.id}">${esc(b.nome)} · ${esc(b.tipo)}</option>`).join("");
   [contaMovimentoSelect, contaExtratoSelect, transOrigemSelect, transDestinoSelect, recContaSelect]
     .forEach(s => { if(s){ s.innerHTML = ok ? opts : empty; s.disabled = !ok; } });
+
+  // Reseleciona a última conta usada na importação de extrato
+  if (contaExtratoSelect && ok) {
+    const ultima = localStorage.getItem("fp_ultima_conta_extrato");
+    if (ultima && state.bancos.some(b => b.id === ultima)) {
+      contaExtratoSelect.value = ultima;
+    }
+  }
 
   // Select de instituição do investimento (permite "não informar")
   const invContaSelect = document.getElementById("invConta");
@@ -2019,6 +2037,9 @@ formImportarExtrato?.addEventListener("submit", async e => {
   const arquivo = arquivoExtratoInput.files[0];
   if (!bancoId || !arquivo) { toast("Selecione a conta e o arquivo.","error"); return; }
 
+  // Lembra a conta para a próxima importação
+  try { localStorage.setItem("fp_ultima_conta_extrato", bancoId); } catch (e) {}
+
   if (arquivo.size > 5 * 1024 * 1024) {
     toast("Arquivo muito grande. O limite é 5 MB.", "error");
     return;
@@ -2030,18 +2051,59 @@ formImportarExtrato?.addEventListener("submit", async e => {
     return;
   }
 
-  mostrarLoading(true);
+  mostrarLoading(true, "Lendo seu extrato", "Isso pode levar alguns segundos...");
   try {
-    const ehArquivoBinario = arquivo.type === "application/pdf" || arquivo.type.startsWith("image/");
+    const ehArquivoBinario = (arquivo.type || "") === "application/pdf" || (arquivo.type || "").startsWith("image/");
     let corpo;
 
     if (ehArquivoBinario) {
-      // PDF ou imagem: manda em base64 para a IA ler
+      // PDF ou imagem: só a IA consegue ler (e consome mais do limite)
+      const ok = confirm(
+        "Ler um PDF ou foto usa a IA e consome 4 usos do seu limite mensal.\n\n" +
+        "Dica: se o seu banco permitir baixar o extrato em CSV ou OFX, o app lê sem gastar nada.\n\n" +
+        "Deseja continuar?"
+      );
+      if (!ok) { mostrarLoading(false); return; }
       const base64 = await arquivoParaBase64(arquivo);
       corpo = { arquivoBase64: base64, tipoArquivo: arquivo.type };
     } else {
-      // CSV/OFX: manda o texto
       const texto = await arquivo.text();
+
+      // CSV/OFX bem formados: o próprio app lê (rápido e sem custo de IA).
+      // Só chamamos a IA se o parser local não der conta.
+      const formato = detectarFormato(texto, arquivo.name);
+      let movsLocais = [];
+      try {
+        movsLocais = formato === "ofx" ? parseOFX(texto) : parseCSVExtrato(texto);
+      } catch (_) { movsLocais = []; }
+
+      if (movsLocais.length) {
+        // Categoriza com as palavras-chave que o app já tem
+        const lancamentos = movsLocais.map(m => ({
+          data: m.data,
+          descricao: m.descricao,
+          valor: Math.abs(Number(m.valor) || 0),
+          tipo: m.tipo,
+          categoria: m.categoria || classificarCategoria(m.descricao)
+        }));
+
+        // O que caiu em "Outros" vira dúvida para o usuário resolver
+        const certos  = lancamentos.filter(l => l.categoria && l.categoria !== "Outros");
+        const duvidas = lancamentos
+          .filter(l => !l.categoria || l.categoria === "Outros")
+          .map(l => ({
+            ...l,
+            pergunta: "Não consegui identificar essa. Em qual categoria ela se encaixa?",
+            opcoes: ["Alimentação", "Transporte", "Compras", "Serviços", "Outros"]
+          }));
+
+        abrirRevisao(certos, duvidas,
+          `${lancamentos.length} lançamento(s) lidos do ${formato.toUpperCase()} · revise antes de salvar`,
+          bancoId);
+        return;
+      }
+
+      // Parser local não conseguiu: manda para a IA
       corpo = { texto };
     }
 
@@ -2061,8 +2123,18 @@ formImportarExtrato?.addEventListener("submit", async e => {
         pedirUpgrade(dados.motivo || "Recurso disponível nos planos pagos.", "Importar extrato");
         return;
       }
+      if (dados.erro === "limite") {
+        pedirUpgrade(dados.motivo || "Você atingiu o limite de usos da IA.", "Limite atingido");
+        return;
+      }
       toast(dados.erro || "Não foi possível ler o extrato.", "error");
       return;
+    }
+
+    // Informa quanto foi consumido do limite
+    if (dados.usos && dados.usos.custoDesteUso) {
+      const restante = Math.max(0, dados.usos.limite - dados.usos.usados);
+      toast(`Leitura concluída · usou ${dados.usos.custoDesteUso} do limite · restam ${restante}`, "info");
     }
 
     const lancamentos = dados.lancamentos || [];
@@ -2178,7 +2250,7 @@ async function processarExtratoChat(arquivo, bancoId, addChat) {
   const pensando = addChat("Deixa comigo, estou lendo o extrato...", "ia");
 
   try {
-    const ehBinario = arquivo.type === "application/pdf" || arquivo.type.startsWith("image/");
+    const ehBinario = (arquivo.type || "") === "application/pdf" || (arquivo.type || "").startsWith("image/");
     let corpo;
     if (ehBinario) {
       corpo = { arquivoBase64: await arquivoParaBase64(arquivo), tipoArquivo: arquivo.type };
@@ -2200,6 +2272,8 @@ async function processarExtratoChat(arquivo, bancoId, addChat) {
     if (!resp.ok) {
       if (dados.erro === "upgrade") {
         addChat(dados.motivo || "Esse recurso está nos planos pagos.", "ia");
+      } else if (dados.erro === "limite") {
+        addChat(dados.motivo || "Você atingiu o limite de usos da IA neste período.", "ia");
       } else {
         addChat(dados.erro || "Não consegui ler esse extrato. Tente outro arquivo.", "ia");
       }
@@ -2238,17 +2312,65 @@ const CATEGORIAS_APP = [
 
 let revisaoDados = { itens: [], duvidas: [], bancoId: null };
 
+/* Memória de categorias: aprende as escolhas do usuário.
+   Se ele já categorizou "PAG*JLM" como Serviços, não perguntamos de novo.
+   A chave usa as primeiras palavras significativas, para que variações do
+   mesmo estabelecimento ("UBER *TRIP" e "UBER *TRIP HELP.UBER.COM") batam. */
+function chaveMemoria(descricao) {
+  const ignorar = new Set(["pag", "pagto", "pagamento", "compra", "cartao", "deb", "cred", "com", "br", "www", "ltda", "me", "sa"]);
+  const palavras = String(descricao || "")
+    .toLowerCase()
+    .replace(/[0-9]/g, " ")
+    .replace(/[^a-zà-ú\s]/g, " ")
+    .split(/\s+/)
+    .filter(p => p.length > 1 && !ignorar.has(p));
+  return palavras.slice(0, 2).join(" ").slice(0, 40);
+}
+
+function lerMemoriaCategorias() {
+  try { return JSON.parse(localStorage.getItem("fp_memoria_categorias") || "{}"); }
+  catch (e) { return {}; }
+}
+
+function gravarMemoriaCategoria(descricao, categoria) {
+  if (!descricao || !categoria || categoria === "Outros") return;
+  try {
+    const memoria = lerMemoriaCategorias();
+    memoria[chaveMemoria(descricao)] = categoria;
+    localStorage.setItem("fp_memoria_categorias", JSON.stringify(memoria));
+  } catch (e) {}
+}
+
 function abrirRevisao(lancamentos, duvidas, resumo, bancoId) {
+  const memoria = lerMemoriaCategorias();
+  const porData = (a, b) => String(a.data || "").localeCompare(String(b.data || ""));
+
+  // Dúvidas que o usuário já respondeu no passado são resolvidas sozinhas
+  const duvidasRestantes = [];
+  const jaResolvidas = [];
+  duvidas.forEach(d => {
+    const lembrada = memoria[chaveMemoria(d.descricao)];
+    if (lembrada) {
+      jaResolvidas.push({ ...d, categoria: lembrada });
+    } else {
+      duvidasRestantes.push({ ...d, resposta: null });
+    }
+  });
+
   revisaoDados = {
-    itens: lancamentos.map(l => ({ ...l })),
-    duvidas: duvidas.map(d => ({ ...d, resposta: null })),
+    itens: lancamentos.map(l => ({ ...l })).concat(jaResolvidas).sort(porData),
+    duvidas: duvidasRestantes.sort(porData),
     bancoId
   };
 
   const el = document.getElementById("revisaoResumo");
   if (el) {
-    const total = lancamentos.length + duvidas.length;
-    el.textContent = resumo || `${total} lançamento(s) encontrado(s) · revise antes de salvar`;
+    const total = revisaoDados.itens.length + revisaoDados.duvidas.length;
+    let txt = resumo || `${total} lançamento(s) encontrado(s) · revise antes de salvar`;
+    if (jaResolvidas.length) {
+      txt += ` · ${jaResolvidas.length} categorizado(s) pelo seu histórico`;
+    }
+    el.textContent = txt;
   }
 
   renderRevisao();
@@ -2287,12 +2409,12 @@ function renderRevisao() {
         </div>
         <div class="rev-duvida-pergunta">${esc(d.data || "")} · ${esc(d.pergunta || "Qual categoria?")}</div>
         <div class="rev-duvida-opcoes">
-          ${(d.opcoes || CATEGORIAS_APP).map(op => `
+          ${(d.opcoes || CATEGORIAS_APP).map((op, oi) => `
             <button type="button" class="rev-opcao ${d.resposta === op ? "rev-opcao-ativa" : ""}"
-              onclick="responderDuvida(${i}, '${esc(op).replace(/'/g, "\\'")}')">${esc(op)}</button>
+              onclick="responderDuvida(${i}, ${oi})">${esc(op)}</button>
           `).join("")}
           <button type="button" class="rev-opcao rev-opcao-ignorar ${d.resposta === "__ignorar" ? "rev-opcao-ativa" : ""}"
-            onclick="responderDuvida(${i}, '__ignorar')">Não importar</button>
+            onclick="responderDuvida(${i}, -1)">Não importar</button>
         </div>
       </div>`;
     });
@@ -2310,9 +2432,14 @@ function renderRevisao() {
         <span class="rev-item-data">${esc((it.data || "").slice(8, 10))}/${esc((it.data || "").slice(5, 7))}</span>
         <span class="rev-item-desc">${esc(it.descricao || "")}</span>
         <select class="rev-item-cat" onchange="trocarCategoriaItem(${i}, this.value)">
-          ${CATEGORIAS_APP.concat(it.tipo === "entrada" ? ["Entrada"] : []).map(c =>
-            `<option value="${esc(c)}" ${it.categoria === c ? "selected" : ""}>${esc(c)}</option>`
-          ).join("")}
+          ${(() => {
+            const opcoes = CATEGORIAS_APP.concat(it.tipo === "entrada" ? ["Entrada"] : []);
+            // Se a IA devolveu uma categoria fora da lista, inclui para não perder o valor
+            if (it.categoria && !opcoes.includes(it.categoria)) opcoes.unshift(it.categoria);
+            return opcoes.map(c =>
+              `<option value="${esc(c)}" ${it.categoria === c ? "selected" : ""}>${esc(c)}</option>`
+            ).join("");
+          })()}
         </select>
         <span class="rev-item-val ${it.tipo === "entrada" ? "rev-val-entrada" : "rev-val-saida"}">
           ${it.tipo === "entrada" ? "+" : "−"}${fmtMoeda(Number(it.valor) || 0)}
@@ -2328,16 +2455,27 @@ function renderRevisao() {
   atualizarBotaoRevisao();
 }
 
-function responderDuvida(indice, opcao) {
+function responderDuvida(indice, indiceOpcao) {
   const d = revisaoDados.duvidas[indice];
   if (!d) return;
-  d.resposta = opcao;
+  if (indiceOpcao === -1) {
+    d.resposta = "__ignorar";
+  } else {
+    const opcoes = d.opcoes || CATEGORIAS_APP;
+    d.resposta = opcoes[indiceOpcao] || "Outros";
+    // Aprende a escolha para não perguntar de novo na próxima importação
+    gravarMemoriaCategoria(d.descricao, d.resposta);
+  }
   renderRevisao();
 }
 
 function trocarCategoriaItem(indice, categoria) {
   const it = revisaoDados.itens[indice];
-  if (it) it.categoria = categoria;
+  if (it) {
+    it.categoria = categoria;
+    // Correção manual também vira aprendizado
+    gravarMemoriaCategoria(it.descricao, categoria);
+  }
 }
 
 function removerItemRevisao(indice) {
@@ -2361,7 +2499,21 @@ function atualizarBotaoRevisao() {
   }
 }
 
+/* Confere se um lançamento vindo da IA é válido antes de salvar */
+function lancamentoValido(m) {
+  if (!m || typeof m !== "object") return false;
+  const dataOk = typeof m.data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(m.data);
+  const valor = Number(m.valor);
+  const valorOk = Number.isFinite(valor) && valor > 0;
+  const tipoOk = m.tipo === "entrada" || m.tipo === "saida";
+  const descOk = typeof m.descricao === "string" && m.descricao.trim().length > 0;
+  return dataOk && valorOk && tipoOk && descOk;
+}
+
+let salvandoRevisao = false;
+
 async function salvarRevisao() {
+  if (salvandoRevisao) return; // evita clique duplo duplicar lançamentos
   const bancoId = revisaoDados.bancoId;
   if (!bancoId) return;
 
@@ -2378,6 +2530,15 @@ async function salvarRevisao() {
 
   if (!paraSalvar.length) { fecharRevisao(); return; }
 
+  // Descarta qualquer item malformado que a IA tenha devolvido
+  const validos = paraSalvar.filter(lancamentoValido);
+  const descartados = paraSalvar.length - validos.length;
+
+  if (!validos.length) {
+    toast("Não consegui validar esses lançamentos. Tente outro arquivo.", "warning");
+    return;
+  }
+
   // Não importa o que já existe
   const jaExiste = (m) => state.movimentos.some(x =>
     x.bancoId === bancoId &&
@@ -2386,8 +2547,8 @@ async function salvarRevisao() {
     (x.descricao || "").toLowerCase() === (m.descricao || "").toLowerCase()
   );
 
-  const novos = paraSalvar.filter(m => !jaExiste(m));
-  const dup = paraSalvar.length - novos.length;
+  const novos = validos.filter(m => !jaExiste(m));
+  const dup = validos.length - novos.length;
 
   if (!novos.length) {
     toast("Todos esses lançamentos já estavam no app.", "info");
@@ -2395,7 +2556,10 @@ async function salvarRevisao() {
     return;
   }
 
-  mostrarLoading(true);
+  salvandoRevisao = true;
+  const btn = document.getElementById("btnSalvarRevisao");
+  if (btn) { btn.disabled = true; btn.textContent = "Salvando..."; }
+  mostrarLoading(true, "Salvando lançamentos", "Quase lá...");
   try {
     for (const m of novos) {
       const novo = await dbInsert("movimentos", {
@@ -2415,13 +2579,17 @@ async function salvarRevisao() {
     resetarDropImport();
     renderTudo();
 
-    toast(dup > 0
-      ? `${novos.length} lançamento(s) salvos. ${dup} já existia(m).`
-      : `${novos.length} lançamento(s) salvos.`, "success");
+    let msg = `${novos.length} lançamento(s) salvos.`;
+    if (dup > 0) msg += ` ${dup} já existia(m).`;
+    if (descartados > 0) msg += ` ${descartados} com dados inválidos foram ignorados.`;
+    toast(msg, "success");
 
   } catch (err) {
     tratarErro(err);
-  } finally { mostrarLoading(false); }
+  } finally {
+    salvandoRevisao = false;
+    mostrarLoading(false);
+  }
 }
 
 /* ─── Área de arrastar/soltar ────────────────────────────── */
@@ -2631,7 +2799,7 @@ limparFiltrosBtn?.addEventListener("click",()=>{
 limparTudoBtn?.addEventListener("click", async () => {
   const ok = await confirmar("Tem certeza que deseja apagar TODOS os dados? Esta ação não pode ser desfeita.");
   if (!ok) return;
-  mostrarLoading(true);
+  mostrarLoading(true, "Limpando os dados", "Um momento...");
   try {
     await Promise.all([
       ...state.movimentos.map(m=>dbDelete("movimentos",m.id)),
@@ -5591,7 +5759,7 @@ async function salvarAvatar() {
   const e = _avatarEscolhido;
   if (!e) { fecharModal("modalAvatar"); return; }
 
-  mostrarLoading(true);
+  mostrarLoading(true, "Salvando sua foto", "Só um instante...");
   try {
     let dados;
 

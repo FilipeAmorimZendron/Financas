@@ -11,6 +11,28 @@ const CATEGORIAS = [
   "Lazer", "Educação", "Serviços", "Compras", "Outros"
 ];
 
+// Quanto cada leitura consome do limite de perguntas da IA.
+// PDF e imagem custam bem mais que texto, por isso pesam mais.
+const CUSTO_TEXTO = 2;
+const CUSTO_ARQUIVO = 4;
+
+const LIMITES = { premium: 25, master: 100 };
+const HORAS_RECARGA_MASTER = 3;
+
+// Atualiza a contagem de uso no Supabase
+async function atualizarUso(userId, serviceKey, usos, resetEm) {
+  await fetch(`${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${userId}`, {
+    method: "PATCH",
+    headers: {
+      "apikey": serviceKey,
+      "Authorization": `Bearer ${serviceKey}`,
+      "content-type": "application/json",
+      "Prefer": "return=minimal"
+    },
+    body: JSON.stringify({ ia_usos: usos, ia_reset_em: resetEm })
+  });
+}
+
 // Valida o token do usuário e devolve o id
 async function validarUsuario(token, anonKey) {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
@@ -24,7 +46,7 @@ async function validarUsuario(token, anonKey) {
 // Lê o perfil (plano) do usuário
 async function lerPerfil(userId, serviceKey) {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${userId}&select=plano,assinatura_status`,
+    `${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${userId}&select=plano,assinatura_status,ia_usos,ia_reset_em`,
     { headers: { "apikey": serviceKey, "Authorization": `Bearer ${serviceKey}` } }
   );
   if (!res.ok) return null;
@@ -52,7 +74,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ erro: "Envie o conteúdo do extrato." });
     }
 
-    // ─── Controle de acesso: só Premium e Master ───
+    // ─── Controle de acesso e consumo do limite ───
+    const custo = arquivoBase64 ? CUSTO_ARQUIVO : CUSTO_TEXTO;
+    let usosInfo = null;
+
     if (serviceKey && anonKey && token) {
       const userId = await validarUsuario(token, anonKey);
       if (!userId) {
@@ -69,6 +94,46 @@ export default async function handler(req, res) {
           motivo: "A leitura de extrato com IA está disponível nos planos Premium e Master."
         });
       }
+
+      const limite = LIMITES[plano];
+      let usos = perfil.ia_usos || 0;
+      let resetEm = perfil.ia_reset_em ? new Date(perfil.ia_reset_em) : new Date();
+      const agora = new Date();
+
+      if (plano === "master") {
+        // Master: recarrega tudo depois de 3h quando zera
+        if (usos >= limite) {
+          const horasPassadas = (agora - resetEm) / (1000 * 60 * 60);
+          if (horasPassadas >= HORAS_RECARGA_MASTER) {
+            usos = 0; resetEm = agora;
+          } else {
+            const faltam = Math.ceil(HORAS_RECARGA_MASTER - horasPassadas);
+            return res.status(429).json({
+              erro: "limite", plano: "master",
+              motivo: `Você atingiu o limite de ${limite} usos. Serão liberados em aproximadamente ${faltam} hora(s).`
+            });
+          }
+        }
+      } else {
+        // Premium: limite mensal
+        const mesReset = resetEm.getFullYear() * 100 + resetEm.getMonth();
+        const mesAgora = agora.getFullYear() * 100 + agora.getMonth();
+        if (mesAgora > mesReset) { usos = 0; resetEm = agora; }
+      }
+
+      // Precisa ter saldo suficiente para o custo desta leitura
+      if (usos + custo > limite) {
+        const restante = Math.max(0, limite - usos);
+        return res.status(429).json({
+          erro: "limite",
+          plano,
+          motivo: `Ler este extrato consome ${custo} do seu limite, mas você tem apenas ${restante} restante(s) neste período.`
+        });
+      }
+
+      usos += custo;
+      await atualizarUso(userId, serviceKey, usos, resetEm.toISOString());
+      usosInfo = { usados: usos, limite, plano, custoDesteUso: custo };
     }
 
     const dataHoje = hoje || new Date().toISOString().slice(0, 10);
@@ -162,7 +227,8 @@ export default async function handler(req, res) {
     return res.status(200).json({
       lancamentos: Array.isArray(resultado.lancamentos) ? resultado.lancamentos : [],
       duvidas:     Array.isArray(resultado.duvidas)     ? resultado.duvidas     : [],
-      resumo:      resultado.resumo || ""
+      resumo:      resultado.resumo || "",
+      usos:        usosInfo
     });
 
   } catch (e) {
