@@ -1898,8 +1898,8 @@ function trocarTela(name) {
     }
   });
   sincronizarBottomNav(name);
-  // Mostrar guia na primeira visita à seção
-  mostrarGuia(name);
+  // O guia da seção NÃO abre sozinho — fica disponível no botão "Como funciona"
+  // no cabeçalho de cada tela (ver injetarBotoesGuia).
 
   // Se for seção premium e o usuário não tem acesso: entra, mas desfoca e mostra o modal
   const infoPremium = SECOES_PREMIUM[name];
@@ -2659,15 +2659,8 @@ function mostrarGuia(screen) {
   const guia = GUIAS[screen];
   if (!guia) return;
 
-  // Verificar se usuário marcou "não mostrar"
-  if (localStorage.getItem(GUIA_STORAGE_KEY + screen) === "1") return;
-
   const conteudo = document.getElementById("guideContent");
-  const naoMostrar = document.getElementById("guideNaoMostrar");
   if (!conteudo) return;
-
-  naoMostrar.checked = false;
-  naoMostrar.dataset.screen = screen;
 
   conteudo.innerHTML = `
     <div class="guide-header">
@@ -2697,10 +2690,6 @@ function mostrarGuia(screen) {
 
 function fecharGuia() {
   const overlay = document.getElementById("guideOverlay");
-  const naoMostrar = document.getElementById("guideNaoMostrar");
-  if (naoMostrar?.checked && naoMostrar.dataset.screen) {
-    localStorage.setItem(GUIA_STORAGE_KEY + naoMostrar.dataset.screen, "1");
-  }
   overlay.style.display = "none";
 }
 
@@ -2728,11 +2717,7 @@ function injetarBotoesGuia() {
     const btn = document.createElement("button");
     btn.className = "btn-guia-secao";
     btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Como funciona`;
-    btn.onclick = () => {
-      // força mostrar mesmo se já viu
-      localStorage.removeItem(GUIA_STORAGE_KEY + guiaKey);
-      mostrarGuia(guiaKey);
-    };
+    btn.onclick = () => mostrarGuia(guiaKey);
     header.appendChild(btn);
   });
 }
