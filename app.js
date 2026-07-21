@@ -139,18 +139,6 @@ function _executarUndo() {
    API SUPABASE — funções de acesso ao banco
    ============================================================ */
 
-async function sbFetch(path, opts = {}) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: { ..._h, "Prefer": "return=representation", ...(opts.headers||{}) },
-    ...opts
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(()=>({}));
-    throw new Error(err.message || `Erro ${res.status}`);
-  }
-  const text = await res.text();
-  return text ? JSON.parse(text) : [];
-}
 
 /* Autenticação */
 async function sbLogin(email, senha) {
@@ -567,6 +555,7 @@ document.getElementById("formLogin")?.addEventListener("submit", async e => {
     renderTudo();
     trocarTela("dashboard");
     toast(`Bem-vindo, ${email}! 👋`, "success");
+    atualizarCDI().then(() => renderTudo()).catch(() => {});
     // Onboarding para novo usuário
     if (!localStorage.getItem("fp_onboarding_done")) {
       setTimeout(() => mostrarOnboarding(), 600);
@@ -690,8 +679,6 @@ const tabelaMovimentosBody   = document.getElementById("tabelaMovimentosBody");
 
 /* ─── Utilitários ────────────────────────────────────────── */
 const fmtMoeda = v => v.toLocaleString("pt-BR", { style:"currency", currency:"BRL" });
-const gerarId  = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random());
-// Data de hoje no fuso horário do Brasil (não UTC), para evitar que a data
 // "pule" para o dia seguinte à noite. Usa o fuso local do dispositivo.
 const hojeISO = () => {
   const agora = new Date();
@@ -771,11 +758,6 @@ function detectarTipo(t) {
     ? "entrada" : "gasto";
 }
 
-function extrairValor(texto) {
-  const m = texto.match(/(\d[\d.,]*)/);
-  if (!m) return null;
-  return Number(m[1].replace(/\./g,"").replace(",","."));
-}
 
 /* ─── Cálculos ───────────────────────────────────────────── */
 
@@ -3119,18 +3101,6 @@ document.getElementById("formEditarConta")?.addEventListener("submit", async e =
   } catch(err) { tratarErro(err); }
 });
 
-/* Editar recorrência */
-function abrirEditarRecorrencia(id) {
-  const r = state.recorrencias.find(r=>r.id===id); if (!r) return;
-  document.getElementById("editRecId").value        = r.id;
-  document.getElementById("editRecDescricao").value = r.descricao;
-  document.getElementById("editRecValor").value     = r.valor;
-  document.getElementById("editRecTipo").value      = r.tipo;
-  document.getElementById("editRecCategoria").value = r.categoria;
-  document.getElementById("editRecDia").value       = r.dia;
-  document.getElementById("editRecConta").innerHTML = state.bancos.map(b=>`<option value="${b.id}"${b.id===r.contaId?" selected":""}>${esc(b.nome)} · ${esc(b.tipo)}</option>`).join("");
-  abrirModal("recorrencia");
-}
 document.getElementById("formEditarRecorrencia")?.addEventListener("submit", async e => {
   e.preventDefault();
   const id = document.getElementById("editRecId").value;
@@ -3411,10 +3381,6 @@ objPrazoTipo?.addEventListener("change", () => {
   fieldObjDias?.classList.toggle("hidden-filter", t !== "dias");
 });
 
-function diasEntre(d1, d2) {
-  const ms = new Date(d2) - new Date(d1);
-  return Math.ceil(ms / (1000 * 60 * 60 * 24));
-}
 
 function renderObjetivos() {
   if (!listaObjetivosEl) return;
@@ -3533,17 +3499,6 @@ async function excluirObjetivo(id) {
   } catch(err) { tratarErro(err); }
 }
 
-function abrirEditarObjetivo(id) {
-  const o = state.objetivos.find(o => o.id === id); if (!o) return;
-  document.getElementById("objNome").value = o.nome;
-  document.getElementById("objIcone").value = o.icone || "geral";
-  document.getElementById("objAlvo").value = o.valorAlvo;
-  document.getElementById("objAtual").value = o.valorAtual;
-  // Remove o antigo e deixa o usuário recriar com os dados preenchidos
-  excluirObjetivoSilencioso(id);
-  document.getElementById("objNome").focus();
-  toast("Dados carregados no formulário. Ajuste e clique em Criar objetivo.", "info");
-}
 
 async function excluirObjetivoSilencioso(id) {
   try {
@@ -3890,79 +3845,6 @@ function renderInvestimentos() {
   atualizarBotaoCripto();
 }
 
-/* Card de um investimento — mostra dados diferentes conforme a natureza */
-function cardInvestimento(i) {
-  const cfg = configTipo(i.tipo);
-  const icone = cfg.icone || "💼";
-  const rf = ehRendaFixa(i.tipo);
-
-  let linhaPrincipal = "";
-  let linhaSecundaria = "";
-  let valorDireita = "";
-
-  if (rf && i.taxa > 0) {
-    // ── RENDA FIXA: usa a taxa anual efetiva (interpreta CDI/IPCA corretamente) ──
-    const taxaAno = taxaAnualEfetiva(i);
-    const jurosAno = i.valor * (taxaAno / 100);
-    const finalAno = i.valor + jurosAno;
-    const cfg = configTipo(i.tipo);
-    // Mostra o rótulo conforme o tipo: % do CDI, ou % a.a. direto
-    let rotuloTaxa;
-    if (cfg.modo === "cdi") {
-      rotuloTaxa = `<strong>${i.taxa}% do CDI</strong> · ${taxaAno.toFixed(2)}% a.a.`;
-    } else {
-      const per = { ano: "a.a.", mes: "a.m.", dia: "a.d." }[i.taxaPeriodo] || "";
-      rotuloTaxa = `<strong>${i.taxa}% ${per}</strong>`;
-    }
-    linhaPrincipal = rotuloTaxa;
-    linhaSecundaria = `Em 12 meses: <span class="valor-positivo">+${fmtMoeda(jurosAno)}</span> → ${fmtMoeda(finalAno)}`;
-    valorDireita = fmtMoeda(i.valor);
-
-  } else {
-    // ── RENDA VARIÁVEL: resultado real, sem projeção ──
-    const res = resultadoRV(i);
-    if (res) {
-      const cls = res.ganho >= 0 ? "valor-positivo" : "valor-negativo";
-      const sinal = res.ganho >= 0 ? "+" : "";
-      linhaPrincipal = `Aplicou ${fmtMoeda(i.valor)} · vale <strong>${fmtMoeda(i.valorAtual)}</strong>`;
-      linhaSecundaria = `<span class="${cls}">${sinal}${fmtMoeda(res.ganho)} (${sinal}${res.pct.toFixed(1)}%)</span>`;
-      valorDireita = fmtMoeda(i.valorAtual);
-    } else {
-      linhaPrincipal = `<span class="sem-projecao">Valor de mercado não informado</span>`;
-      linhaSecundaria = `<button class="btn-inline" onclick="atualizarValorAtual('${i.id}')">Informar quanto vale hoje</button>`;
-      valorDireita = fmtMoeda(i.valor);
-    }
-
-    // Dividendos / aluguel, se houver
-    if (i.rendaPassiva > 0) {
-      const rendaAno = valorHoje(i) * (i.rendaPassiva / 100);
-      const rotulo = i.tipo === "Imóvel" ? "Aluguel" : "Dividendos";
-      linhaSecundaria += `<br>${rotulo}: <strong>${i.rendaPassiva}% a.a.</strong> · <span class="valor-positivo">${fmtMoeda(rendaAno)}/ano</span>`;
-    }
-  }
-
-  // Botões: renda fixa pode simular; renda variável atualiza valor
-  const btnAcao = rf && i.taxa > 0
-    ? `<button class="btn-icon" onclick="simularDoInvestimento('${i.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="12" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></span>Simular</button>`
-    : `<button class="btn-icon" onclick="atualizarValorAtual('${i.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>Atualizar valor</button>`;
-
-  return `<div class="investimento-item">
-    <div class="item-top">
-      <div class="item-title">${icone} ${tituloInvestimento(i)}</div>
-      <div class="valor-neutro">${valorDireita}</div>
-    </div>
-    <div class="item-meta">
-      <span class="badge">${esc(i.tipo)}</span> ${rf ? '<span class="tag-rf">Renda fixa</span>' : '<span class="tag-rv">Renda variável</span>'}<br>
-      <span>${linhaPrincipal}</span><br>
-      <span>${linhaSecundaria}</span>
-    </div>
-    <div class="item-actions">
-      ${btnAcao}
-      <button class="btn-icon" onclick="abrirEditarInvestimento('${i.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>Editar</button>
-      <button class="btn-icon btn-icon-danger" onclick="excluirInvestimento('${i.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></span>Excluir</button>
-    </div>
-  </div>`;
-}
 
 /* Atualiza quanto o investimento vale hoje */
 async function atualizarValorAtual(id) {
@@ -4383,16 +4265,6 @@ statusMovSelect?.addEventListener("change", () => {
   labelDataMov.textContent = statusMovSelect.value === "pendente" ? "Vencimento" : "Data";
 });
 
-/* Formata o prazo de forma humana */
-function textoPrazo(m) {
-  const d = diasAteVencer(m);
-  if (d < 0)  return { txt: `Atrasado ${Math.abs(d)} ${Math.abs(d) === 1 ? "dia" : "dias"}`, cls: "prazo-atrasado" };
-  if (d === 0) return { txt: "Vence hoje", cls: "prazo-hoje" };
-  if (d === 1) return { txt: "Vence amanhã", cls: "prazo-perto" };
-  if (d <= 7)  return { txt: `Vence em ${d} dias`, cls: "prazo-perto" };
-  const dt = new Date(vencDe(m) + "T00:00:00").toLocaleDateString("pt-BR", { day:"2-digit", month:"short" });
-  return { txt: `Vence ${dt}`, cls: "prazo-longe" };
-}
 
 /* Renderiza o card de resumo e o alerta do topo */
 function renderResumoCompromissos() {
@@ -4670,11 +4542,6 @@ function ocorrenciasNaJanela(deISO, ateISO) {
   return itens.sort((a, b) => a.vencimento.localeCompare(b.vencimento));
 }
 
-/* Ocorrências pendentes (não pagas) até uma data */
-function pendentesRecorrentes(ateISO) {
-  const de = "2000-01-01";
-  return ocorrenciasNaJanela(de, ateISO || hojeISO()).filter(o => !o.pago);
-}
 
 /* Descrição legível da frequência */
 function textoFrequencia(rec) {
@@ -5048,21 +4915,6 @@ function verificarLinkRecuperacao() {
    EDIÇÕES QUE FALTAVAM (v9)
    ============================================================ */
 
-/* Editar o limite de uma meta */
-async function editarMeta(id) {
-  const meta = state.metas.find(m => m.id === id); if (!meta) return;
-  const novo = await promptValor(
-    `Novo limite mensal para <strong>${esc(meta.categoria)}</strong>`,
-    meta.limite
-  );
-  if (novo === null || isNaN(novo) || novo <= 0) return;
-  try {
-    const att = await dbUpdate("metas", id, { limite: novo });
-    meta.limite = Number(att.limite);
-    renderTudo();
-    toast(`Meta de ${esc(meta.categoria)} atualizada para ${fmtMoeda(novo)}.`, "success");
-  } catch(err) { tratarErro(err); }
-}
 
 /* Editar um investimento */
 function abrirEditarInvestimento(id) {
@@ -6169,17 +6021,8 @@ const ICO = {
 
 /* Atalhos de navegação usados pelos botões */
 function irParaContas()       { trocarTela("contas"); }
-function irParaLancamentos()  { trocarTela("lancamentos"); }
-function irParaRecorrencias() { trocarTela("recorrencias"); }
 
 
-/* Botões de pausar/retomar (evita aspas aninhadas no template) */
-function btnPausar() {
-  return `<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></span>Pausar`;
-}
-function btnRetomar() {
-  return `<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg></span>Retomar`;
-}
 
 
 /* ============================================================
@@ -7344,6 +7187,7 @@ document.getElementById("invTaxa")?.addEventListener("input", atualizarDicaCDI);
 async function iniciar() {
   aplicarEstadoSidebar();
   carregarCacheCripto();
+  carregarCacheCDI();
   popularSelectCripto();
   restaurarDicas();
   trocarAbaMeta(localStorage.getItem("fp_meta_aba") || "limites");
@@ -7378,6 +7222,10 @@ async function iniciar() {
       injetarBotoesGuia();
       trocarTela("dashboard");
       await tratarRetornoAssinatura();
+
+      // Busca a taxa CDI atual em segundo plano (não trava a tela).
+      // Sem isso, os rendimentos de CDB/LCI/Tesouro usariam o valor fixo do código.
+      atualizarCDI().then(() => renderTudo()).catch(() => {});
     } catch(e) {
       localStorage.removeItem("fp_token");
       localStorage.removeItem("fp_user");
