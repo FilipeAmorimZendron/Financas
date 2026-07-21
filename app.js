@@ -1128,7 +1128,12 @@ function atualizarCamposFiltro() {
    ────────────────────────────────────────────────────────── */
 
 function renderResumoDashboard() {
-  const { entradas, gastos } = calcularTotais();
+  // Entradas e gastos do MÊS ATUAL — não o histórico inteiro.
+  // Sem esse filtro, importar extratos antigos inflava os totais do dashboard.
+  const mes = mesAtualISO();
+  const doMes = state.movimentos.filter(m => (m.data || "").slice(0, 7) === mes);
+  const { entradas, gastos } = calcularTotais(doMes);
+
   if(saldoTotalDashboardEl) saldoTotalDashboardEl.textContent = fmtMoeda(calcularSaldoTotal());
   if(totalEntradasEl)       totalEntradasEl.textContent       = fmtMoeda(entradas);
   if(totalGastosEl)         totalGastosEl.textContent         = fmtMoeda(gastos);
