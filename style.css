@@ -8658,3 +8658,113 @@ body.scroll-travado {
   .form-grid-contas > .field:nth-child(4),
   .form-grid-contas > .field:nth-child(5) { grid-column: 1 / -1; }
 }
+
+/* ============================================================
+   LOGIN — profundidade e refinamento
+   Fundo com camadas de luz, card flutuante, campos com halo.
+   ============================================================ */
+
+/* Fundo: três camadas de luz difusa + grade que some nas bordas */
+.auth-modal {
+  background:
+    radial-gradient(ellipse 700px 500px at 15% 10%, rgba(30,246,221,0.10), transparent 60%),
+    radial-gradient(ellipse 600px 500px at 90% 85%, rgba(15,138,125,0.16), transparent 62%),
+    radial-gradient(ellipse 500px 400px at 70% 20%, rgba(37,99,235,0.07), transparent 60%),
+    #010912;
+}
+.auth-modal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.25;
+  background-image:
+    linear-gradient(rgba(30,246,221,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30,246,221,0.05) 1px, transparent 1px);
+  background-size: 52px 52px;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 40%, black 20%, transparent 72%);
+          mask-image: radial-gradient(ellipse at 50% 40%, black 20%, transparent 72%);
+}
+
+/* Card flutuante: gradiente próprio, borda clara sutil, sombra funda */
+.auth-shell {
+  z-index: 1; /* fica acima da grade decorativa do fundo */
+  background: linear-gradient(155deg, rgba(20,35,58,0.92), rgba(9,20,38,0.96));
+  border: 1px solid rgba(120,160,200,0.14);
+  box-shadow:
+    0 32px 70px rgba(0,0,0,0.55),
+    inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+/* Marca discreta — não compete com o título */
+.auth-marca-nome {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #C3D0DC;
+}
+.auth-marca .faz-setas { width: 17px; height: 19px; }
+.auth-marca { margin-bottom: 34px; }
+
+/* Título com mais presença */
+.auth-titulo { font-size: 29px; letter-spacing: -0.03em; color: #F2F7FB; }
+.auth-sub { font-size: 14.5px; margin-bottom: 32px; }
+
+/* Campos com borda suave; o ativo ganha halo */
+.auth-campo input {
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(120,160,200,0.18);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.auth-campo input:focus {
+  border-color: rgba(30,246,221,0.45);
+  box-shadow: 0 0 0 3px rgba(30,246,221,0.07);
+}
+.auth-campo label { color: #93a5b8; }
+
+/* Botão com gradiente e brilho — hierarquia imediata */
+.auth-btn {
+  background: linear-gradient(135deg, #1EF6DD, #12C9B4);
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 8px 24px rgba(30,246,221,0.22);
+  color: #01131f;
+}
+.auth-btn:hover {
+  box-shadow: 0 10px 30px rgba(30,246,221,0.3);
+  transform: translateY(-1px);
+}
+
+/* Coluna da mídia integrada ao card */
+.auth-col-midia {
+  background: linear-gradient(165deg, #071829, #04101d);
+  border-left: 1px solid rgba(120,160,200,0.1);
+}
+.auth-col-midia::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  z-index: 4;
+  background: linear-gradient(90deg, transparent, rgba(30,246,221,0.35), transparent);
+}
+
+/* Assinatura no rodapé da coluna visual */
+.auth-midia-texto { padding: 38px 34px; }
+.auth-midia-frase { font-size: 21px; margin-bottom: 14px; }
+.auth-midia-assinatura {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.auth-midia-assinatura span:first-child {
+  width: 20px; height: 2px;
+  background: var(--teal-400);
+  border-radius: 2px;
+}
+.auth-midia-assinatura span:last-child {
+  color: #5b6b7d;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}

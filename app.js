@@ -710,32 +710,36 @@ function badge(cat) {
 function classificarCategoria(t) {
   t = (t || "").toLowerCase();
 
+  // Movimentação entre contas / dinheiro vivo — não é uma categoria de gasto.
+  // Fica em "Outros" de propósito: o app pergunta ao usuário na revisão.
+  if (/transfer|ted\b|doc\b|saque|dep[óo]sito|deposito|pix\s*enviado|pix\s*recebido|aplica[çc][ãa]o|resgate|c[âa]mbio/.test(t)) return "Outros";
+
   // Alimentação
-  if (/mercado|supermercado|padaria|açougue|acougue|hortifruti|feira|ifood|rappi|uber\s*eats|delivery|restaurante|lanchonete|pizzaria|hamburgueria|cafe|café|bar\b|boteco|comida|almoço|almoco|jantar|food|mc\s*donald|burger|subway|starbucks/.test(t)) return "Alimentação";
+  if (/mercado|supermercado|padaria|açougue|acougue|hortifruti|feira|ifood|ifd\*|rappi|uber\s*eats|delivery|restaurante|lanchonete|pizzaria|hamburgueria|cafe|café|bar\b|boteco|comida|almoço|almoco|jantar|food|mc\s*donald|burger|subway|starbucks|carrefour|extra\b|assai|assaí|atacad|big\b|dia\b|sendas|zaffari|pao de acucar|pão de açúcar|hortifrut|emporio|empório|doceria|sorveteria|acai|açaí|habib|bobs|outback|madero|coco\s*bambu|giraffas|spoleto|cacau\s*show|kopenhagen/.test(t)) return "Alimentação";
 
   // Transporte
-  if (/uber|99\b|99app|cabify|taxi|táxi|ônibus|onibus|metrô|metro|trem|bilhete|passagem|combustível|combustivel|gasolina|álcool|alcool|etanol|posto\b|shell|ipiranga|petrobras|estacionamento|pedágio|pedagio|zona azul|bike|patinete/.test(t)) return "Transporte";
+  if (/uber|99\b|99app|99pop|cabify|indriver|taxi|táxi|ônibus|onibus|metrô|metro\b|trem|bilhete|passagem|combustível|combustivel|gasolina|álcool|alcool|etanol|posto\b|shell|ipiranga|petrobras|br\s*distribuidora|ale\b|estacionamento|estapar|pedágio|pedagio|sem\s*parar|conectcar|veloe|zona azul|bike|patinete|mecanic|oficina|pneu|lava\s*rapido|lava-rápido|ipva|licenciamento|dpvat|multa/.test(t)) return "Transporte";
 
   // Moradia
-  if (/aluguel|condomínio|condominio|iptu|luz\b|energia|elétrica|eletrica|enel|cemig|light\b|água|agua|sabesp|saneamento|gás\b|gas\b|comgás|internet|wifi|vivo|claro|tim\b|oi\b|net\b|telefone|faxina|diarista|reforma/.test(t)) return "Moradia";
+  if (/aluguel|condomínio|condominio|iptu|luz\b|energia|elétrica|eletrica|enel|cemig|copel|celpe|coelba|neoenergia|cpfl|equatorial|light\b|água|agua|sabesp|cedae|caesb|embasa|sanepar|saneamento|gás\b|gas\b|comgás|comgas|ultragaz|liquigas|internet|wifi|banda\s*larga|vivo|claro|tim\b|oi\b|net\b|sky\b|telefone|faxina|diarista|reforma|material\s*de\s*constru|leroy|telhanorte|c&c/.test(t)) return "Moradia";
 
   // Saúde
-  if (/farmácia|farmacia|drogaria|drogasil|pacheco|remédio|remedio|médico|medico|consulta|exame|hospital|clínica|clinica|dentista|psicólogo|psicologo|terapia|plano de saúde|unimed|amil|academia|smartfit|gympass|pilates|nutricionista/.test(t)) return "Saúde";
+  if (/farmácia|farmacia|drogaria|drogasil|droga\s*raia|raia\b|pacheco|pague\s*menos|panvel|nissei|venancio|venâncio|remédio|remedio|médico|medico|consulta|exame|laborat|fleury|dasa|delboni|hospital|clínica|clinica|dentista|ortodont|psicólogo|psicologo|psiquiatr|terapia|plano de saúde|unimed|amil|bradesco\s*saude|sulamerica|hapvita|notredame|porto\s*seguro\s*saude|academia|smartfit|smart\s*fit|bluefit|selfit|panobianco|gympass|totalpass|pilates|crossfit|nutricionista|fisioterap|oftalmo|dermato/.test(t)) return "Saúde";
 
   // Lazer
-  if (/cinema|netflix|spotify|disney|hbo|max\b|prime video|globoplay|paramount|deezer|youtube premium|streaming|show|ingresso|teatro|parque|viagem|hotel|airbnb|passeio|festa|balada|jogo|game|steam|playstation|xbox|nintendo/.test(t)) return "Lazer";
+  if (/cinema|cinemark|kinoplex|uci\b|netflix|spotify|disney|hbo|max\b|prime video|globoplay|paramount|apple\s*tv|deezer|tidal|youtube premium|twitch|streaming|show|ingresso|ingressoc|sympla|eventim|teatro|museu|parque|viagem|hotel|pousada|airbnb|booking|decolar|latam|gol\b|azul\b|passeio|festa|balada|pub\b|jogo|game|steam|epic\s*games|playstation|psn\b|xbox|nintendo|riot|blizzard/.test(t)) return "Lazer";
 
   // Educação
-  if (/curso|faculdade|escola|colégio|colegio|mensalidade|matrícula|matricula|livro|apostila|udemy|alura|udacity|coursera|aula|professor|idioma|inglês|ingles/.test(t)) return "Educação";
+  if (/curso|faculdade|universidade|unip|estacio|estácio|anhanguera|uninter|puc\b|escola|colégio|colegio|mensalidade|matrícula|matricula|livro|livraria|saraiva|amazon\s*kindle|apostila|udemy|alura|udacity|coursera|hotmart|kiwify|aula|professor|idioma|inglês|ingles|wizard|ccaa|cultura\s*inglesa|fisk|duolingo/.test(t)) return "Educação";
 
   // Serviços / assinaturas
-  if (/assinatura|salão|salao|cabeleireiro|barbeiro|manicure|estética|estetica|lavanderia|conserto|manutenção|manutencao|técnico|tecnico|advogado|contador|chatgpt|openai|google one|icloud|dropbox|notion/.test(t)) return "Serviços";
+  if (/assinatura|salão|salao|cabeleireiro|cabeleireira|barbeiro|barbearia|manicure|pedicure|estética|estetica|spa\b|massagem|lavanderia|conserto|manutenção|manutencao|técnico|tecnico|advogado|contador|contabil|chatgpt|openai|anthropic|claude|google\s*one|icloud|apple\.com|microsoft|office\s*365|adobe|canva|dropbox|notion|figma|github|hostinger|godaddy|registro\.br|vercel|aws\b|correios|cartório|cartorio|despachante/.test(t)) return "Serviços";
 
   // Compras
-  if (/roupa|calçado|calcado|sapato|tênis|tenis|shopping|loja|magazine|magalu|americanas|amazon|mercado livre|shopee|aliexpress|presente|eletrônico|eletronico|celular|notebook|móveis|moveis|decoração|decoracao/.test(t)) return "Compras";
+  if (/roupa|calçado|calcado|sapato|tênis|tenis|vestu|shopping|loja|magazine|magalu|americanas|amazon|mercado\s*livre|meli\b|mercadolivre|shopee|aliexpress|shein|temu|renner|riachuelo|c&a|marisa|zara|hering|centauro|netshoes|decathlon|nike|adidas|presente|eletrônico|eletronico|celular|notebook|kabum|pichau|terabyte|fast\s*shop|casas\s*bahia|ponto\s*frio|móveis|moveis|mobly|madeiramadeira|tok\s*stok|decoração|decoracao|petz|cobasi|pet\s*shop|sephora|boticario|boticário|natura|avon/.test(t)) return "Compras";
 
   // Entrada (receitas)
-  if (/salário|salario|pagamento|recebi|entrou|ganhei|pix recebido|transferência recebida|rendimento|dividendo|freelance|freela/.test(t)) return "Entrada";
+  if (/salário|salario|holerite|proventos|recebi|entrou|ganhei|rendimento|dividendo|juros|cashback|estorno|reembolso|restitui|freelance|freela|honorario|honorário|comiss[ãa]o|vale\b|adiantamento|13[ºo]?\s*sal|f[ée]rias|inss|aposentadoria|pens[ãa]o|aux[íi]lio|bolsa/.test(t)) return "Entrada";
 
   return "Outros";
 }
@@ -2153,15 +2157,46 @@ formImportarExtrato?.addEventListener("submit", async e => {
           categoria: m.categoria || classificarCategoria(m.descricao)
         }));
 
-        // O que caiu em "Outros" vira dúvida para o usuário resolver
         const certos  = lancamentos.filter(l => l.categoria && l.categoria !== "Outros");
-        const duvidas = lancamentos
-          .filter(l => !l.categoria || l.categoria === "Outros")
-          .map(l => ({
-            ...l,
-            pergunta: "Não consegui identificar essa. Em qual categoria ela se encaixa?",
-            opcoes: ["Alimentação", "Transporte", "Compras", "Serviços", "Outros"]
-          }));
+        let naoSabe = lancamentos.filter(l => !l.categoria || l.categoria === "Outros");
+
+        // O que o app não soube vai para a IA — ela entende contexto e
+        // reconhece estabelecimentos que a lista de palavras-chave não cobre.
+        if (naoSabe.length) {
+          try {
+            const respIA = await fetch("/api/ler-extrato", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                texto: naoSabe.map(l => `${l.data};${l.descricao};${l.tipo === "entrada" ? "" : "-"}${l.valor}`).join("\n"),
+                token: localStorage.getItem("fp_token") || "",
+                hoje: hojeISO()
+              })
+            });
+            if (respIA.ok) {
+              const dadosIA = await respIA.json();
+              const resolvidos = dadosIA.lancamentos || [];
+              const aindaEmDuvida = dadosIA.duvidas || [];
+              // Junta o que a IA resolveu com o que ela também não soube
+              abrirRevisao(
+                certos.concat(resolvidos),
+                aindaEmDuvida,
+                `${lancamentos.length} lançamento(s) lidos · a IA ajudou em ${naoSabe.length}`,
+                bancoId
+              );
+              return;
+            }
+          } catch (e) {
+            console.warn("IA indisponível, seguindo sem ela:", e);
+          }
+        }
+
+        // Sem itens duvidosos (ou IA indisponível): segue com o que temos
+        const duvidas = naoSabe.map(l => ({
+          ...l,
+          pergunta: "Não consegui identificar essa. Em qual categoria ela se encaixa?",
+          opcoes: ["Alimentação", "Transporte", "Compras", "Serviços", "Outros"]
+        }));
 
         abrirRevisao(certos, duvidas,
           `${lancamentos.length} lançamento(s) lidos do ${formato.toUpperCase()} · revise antes de salvar`,
@@ -2429,8 +2464,28 @@ function abrirRevisao(lancamentos, duvidas, resumo, bancoId) {
     }
   });
 
+  // Lançamentos que parecem transferência entre contas próprias viram pergunta:
+  // o dinheiro não saiu do patrimônio, então não deveria virar gasto sem aval.
+  const itensConfirmados = [];
+  lancamentos.map(norm).forEach(l => {
+    const transf = pareceTransferenciaPropria(l.descricao, bancoId);
+    if (transf && l.tipo === "gasto") {
+      duvidasRestantes.push({
+        ...l,
+        resposta: null,
+        ehTransferencia: true,
+        pergunta: transf.conta
+          ? `Isso parece uma transferência para a sua conta ${transf.conta.nome}. Nesse caso o dinheiro não saiu do seu patrimônio.`
+          : "Isso parece uma transferência entre contas. Devo registrar como gasto?",
+        opcoes: ["Não é gasto, ignorar", "É um gasto de verdade"]
+      });
+    } else {
+      itensConfirmados.push(l);
+    }
+  });
+
   revisaoDados = {
-    itens: lancamentos.map(norm).concat(jaResolvidas).sort(porData),
+    itens: itensConfirmados.concat(jaResolvidas).sort(porData),
     duvidas: duvidasRestantes.sort(porData),
     bancoId
   };
@@ -2534,7 +2589,16 @@ function responderDuvida(indice, indiceOpcao) {
     d.resposta = "__ignorar";
   } else {
     const opcoes = d.opcoes || CATEGORIAS_APP;
-    d.resposta = opcoes[indiceOpcao] || "Outros";
+    const escolha = opcoes[indiceOpcao] || "Outros";
+
+    // Pergunta de transferência: a primeira opção descarta o lançamento
+    if (d.ehTransferencia) {
+      d.resposta = (indiceOpcao === 0) ? "__ignorar" : (d.categoria || "Outros");
+      renderRevisao();
+      return;
+    }
+
+    d.resposta = escolha;
     // Aprende a escolha para não perguntar de novo na próxima importação
     gravarMemoriaCategoria(d.descricao, d.resposta);
   }
@@ -2569,6 +2633,28 @@ function atualizarBotaoRevisao() {
     btn.disabled = false;
     btn.textContent = total ? `Salvar ${total} lançamento(s)` : "Nada para salvar";
   }
+}
+
+/* Detecta se a descrição parece uma transferência entre contas do próprio usuário.
+   Ex.: "Transferência para Mercado Pago" quando o usuário tem uma conta
+   chamada Mercado Pago. Nesses casos o dinheiro não saiu do patrimônio,
+   então perguntamos antes de lançar como gasto. */
+function pareceTransferenciaPropria(descricao, bancoIdOrigem) {
+  const d = String(descricao || "").toLowerCase();
+
+  // Palavras que indicam movimentação entre contas
+  const temPalavraTransferencia = /transfer|ted\b|doc\b|pix\s*(enviado|recebido)?|saque|dep[óo]sito|deposito|aplica[çc][ãa]o|resgate/.test(d);
+
+  // A descrição menciona o nome de alguma outra conta cadastrada?
+  const contaCitada = (state.bancos || []).find(b => {
+    if (b.id === bancoIdOrigem) return false;
+    const nome = String(b.nome || "").toLowerCase().trim();
+    return nome.length >= 3 && d.includes(nome);
+  });
+
+  if (contaCitada) return { motivo: "conta", conta: contaCitada };
+  if (temPalavraTransferencia) return { motivo: "palavra", conta: null };
+  return null;
 }
 
 /* Confere se um lançamento vindo da IA é válido antes de salvar.
