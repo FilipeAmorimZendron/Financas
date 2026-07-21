@@ -5586,6 +5586,14 @@ function renderConta() {
     }
   }
 
+  // Texto da linha "Assinatura" — precisa refletir o plano real
+  const assinaturaDesc = document.getElementById("contaAssinaturaDesc");
+  if (assinaturaDesc) {
+    assinaturaDesc.textContent = (plano === "master" || plano === "premium")
+      ? `Você está no plano ${nomePlano}`
+      : "Você está no plano gratuito";
+  }
+
   // Rótulo do tema
   const tl = document.getElementById("temaLabel");
   const ti = document.getElementById("temaIcone");
