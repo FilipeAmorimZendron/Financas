@@ -8970,3 +8970,32 @@ body.scroll-travado {
 @media (max-width: 640px) {
   .cartao-box-campos { grid-template-columns: 1fr; }
 }
+
+/* Pagar fatura pela própria conta */
+.cartao-pagar-conta {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border-soft, #2C384A);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+.cartao-pagar-conta strong { color: var(--text-primary); }
+.cartao-pagar-saldo { font-size: 12.5px; }
+.cartao-pagar-saldo.insuf { color: #e2574a; font-weight: 600; }
+.cartao-pagar-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(226,87,74,0.08);
+  border: 1px solid rgba(226,87,74,0.25);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 13px;
+  color: #e8877d;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+.cartao-pagar-aviso svg { flex-shrink: 0; margin-top: 1px; color: #e2574a; }

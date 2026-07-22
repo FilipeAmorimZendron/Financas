@@ -1084,7 +1084,41 @@ function todosCompromissos(ateISO) {
       vencimento: o.vencimento
     }));
 
-  return [...avulsos, ...recorrentes].sort((a,b) => a.vencimento.localeCompare(b.vencimento));
+  // 3. Faturas de cartão em aberto — SEMPRE aparecem, mesmo fora do período,
+  //    porque são dívidas já contraídas. Limita às próximas para não poluir.
+  const faturasCartao = [];
+  const limiteFatura = somarMeses(hojeISO(), 4); // até 4 meses de faturas à frente
+  state.bancos.filter(b => b.temCartao).forEach(cartao => {
+    const pagas = new Set((state.faturasPagas || [])
+      .filter(f => f.cartaoId === cartao.id)
+      .map(f => f.faturaMes));
+    const porMes = {};
+    state.movimentos
+      .filter(m => m.cartaoId === cartao.id && !pagas.has(m.faturaMes))
+      .forEach(m => { porMes[m.faturaMes] = (porMes[m.faturaMes] || 0) + m.valor; });
+
+    Object.keys(porMes).forEach(fm => {
+      if (porMes[fm] <= 0) return;
+      const [a, mes] = fm.split("-").map(Number);
+      const diaVenc = cartao.diaVencimento || 10;
+      const venc = `${a}-${String(mes).padStart(2,"0")}-${String(diaVenc).padStart(2,"0")}`;
+      if (venc > limiteFatura) return; // ignora faturas muito distantes
+      faturasCartao.push({
+        origem: "fatura",
+        id: `fatura|${cartao.id}|${fm}`,
+        cartaoId: cartao.id,
+        faturaMes: fm,
+        descricao: `Fatura ${cartao.nome}`,
+        valor: porMes[fm],
+        tipo: "gasto",
+        categoria: "Serviços",
+        contaId: cartao.id,
+        vencimento: venc
+      });
+    });
+  });
+
+  return [...avulsos, ...recorrentes, ...faturasCartao].sort((a,b) => a.vencimento.localeCompare(b.vencimento));
 }
 
 const diasAte = v => Math.round((new Date(v+"T00:00:00") - new Date(hojeISO()+"T00:00:00")) / 86400000);
@@ -1207,19 +1241,6 @@ function proximaFaturaAberta(cartaoId) {
 /* A fatura "atual" de um cartão é a do mês vigente (AAAA-MM de hoje). */
 function faturaAtual() {
   return mesAtualISO();
-}
-
-/* Total que o usuário tem "a pagar" no cartão: todas as faturas ainda não
-   pagas até a atual (inclui atrasadas). Faturas futuras (parcelas que ainda
-   vão cair) não entram no "a pagar de agora". */
-function totalAPagarCartao(cartaoId) {
-  const pagas = new Set((state.faturasPagas || [])
-    .filter(f => f.cartaoId === cartaoId)
-    .map(f => f.faturaMes));
-  const ate = faturaAtual();
-  return state.movimentos
-    .filter(m => m.cartaoId === cartaoId && m.faturaMes <= ate && !pagas.has(m.faturaMes))
-    .reduce((a, m) => a + m.valor, 0);
 }
 
 /* Uma fatura está paga? */
@@ -1364,15 +1385,11 @@ function renderTelaCartao() {
 
 /* Pagar a fatura: pergunta de qual conta sai o dinheiro */
 function abrirPagarFatura(cartaoId, faturaMes) {
-  const contasNormais = state.bancos.filter(b => b.id !== cartaoId);
-  if (!contasNormais.length) {
-    toast("Você precisa de outra conta para pagar a fatura.", "warning");
-    return;
-  }
+  const banco = state.bancos.find(b => b.id === cartaoId);
+  if (!banco) return;
   const total = totalFatura(cartaoId, faturaMes);
-  const opcoes = contasNormais.map(b =>
-    `<option value="${b.id}">${esc(b.nome)} · saldo ${fmtMoeda(calcularSaldoBanco(b.id))}</option>`
-  ).join("");
+  const saldo = calcularSaldoBanco(cartaoId);
+  const cobre = saldo >= total - 0.005;
 
   const corpo = document.getElementById("cartaoCorpo");
   corpo.innerHTML = `
@@ -1381,22 +1398,33 @@ function abrirPagarFatura(cartaoId, faturaMes) {
       <button class="revisao-fechar" onclick="renderTelaCartao()" aria-label="Voltar">✕</button>
     </div>
     <p class="cartao-pagar-info">Valor da fatura: <strong>${fmtMoeda(total)}</strong></p>
-    <div class="field">
-      <label for="pagarFaturaConta">Pagar com qual conta?</label>
-      <select id="pagarFaturaConta">${opcoes}</select>
+    <div class="cartao-pagar-conta">
+      Será debitada da conta <strong>${esc(banco.nome)}</strong><br>
+      <span class="cartao-pagar-saldo ${cobre ? "" : "insuf"}">Saldo atual: ${fmtMoeda(saldo)}</span>
     </div>
-    <div class="cartao-pagar-acoes">
-      <button class="btn-ghost" onclick="renderTelaCartao()">Cancelar</button>
-      <button class="btn-primary" id="btnConfirmarPagarFatura" onclick="confirmarPagarFatura('${cartaoId}','${faturaMes}',${total})">Confirmar pagamento</button>
-    </div>
+    ${cobre
+      ? `<div class="cartao-pagar-acoes">
+           <button class="btn-ghost" onclick="renderTelaCartao()">Cancelar</button>
+           <button class="btn-primary" id="btnConfirmarPagarFatura" onclick="confirmarPagarFatura('${cartaoId}','${faturaMes}',${total})">Confirmar pagamento</button>
+         </div>`
+      : `<div class="cartao-pagar-aviso">
+           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+           Saldo insuficiente para pagar esta fatura. Faltam ${fmtMoeda(total - saldo)}.
+           Registre uma transferência de outra conta para ${esc(banco.nome)} antes de pagar.
+         </div>
+         <div class="cartao-pagar-acoes">
+           <button class="btn-ghost" onclick="renderTelaCartao()">Voltar</button>
+           <button class="btn-primary" onclick="fecharTelaCartao(); trocarTela('transferencias')">Ir para transferências</button>
+         </div>`
+    }
   `;
 }
 
 let _pagandoFatura = false;
 async function confirmarPagarFatura(cartaoId, faturaMes, valor) {
   if (_pagandoFatura) return;
-  const contaId = document.getElementById("pagarFaturaConta")?.value;
-  if (!contaId) return;
+  // Paga pela própria conta do banco do cartão
+  const contaId = cartaoId;
 
   // Bloqueio: a conta precisa ter saldo para cobrir a fatura
   if (!saldoComporta(contaId, valor)) {
@@ -1407,18 +1435,14 @@ async function confirmarPagarFatura(cartaoId, faturaMes, valor) {
   const btn = document.getElementById("btnConfirmarPagarFatura");
   if (btn) { btn.disabled = true; btn.textContent = "Pagando..."; }
 
-  try {
-    // Registra a fatura como paga
-    const nova = await dbInsert("faturas_pagas", {
-      cartao_id: cartaoId, fatura_mes: faturaMes,
-      conta_id: contaId, valor: valor, pago_em: hojeISO()
-    });
-    state.faturasPagas.push({
-      id: nova.id, cartaoId: cartaoId, faturaMes: faturaMes,
-      contaId: contaId, valor: Number(nova.valor), pagoEm: nova.pago_em
-    });
+  // Garante que o botão sempre volte ao normal, mesmo se algo falhar
+  const destravar = () => {
+    _pagandoFatura = false;
+    if (btn) { btn.disabled = false; btn.textContent = "Confirmar pagamento"; }
+  };
 
-    // Registra a saída na conta escolhida (aqui o dinheiro sai de verdade)
+  try {
+    // 1. Registra a saída na conta (o dinheiro sai de verdade)
     const cartao = state.bancos.find(b => b.id === cartaoId);
     const mov = await dbInsert("movimentos", {
       descricao: `Pagamento fatura ${cartao?.nome || "cartão"}`,
@@ -1434,13 +1458,24 @@ async function confirmarPagarFatura(cartaoId, faturaMes, valor) {
       formaPagamento: "pagamento_fatura"
     });
 
+    // 2. Marca a fatura como paga
+    const nova = await dbInsert("faturas_pagas", {
+      user_id: state.user.id,
+      cartao_id: cartaoId, fatura_mes: faturaMes,
+      conta_id: contaId, valor: valor, pago_em: hojeISO()
+    });
+    state.faturasPagas.push({
+      id: nova.id, cartaoId: cartaoId, faturaMes: faturaMes,
+      contaId: contaId, valor: Number(nova.valor), pagoEm: nova.pago_em
+    });
+
+    destravar();
     fecharTelaCartao();
     renderTudo();
-    toast(`Fatura paga! ${fmtMoeda(valor)} debitado.`, "success");
+    toast(`Fatura paga! ${fmtMoeda(valor)} debitado de ${cartao?.nome || "sua conta"}.`, "success");
   } catch (err) {
+    destravar();
     tratarErro(err);
-  } finally {
-    _pagandoFatura = false;
   }
 }
 
@@ -3438,6 +3473,30 @@ limparTudoBtn?.addEventListener("click", async () => {
 
 /* ─── Excluir com Undo ────────────────────────────────────── */
 async function excluirMovimento(id) {
+  const mov = state.movimentos.find(m => m.id === id);
+  if (!mov) return;
+
+  // Se faz parte de uma compra parcelada, oferece excluir todas as parcelas
+  if (mov.compraId && mov.parcelaTotal > 1) {
+    const irmas = state.movimentos.filter(m => m.compraId === mov.compraId);
+    const ok = await confirmar(
+      `Esta é uma compra parcelada (${mov.parcelaTotal}x). ` +
+      `Excluir todas as ${irmas.length} parcelas?`
+    );
+    if (!ok) return;
+    _salvarUndo();
+    try {
+      for (const parc of irmas) {
+        await dbDelete("movimentos", parc.id);
+      }
+      const idsRemover = new Set(irmas.map(p => p.id));
+      state.movimentos = state.movimentos.filter(m => !idsRemover.has(m.id));
+      renderTudo();
+      toast(`Compra parcelada excluída (${irmas.length} parcelas).`, "info", true);
+    } catch(err) { tratarErro(err); }
+    return;
+  }
+
   const ok = await confirmar("Excluir esta movimentação?"); if (!ok) return;
   const label = state.movimentos.find(m=>m.id===id)?.descricao || "Lançamento";
   _salvarUndo();
@@ -4889,7 +4948,11 @@ function cardPendente(m) {
 
   const acao = m.origem === "recorrente"
     ? `pagarOcorrencia('${m.recId}','${m.vencimento}')`
-    : `marcarComoPago('${m.id}')`;
+    : m.origem === "fatura"
+      ? `abrirTelaCartao('${m.cartaoId}')`
+      : `marcarComoPago('${m.id}')`;
+
+  const rotuloBtn = m.origem === "fatura" ? "Ver fatura" : (ehEntrada ? "Recebi" : "Paguei");
 
   return `<div class="pend-item ${cls}">
     ${b ? marcaConta(b, "sm") : `<span class="marca-conta marca-conta-sm marca-vazia">?</span>`}
@@ -4899,6 +4962,9 @@ function cardPendente(m) {
         ${esc(m.descricao)}
         ${m.origem === "recorrente" ? `<span class="pend-tag-rec" title="Recorrente">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/></svg>
+        </span>` : ""}
+        ${m.origem === "fatura" ? `<span class="pend-tag-rec" title="Fatura de cartão">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
         </span>` : ""}
       </div>
       <div class="pend-meta">
@@ -4912,7 +4978,7 @@ function cardPendente(m) {
       ${ehEntrada ? "+" : "−"}${fmtMoeda(m.valor)}
     </div>
 
-    <button class="btn-pagar" onclick="${acao}">${ehEntrada ? "Recebi" : "Paguei"}</button>
+    <button class="btn-pagar" onclick="${acao}">${rotuloBtn}</button>
   </div>`;
 }
 
