@@ -27,6 +27,7 @@ const _h = { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Author
 /* ─── Estado em memória ──────────────────────────────────── */
 const state = {
   bancos: [], movimentos: [], transferencias: [], recorrencias: [], metas: [],
+  faturasPagas: [],
   objetivos: [], investimentos: [], recPagamentos: [],
   perfil: { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null },
   user: null
@@ -366,7 +367,7 @@ async function dbDelete(tabela, id) {
 async function carregarDadosNuvem() {
   mostrarLoading(true, "Carregando seus dados", "Buscando contas, lançamentos e metas...");
   try {
-    const [contas, movimentos, transferencias, recorrencias, metas, objetivos, investimentos, recPagamentos, perfilRows] = await Promise.all([
+    const [contas, movimentos, transferencias, recorrencias, metas, objetivos, investimentos, recPagamentos, perfilRows, faturasPagas] = await Promise.all([
       dbSelect("contas"),
       dbSelect("movimentos"),
       dbSelect("transferencias"),
@@ -375,12 +376,14 @@ async function carregarDadosNuvem() {
       dbSelect("objetivos").catch(()=>[]),
       dbSelect("investimentos").catch(()=>[]),
       dbSelect("recorrencia_pagamentos").catch(()=>[]),
-      dbSelect("perfil").catch(()=>[])
+      dbSelect("perfil").catch(()=>[]),
+      dbSelect("faturas_pagas").catch(()=>[])
     ]);
     // Mapear campos do banco para o formato do app
-    state.bancos         = contas.map(c => ({ id:c.id, nome:c.nome, tipo:c.tipo, saldoInicial: Number(c.saldo_inicial), saldoData: c.saldo_data || null, cor: c.cor || null }));
-    state.movimentos     = movimentos.map(m => ({ id:m.id, descricao:m.descricao, bancoId:m.conta_id, data:m.data, valor:Number(m.valor), tipo:m.tipo, categoria:m.categoria, recorrenciaId:m.recorrencia_id, status:m.status||"pago", vencimento:m.vencimento||null, pagoEm:m.pago_em||null }));
+    state.bancos         = contas.map(c => ({ id:c.id, nome:c.nome, tipo:c.tipo, saldoInicial: Number(c.saldo_inicial), saldoData: c.saldo_data || null, cor: c.cor || null, temCartao: c.tem_cartao || false, limite: c.limite != null ? Number(c.limite) : null, diaFechamento: c.dia_fechamento || null, diaVencimento: c.dia_vencimento || null }));
+    state.movimentos     = movimentos.map(m => ({ id:m.id, descricao:m.descricao, bancoId:m.conta_id, data:m.data, valor:Number(m.valor), tipo:m.tipo, categoria:m.categoria, recorrenciaId:m.recorrencia_id, status:m.status||"pago", vencimento:m.vencimento||null, pagoEm:m.pago_em||null, formaPagamento:m.forma_pagamento||null, cartaoId:m.cartao_id||null, faturaMes:m.fatura_mes||null, parcelaNum:m.parcela_num||null, parcelaTotal:m.parcela_total||null, compraId:m.compra_id||null }));
     state.transferencias = transferencias.map(t => ({ id:t.id, origem:t.conta_origem, destino:t.conta_destino, valor:Number(t.valor), data:t.data, descricao:t.descricao||"" }));
+    state.faturasPagas   = (faturasPagas||[]).map(f => ({ id:f.id, cartaoId:f.cartao_id, faturaMes:f.fatura_mes, contaId:f.conta_id||null, valor:Number(f.valor), pagoEm:f.pago_em }));
     state.recorrencias   = recorrencias.map(r => ({
       id:r.id, descricao:r.descricao, valor:Number(r.valor), tipo:r.tipo,
       categoria:r.categoria, contaId:r.conta_id, dia:r.dia,
@@ -617,11 +620,32 @@ const screens   = document.querySelectorAll(".screen");
 const formBanco            = document.getElementById("formBanco");
 const nomeBancoInput       = document.getElementById("nomeBanco");
 const tipoBancoInput       = document.getElementById("tipoBanco");
+
+// Mostra a caixa de dados do cartão quando o usuário marca "tem cartão".
+document.getElementById("temCartao")?.addEventListener("change", function () {
+  const box = document.getElementById("cartaoBox");
+  if (box) box.style.display = this.checked ? "" : "none";
+});
 const saldoBancoInput      = document.getElementById("saldoBanco");
 
 const formTexto            = document.getElementById("formTexto");
 const textoLivreInput      = document.getElementById("textoLivre");
 const contaMovimentoSelect = document.getElementById("contaMovimento");
+
+// Ao mudar a forma de pagamento, mostra os campos certos.
+// Crédito → escolhe cartão e parcelas (some a conta). Resto → escolhe conta.
+document.getElementById("formaPagamento")?.addEventListener("change", function () {
+  const ehCredito = this.value === "credito";
+  const fieldConta   = document.getElementById("fieldContaMov");
+  const fieldCartao  = document.getElementById("fieldCartaoMov");
+  const fieldParc    = document.getElementById("fieldParcelas");
+  const contaSel     = document.getElementById("contaMovimento");
+  if (fieldConta)  fieldConta.style.display  = ehCredito ? "none" : "";
+  if (fieldCartao) fieldCartao.style.display = ehCredito ? "" : "none";
+  if (fieldParc)   fieldParc.style.display   = ehCredito ? "" : "none";
+  // A conta deixa de ser obrigatória quando é crédito (usa cartão)
+  if (contaSel) contaSel.required = !ehCredito;
+});
 const dataMovimentoInput   = document.getElementById("dataMovimento");
 
 const formImportarExtrato  = document.getElementById("formImportarExtrato");
@@ -784,18 +808,16 @@ function saldosPorConta() {
   const desde = {};
   state.bancos.forEach(b => {
     saldos[b.id] = b.saldoInicial;
-    // A partir de que data o saldo informado vale. Lançamentos anteriores
-    // já estavam embutidos nesse valor e não devem ser somados de novo.
     desde[b.id] = b.saldoData || null;
   });
 
   // Uma única passada pelos movimentos
   for (const m of state.movimentos) {
     if (!ehPago(m)) continue;
+    // Compras no crédito não mexem no saldo — só quando a fatura é paga
+    if (m.formaPagamento === "credito") continue;
     if (saldos[m.bancoId] === undefined) continue;
-    // Ignora o que é anterior à data do saldo inicial
     if (desde[m.bancoId] && m.data < desde[m.bancoId]) continue;
-    // Ignora o que ainda não aconteceu: o dinheiro não saiu/entrou de fato
     if (m.data > hoje) continue;
     saldos[m.bancoId] += (m.tipo === "entrada" ? m.valor : -m.valor);
   }
@@ -822,6 +844,25 @@ const ehPendente = m => m.status === "pendente";
 function calcularSaldoBanco(id) {
   const s = saldosPorConta();
   return s[id] ?? 0;
+}
+
+/* Verifica se um gasto de `valor` cabe no saldo do banco.
+   Retorna true se pode; se não, mostra aviso e retorna false.
+   Contas não podem ficar negativas — o usuário deve transferir saldo antes. */
+function saldoComporta(bancoId, valor) {
+  const banco = state.bancos.find(b => b.id === bancoId);
+  if (!banco) return true;
+  const saldo = calcularSaldoBanco(bancoId);
+  if (valor > saldo + 0.005) {
+    const falta = valor - saldo;
+    toast(
+      `Saldo insuficiente em ${banco.nome}. Faltam ${fmtMoeda(falta)}. ` +
+      `Registre uma transferência de outra conta antes.`,
+      "error"
+    );
+    return false;
+  }
+  return true;
 }
 
 const calcularSaldoTotal = () => state.bancos.reduce((a,b)=>a+calcularSaldoBanco(b.id),0);
@@ -1075,10 +1116,20 @@ function calcularTotais(movs = state.movimentos) {
 /* ─── Selects de contas ─────────────────────────────────── */
 function atualizarSelectContas() {
   const empty = `<option value="">Cadastre uma conta primeiro</option>`;
+  // Todas as contas servem para débito/pix/dinheiro
   const ok = state.bancos.length > 0;
   const opts = state.bancos.map(b=>`<option value="${b.id}">${esc(b.nome)} · ${esc(b.tipo)}</option>`).join("");
   [contaMovimentoSelect, contaExtratoSelect, transOrigemSelect, transDestinoSelect, recContaSelect]
     .forEach(s => { if(s){ s.innerHTML = ok ? opts : empty; s.disabled = !ok; } });
+
+  // Select de crédito: só bancos que têm cartão habilitado
+  const cartaoSelect = document.getElementById("cartaoMovimento");
+  if (cartaoSelect) {
+    const comCartao = state.bancos.filter(b => b.temCartao);
+    cartaoSelect.innerHTML = comCartao.length
+      ? comCartao.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join("")
+      : `<option value="">Nenhuma conta com cartão</option>`;
+  }
 
   // Reseleciona a última conta usada na importação de extrato
   if (contaExtratoSelect && ok) {
@@ -1129,14 +1180,51 @@ function atualizarCamposFiltro() {
 
 function renderResumoDashboard() {
   // Entradas e gastos do MÊS ATUAL — não o histórico inteiro.
-  // Sem esse filtro, importar extratos antigos inflava os totais do dashboard.
+  // Compras no crédito ficam de fora: elas contam quando a fatura é paga.
   const mes = mesAtualISO();
-  const doMes = state.movimentos.filter(m => (m.data || "").slice(0, 7) === mes);
+  const doMes = state.movimentos.filter(m =>
+    (m.data || "").slice(0, 7) === mes && m.formaPagamento !== "credito"
+  );
   const { entradas, gastos } = calcularTotais(doMes);
 
   if(saldoTotalDashboardEl) saldoTotalDashboardEl.textContent = fmtMoeda(calcularSaldoTotal());
   if(totalEntradasEl)       totalEntradasEl.textContent       = fmtMoeda(entradas);
   if(totalGastosEl)         totalGastosEl.textContent         = fmtMoeda(gastos);
+}
+
+/* A fatura "a pagar" mais próxima: a primeira fatura não paga, da mais antiga
+   para a mais nova. Se o mês atual tem compras, é ele; senão, a próxima que tiver. */
+function proximaFaturaAberta(cartaoId) {
+  const pagas = new Set((state.faturasPagas || [])
+    .filter(f => f.cartaoId === cartaoId)
+    .map(f => f.faturaMes));
+  const meses = [...new Set(state.movimentos
+    .filter(m => m.cartaoId === cartaoId && !pagas.has(m.faturaMes))
+    .map(m => m.faturaMes))].sort();
+  return meses[0] || mesAtualISO();
+}
+
+/* A fatura "atual" de um cartão é a do mês vigente (AAAA-MM de hoje). */
+function faturaAtual() {
+  return mesAtualISO();
+}
+
+/* Total que o usuário tem "a pagar" no cartão: todas as faturas ainda não
+   pagas até a atual (inclui atrasadas). Faturas futuras (parcelas que ainda
+   vão cair) não entram no "a pagar de agora". */
+function totalAPagarCartao(cartaoId) {
+  const pagas = new Set((state.faturasPagas || [])
+    .filter(f => f.cartaoId === cartaoId)
+    .map(f => f.faturaMes));
+  const ate = faturaAtual();
+  return state.movimentos
+    .filter(m => m.cartaoId === cartaoId && m.faturaMes <= ate && !pagas.has(m.faturaMes))
+    .reduce((a, m) => a + m.valor, 0);
+}
+
+/* Uma fatura está paga? */
+function faturaEstaPaga(cartaoId, faturaMes) {
+  return (state.faturasPagas || []).some(f => f.cartaoId === cartaoId && f.faturaMes === faturaMes);
 }
 
 function renderContasDashboard() {
@@ -1170,7 +1258,235 @@ function renderContasDashboard() {
         <div class="banco-card-saldo ${cls}">${fmtMoeda(s)}</div>
         <div class="banco-card-pct">${pct}% do total</div>
       </div>`;
-    }).join("") + `</div>`;
+    }).join("") + `</div>` + renderCartoesDashboard();
+}
+
+/* ============================================================
+   TELA DO CARTÃO — fatura detalhada e pagamento
+   ============================================================ */
+let _cartaoAberto = null;
+
+function abrirTelaCartao(cartaoId) {
+  _cartaoAberto = cartaoId;
+  renderTelaCartao();
+  document.getElementById("cartaoOverlay").style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+function fecharTelaCartao() {
+  document.getElementById("cartaoOverlay").style.display = "none";
+  document.body.style.overflow = "";
+  _cartaoAberto = null;
+}
+
+function renderTelaCartao() {
+  const c = state.bancos.find(b => b.id === _cartaoAberto);
+  if (!c) return;
+  const corpo = document.getElementById("cartaoCorpo");
+  if (!corpo) return;
+
+  const faturaMes = proximaFaturaAberta(c.id);
+  const paga = faturaEstaPaga(c.id, faturaMes);
+  const totalAtual = totalFatura(c.id, faturaMes);
+  const disponivel = limiteDisponivel(c.id);
+
+  // Lançamentos da fatura atual
+  const itens = state.movimentos
+    .filter(m => m.cartaoId === c.id && m.faturaMes === faturaMes)
+    .sort((a, b) => String(a.data).localeCompare(String(b.data)));
+
+  // Próximas faturas (parcelas futuras)
+  const futuras = {};
+  state.movimentos
+    .filter(m => m.cartaoId === c.id && m.faturaMes > faturaMes)
+    .forEach(m => { futuras[m.faturaMes] = (futuras[m.faturaMes] || 0) + m.valor; });
+
+  const [ano, mes] = faturaMes.split("-");
+  const nomesMes = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  const tituloFatura = `${nomesMes[Number(mes)-1]} de ${ano}`;
+
+  corpo.innerHTML = `
+    <div class="cartao-modal-head">
+      <div>
+        <div class="cartao-modal-nome">${esc(c.nome)}</div>
+        <div class="cartao-modal-sub">Fatura de ${tituloFatura}</div>
+      </div>
+      <button class="revisao-fechar" onclick="fecharTelaCartao()" aria-label="Fechar">✕</button>
+    </div>
+
+    <div class="cartao-resumo-box">
+      <div class="cartao-resumo-item">
+        <span class="cartao-resumo-label">Fatura atual</span>
+        <span class="cartao-resumo-valor">${fmtMoeda(totalAtual)}</span>
+      </div>
+      ${c.limite ? `
+        <div class="cartao-resumo-item">
+          <span class="cartao-resumo-label">Limite disponível</span>
+          <span class="cartao-resumo-valor">${fmtMoeda(disponivel ?? 0)}</span>
+        </div>
+        <div class="cartao-resumo-item">
+          <span class="cartao-resumo-label">Limite total</span>
+          <span class="cartao-resumo-valor">${fmtMoeda(c.limite)}</span>
+        </div>` : ""}
+    </div>
+
+    ${paga
+      ? `<div class="cartao-fatura-paga">✓ Esta fatura já foi paga</div>`
+      : (totalAtual > 0
+          ? `<button class="btn-primary cartao-btn-pagar" onclick="abrirPagarFatura('${c.id}','${faturaMes}')">Pagar fatura · ${fmtMoeda(totalAtual)}</button>`
+          : `<div class="cartao-fatura-vazia">Nenhuma compra nesta fatura ainda.</div>`)
+    }
+
+    ${itens.length ? `
+      <div class="cartao-lista-titulo">Compras desta fatura</div>
+      <div class="cartao-lista">
+        ${itens.map(m => `
+          <div class="cartao-item">
+            <span class="cartao-item-data">${esc((m.data||"").slice(8,10))}/${esc((m.data||"").slice(5,7))}</span>
+            <span class="cartao-item-desc">${esc(m.descricao)}</span>
+            <span class="cartao-item-val">${fmtMoeda(m.valor)}</span>
+          </div>
+        `).join("")}
+      </div>` : ""}
+
+    ${Object.keys(futuras).length ? `
+      <div class="cartao-lista-titulo">Próximas faturas</div>
+      <div class="cartao-futuras">
+        ${Object.keys(futuras).sort().map(fm => {
+          const [a, mm] = fm.split("-");
+          return `<div class="cartao-futura-item">
+            <span>${nomesMes[Number(mm)-1]}/${a.slice(2)}</span>
+            <span>${fmtMoeda(futuras[fm])}</span>
+          </div>`;
+        }).join("")}
+      </div>` : ""}
+  `;
+}
+
+/* Pagar a fatura: pergunta de qual conta sai o dinheiro */
+function abrirPagarFatura(cartaoId, faturaMes) {
+  const contasNormais = state.bancos.filter(b => b.id !== cartaoId);
+  if (!contasNormais.length) {
+    toast("Você precisa de outra conta para pagar a fatura.", "warning");
+    return;
+  }
+  const total = totalFatura(cartaoId, faturaMes);
+  const opcoes = contasNormais.map(b =>
+    `<option value="${b.id}">${esc(b.nome)} · saldo ${fmtMoeda(calcularSaldoBanco(b.id))}</option>`
+  ).join("");
+
+  const corpo = document.getElementById("cartaoCorpo");
+  corpo.innerHTML = `
+    <div class="cartao-modal-head">
+      <div class="cartao-modal-nome">Pagar fatura</div>
+      <button class="revisao-fechar" onclick="renderTelaCartao()" aria-label="Voltar">✕</button>
+    </div>
+    <p class="cartao-pagar-info">Valor da fatura: <strong>${fmtMoeda(total)}</strong></p>
+    <div class="field">
+      <label for="pagarFaturaConta">Pagar com qual conta?</label>
+      <select id="pagarFaturaConta">${opcoes}</select>
+    </div>
+    <div class="cartao-pagar-acoes">
+      <button class="btn-ghost" onclick="renderTelaCartao()">Cancelar</button>
+      <button class="btn-primary" id="btnConfirmarPagarFatura" onclick="confirmarPagarFatura('${cartaoId}','${faturaMes}',${total})">Confirmar pagamento</button>
+    </div>
+  `;
+}
+
+let _pagandoFatura = false;
+async function confirmarPagarFatura(cartaoId, faturaMes, valor) {
+  if (_pagandoFatura) return;
+  const contaId = document.getElementById("pagarFaturaConta")?.value;
+  if (!contaId) return;
+
+  // Bloqueio: a conta precisa ter saldo para cobrir a fatura
+  if (!saldoComporta(contaId, valor)) {
+    return;
+  }
+
+  _pagandoFatura = true;
+  const btn = document.getElementById("btnConfirmarPagarFatura");
+  if (btn) { btn.disabled = true; btn.textContent = "Pagando..."; }
+
+  try {
+    // Registra a fatura como paga
+    const nova = await dbInsert("faturas_pagas", {
+      cartao_id: cartaoId, fatura_mes: faturaMes,
+      conta_id: contaId, valor: valor, pago_em: hojeISO()
+    });
+    state.faturasPagas.push({
+      id: nova.id, cartaoId: cartaoId, faturaMes: faturaMes,
+      contaId: contaId, valor: Number(nova.valor), pagoEm: nova.pago_em
+    });
+
+    // Registra a saída na conta escolhida (aqui o dinheiro sai de verdade)
+    const cartao = state.bancos.find(b => b.id === cartaoId);
+    const mov = await dbInsert("movimentos", {
+      descricao: `Pagamento fatura ${cartao?.nome || "cartão"}`,
+      conta_id: contaId, data: hojeISO(),
+      valor: valor, tipo: "gasto", categoria: "Serviços",
+      status: "pago", pago_em: hojeISO(),
+      forma_pagamento: "pagamento_fatura"
+    });
+    state.movimentos.push({
+      id: mov.id, descricao: mov.descricao, bancoId: mov.conta_id, data: mov.data,
+      valor: Number(mov.valor), tipo: mov.tipo, categoria: mov.categoria,
+      status: mov.status, vencimento: null, pagoEm: mov.pago_em,
+      formaPagamento: "pagamento_fatura"
+    });
+
+    fecharTelaCartao();
+    renderTudo();
+    toast(`Fatura paga! ${fmtMoeda(valor)} debitado.`, "success");
+  } catch (err) {
+    tratarErro(err);
+  } finally {
+    _pagandoFatura = false;
+  }
+}
+
+/* ============================================================
+   TELA DO CARTÃO — fim
+   ============================================================ */
+
+/* Cards dos cartões de crédito no dashboard: fatura a pagar + limite disponível */
+function renderCartoesDashboard() {
+  const cartoes = state.bancos.filter(b => b.temCartao);
+  if (!cartoes.length) return "";
+
+  const cards = cartoes.map(c => {
+    const faturaMes = proximaFaturaAberta(c.id);
+    const aPagar = totalFatura(c.id, faturaMes);
+    const disponivel = limiteDisponivel(c.id);
+    const paga = faturaEstaPaga(c.id, faturaMes);
+    const pctUsado = (c.limite && c.limite > 0)
+      ? Math.min(100, Math.max(0, ((c.limite - (disponivel ?? c.limite)) / c.limite) * 100))
+      : 0;
+    // Nome do mês da fatura para dar contexto
+    const [fa, fm] = faturaMes.split("-");
+    const nomesMesCurto = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+    const labelFatura = `${nomesMesCurto[Number(fm)-1]}/${fa.slice(2)}`;
+
+    return `<div class="cartao-card" onclick="abrirTelaCartao('${c.id}')">
+      <div class="cartao-card-top">
+        <span class="cartao-card-nome">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          ${esc(c.nome)}
+        </span>
+        <span class="cartao-card-venc">fatura ${labelFatura}</span>
+      </div>
+      <div class="cartao-card-label">A pagar</div>
+      <div class="cartao-card-valor ${aPagar > 0 ? "tem-fatura" : ""}">${fmtMoeda(aPagar)}</div>
+      ${c.limite ? `
+        <div class="cartao-limite-barra"><span style="width:${pctUsado.toFixed(0)}%"></span></div>
+        <div class="cartao-limite-txt">Limite disponível: <strong>${fmtMoeda(disponivel ?? 0)}</strong> de ${fmtMoeda(c.limite)}</div>
+      ` : ""}
+    </div>`;
+  }).join("");
+
+  return `<div class="cartoes-secao">
+    <div class="cartoes-secao-titulo">Cartões de crédito</div>
+    <div class="cartoes-cards-grid">${cards}</div>
+  </div>`;
 }
 
 let _periodoEvolucao = 6;   // meses; 0 = tudo
@@ -1572,7 +1888,7 @@ function renderRecorrencias() {
   if (!state.recorrencias.length) {
     listaRecorrenciasEl.innerHTML = vazio(
       ICO.repetir,
-      "Nenhuma conta recorrente",
+      "Nenhum gasto fixo",
       "Aluguel, assinaturas, salário — cadastre uma vez e o app cuida do resto."
     );
     return;
@@ -2014,9 +2330,32 @@ formBanco?.addEventListener("submit", async e => {
     return;
   }
   try {
-    const novo = await dbInsert("contas", { nome, tipo, saldo_inicial: saldoInicial, saldo_data: saldoData, cor: _corEscolhida });
-    state.bancos.push({ id:novo.id, nome:novo.nome, tipo:novo.tipo, saldoInicial:Number(novo.saldo_inicial), saldoData: novo.saldo_data || null, cor: novo.cor || null });
+    const temCartao = document.getElementById("temCartao")?.checked || false;
+    const dadosConta = {
+      nome, tipo,
+      saldo_inicial: saldoInicial,
+      saldo_data: saldoData,
+      cor: _corEscolhida,
+      tem_cartao: temCartao
+    };
+    if (temCartao) {
+      dadosConta.limite         = Number(document.getElementById("cartaoLimite")?.value) || 0;
+      dadosConta.dia_fechamento = Number(document.getElementById("cartaoFechamento")?.value) || null;
+      dadosConta.dia_vencimento = Number(document.getElementById("cartaoVencimento")?.value) || null;
+    }
+    const novo = await dbInsert("contas", dadosConta);
+    state.bancos.push({
+      id:novo.id, nome:novo.nome, tipo:novo.tipo,
+      saldoInicial:Number(novo.saldo_inicial), saldoData: novo.saldo_data || null,
+      cor: novo.cor || null,
+      temCartao: novo.tem_cartao || false,
+      limite: novo.limite != null ? Number(novo.limite) : null,
+      diaFechamento: novo.dia_fechamento || null,
+      diaVencimento: novo.dia_vencimento || null
+    });
     formBanco.reset();
+    const boxReset = document.getElementById("cartaoBox");
+    if (boxReset) boxReset.style.display = "none";
     const campoData = document.getElementById("saldoData");
     if (campoData) campoData.value = hojeISO();
     _corEscolhida = null;
@@ -2025,44 +2364,177 @@ formBanco?.addEventListener("submit", async e => {
   } catch(err) { tratarErro(err); }
 });
 
+/* ============================================================
+   CARTÃO DE CRÉDITO — lógica de fatura e parcelas
+   ============================================================ */
+
+/* Descobre em qual fatura (AAAA-MM) uma compra cai, pela data e dia de fechamento.
+   Compra até o dia do fechamento entra na fatura do mês corrente;
+   depois do fechamento, entra na fatura do mês seguinte. */
+function faturaDaCompra(dataCompra, diaFechamento) {
+  const [ano, mes, dia] = String(dataCompra).split("-").map(Number);
+  let m = mes, a = ano;
+  if (diaFechamento && dia > diaFechamento) {
+    m += 1;
+    if (m > 12) { m = 1; a += 1; }
+  }
+  return `${a}-${String(m).padStart(2, "0")}`;
+}
+
+/* Soma meses a uma fatura AAAA-MM (para distribuir parcelas) */
+function somaMesesFatura(faturaMes, n) {
+  let [a, m] = faturaMes.split("-").map(Number);
+  m += n;
+  while (m > 12) { m -= 12; a += 1; }
+  while (m < 1)  { m += 12; a -= 1; }
+  return `${a}-${String(m).padStart(2, "0")}`;
+}
+
+/* Registra uma compra no crédito: uma parcela por fatura.
+   Não desconta conta agora — isso só acontece quando a fatura é paga. */
+async function lancarCompraCredito(item, cartaoId, dataCompra, parcelas) {
+  const cartao = state.bancos.find(b => b.id === cartaoId);
+  const diaFech = cartao?.diaFechamento || null;
+  const faturaBase = faturaDaCompra(dataCompra, diaFech);
+  const compraId = (crypto?.randomUUID?.() || String(Date.now() + Math.random()));
+  const valorParcela = Math.round((item.valor / parcelas) * 100) / 100;
+
+  for (let p = 1; p <= parcelas; p++) {
+    const faturaMes = somaMesesFatura(faturaBase, p - 1);
+    const desc = parcelas > 1 ? `${item.descricao} (${p}/${parcelas})` : item.descricao;
+    const novo = await dbInsert("movimentos", {
+      descricao: desc, conta_id: cartaoId, data: dataCompra,
+      valor: valorParcela, tipo: "gasto", categoria: item.categoria,
+      status: "pago",
+      pago_em: dataCompra,
+      forma_pagamento: "credito",
+      cartao_id: cartaoId,
+      fatura_mes: faturaMes,
+      parcela_num: p,
+      parcela_total: parcelas,
+      compra_id: compraId
+    });
+    state.movimentos.push({
+      id: novo.id, descricao: novo.descricao, bancoId: novo.conta_id, data: novo.data,
+      valor: Number(novo.valor), tipo: novo.tipo, categoria: novo.categoria,
+      status: novo.status, vencimento: null, pagoEm: novo.pago_em,
+      formaPagamento: "credito", cartaoId: cartaoId, faturaMes: faturaMes,
+      parcelaNum: p, parcelaTotal: parcelas, compraId: compraId
+    });
+  }
+}
+
+/* Soma da fatura de um cartão num dado mês (AAAA-MM) */
+function totalFatura(cartaoId, faturaMes) {
+  return state.movimentos
+    .filter(m => m.cartaoId === cartaoId && m.faturaMes === faturaMes)
+    .reduce((a, m) => a + m.valor, 0);
+}
+
+/* Limite disponível = limite total menos tudo em faturas ainda não pagas */
+function limiteDisponivel(cartaoId) {
+  const cartao = state.bancos.find(b => b.id === cartaoId);
+  if (!cartao || cartao.limite == null) return null;
+  const pagas = new Set((state.faturasPagas || [])
+    .filter(f => f.cartaoId === cartaoId)
+    .map(f => f.faturaMes));
+  const emAberto = state.movimentos
+    .filter(m => m.cartaoId === cartaoId && !pagas.has(m.faturaMes))
+    .reduce((a, m) => a + m.valor, 0);
+  return cartao.limite - emAberto;
+}
+
 formTexto?.addEventListener("submit", async e => {
   e.preventDefault();
   if (!state.bancos.length) { toast("Cadastre pelo menos uma conta antes.","warning"); return; }
-  const texto = textoLivreInput.value.trim(), bancoId = contaMovimentoSelect.value, data = dataMovimentoInput.value;
-  if (!texto||!bancoId||!data) { toast("Preencha todos os campos.","error"); return; }
 
-  // Tenta interpretar múltiplos lançamentos (+1500 salário -1000 contas)
+  const forma = document.getElementById("formaPagamento")?.value || "debito";
+  const ehCredito = forma === "credito";
+  const texto = textoLivreInput.value.trim();
+  const data = dataMovimentoInput.value;
+
+  // Crédito usa cartão; as outras formas usam conta
+  const bancoId = ehCredito
+    ? (document.getElementById("cartaoMovimento")?.value || "")
+    : contaMovimentoSelect.value;
+
+  if (!texto || !bancoId || !data) {
+    toast(ehCredito ? "Escolha o cartão e preencha os campos." : "Preencha todos os campos.", "error");
+    return;
+  }
+
   const itens = parseMultiplosLancamentos(texto);
   if (!itens.length) {
     toast("Não identifiquei nenhum valor. Ex: +1500 salário  ou  gastei 200 no mercado.","error");
     return;
   }
 
+  // No crédito não existe "entrada": toda compra no cartão é um gasto.
+  if (ehCredito) {
+    itens.forEach(item => { item.tipo = "gasto"; });
+
+    // Bloqueia se a soma das compras ultrapassar o limite disponível
+    const cartao = state.bancos.find(b => b.id === bancoId);
+    if (cartao && cartao.limite != null) {
+      const disp = limiteDisponivel(bancoId);
+      const totalCompra = itens.reduce((a, it) => a + it.valor, 0);
+      if (disp != null && totalCompra > disp) {
+        toast(`Limite insuficiente. Disponível: ${fmtMoeda(disp)}, compra: ${fmtMoeda(totalCompra)}.`, "error");
+        return;
+      }
+    }
+  }
+
   const status = statusMovSelect?.value || "pago";
   const pendente = status === "pendente";
+  const parcelas = ehCredito ? (Number(document.getElementById("parcelasMovimento")?.value) || 1) : 1;
+
+  // Bloqueio de saldo negativo: só para gastos JÁ PAGOS que não são crédito.
+  // Crédito vai pra fatura (não desconta agora); pendente ainda não saiu.
+  if (!ehCredito && !pendente) {
+    const totalGasto = itens
+      .filter(it => it.tipo === "gasto")
+      .reduce((a, it) => a + it.valor, 0);
+    if (totalGasto > 0 && !saldoComporta(bancoId, totalGasto)) {
+      return;
+    }
+  }
 
   try {
     for (const item of itens) {
-      // Se o gasto ficou em "Outros", pede à IA uma categoria melhor
       if (item.tipo === "gasto" && item.categoria === "Outros") {
         item.categoria = await categorizarComIA(item.descricao);
       }
-      const novo = await dbInsert("movimentos", {
-        descricao: item.descricao, conta_id: bancoId, data,
-        valor: item.valor, tipo: item.tipo, categoria: item.categoria,
-        status,
-        vencimento: pendente ? data : null,
-        pago_em: pendente ? null : data
-      });
-      state.movimentos.push({
-        id:novo.id, descricao:novo.descricao, bancoId:novo.conta_id, data:novo.data,
-        valor:Number(novo.valor), tipo:novo.tipo, categoria:novo.categoria,
-        status:novo.status, vencimento:novo.vencimento, pagoEm:novo.pago_em
-      });
+
+      if (ehCredito && item.tipo === "gasto") {
+        // Compra no crédito: gera uma parcela por fatura, não desconta conta agora
+        await lancarCompraCredito(item, bancoId, data, parcelas);
+      } else {
+        // Débito, pix, dinheiro ou entrada: comportamento normal
+        const novo = await dbInsert("movimentos", {
+          descricao: item.descricao, conta_id: bancoId, data,
+          valor: item.valor, tipo: item.tipo, categoria: item.categoria,
+          status,
+          vencimento: pendente ? data : null,
+          pago_em: pendente ? null : data,
+          forma_pagamento: forma
+        });
+        state.movimentos.push({
+          id:novo.id, descricao:novo.descricao, bancoId:novo.conta_id, data:novo.data,
+          valor:Number(novo.valor), tipo:novo.tipo, categoria:novo.categoria,
+          status:novo.status, vencimento:novo.vencimento, pagoEm:novo.pago_em,
+          formaPagamento: novo.forma_pagamento || forma
+        });
+      }
     }
 
     formTexto.reset();
     dataMovimentoInput.value = hojeISO();
+    // Volta os campos ao estado padrão (débito)
+    document.getElementById("formaPagamento").value = "debito";
+    document.getElementById("fieldContaMov").style.display = "";
+    document.getElementById("fieldCartaoMov").style.display = "none";
+    document.getElementById("fieldParcelas").style.display = "none";
     if (labelDataMov) labelDataMov.textContent = "Data";
     renderTudo();
 
@@ -2805,6 +3277,8 @@ formTransferencia?.addEventListener("submit", async e => {
   if (origem===destino) { toast("Selecione contas diferentes para origem e destino.","error"); return; }
   const valor = Number(transValorInput.value), data = transDataInput.value;
   if (!valor||!data) { toast("Preencha o valor e a data.","error"); return; }
+  // A conta de origem precisa ter saldo para a transferência
+  if (!saldoComporta(origem, valor)) { return; }
   try {
     const novo = await dbInsert("transferencias", { conta_origem:origem, conta_destino:destino, valor, data, descricao:transDescricaoInput.value.trim() });
     state.transferencias.push({ id:novo.id, origem:novo.conta_origem, destino:novo.conta_destino, valor:Number(novo.valor), data:novo.data, descricao:novo.descricao||"" });
@@ -2998,7 +3472,7 @@ async function excluirTransferencia(id) {
 }
 
 async function excluirRecorrencia(id) {
-  const ok = await confirmar("Excluir esta recorrência?"); if (!ok) return;
+  const ok = await confirmar("Excluir este gasto fixo?"); if (!ok) return;
   const label = state.recorrencias.find(r=>r.id===id)?.descricao || "Recorrência";
   _salvarUndo();
   try {
@@ -3085,23 +3559,45 @@ function abrirEditarConta(id) {
   document.getElementById("editContaSaldo").value = b.saldoInicial;
   const campoEditData = document.getElementById("editContaSaldoData");
   if (campoEditData) campoEditData.value = b.saldoData || hojeISO();
+  // Cartão
+  const chk = document.getElementById("editTemCartao");
+  if (chk) chk.checked = !!b.temCartao;
+  const lim = document.getElementById("editCartaoLimite");
+  const fec = document.getElementById("editCartaoFechamento");
+  const ven = document.getElementById("editCartaoVencimento");
+  if (lim) lim.value = b.limite != null ? b.limite : "";
+  if (fec) fec.value = b.diaFechamento || "";
+  if (ven) ven.value = b.diaVencimento || "";
+  toggleEditCartao();
   iniciarCorPickerEdit(b.cor || null);
   abrirModal("conta");
 }
+
+// Mostra/esconde a caixa de cartão na edição
+function toggleEditCartao() {
+  const box = document.getElementById("editCartaoBox");
+  if (box) box.style.display = document.getElementById("editTemCartao")?.checked ? "" : "none";
+}
+
 document.getElementById("formEditarConta")?.addEventListener("submit", async e => {
   e.preventDefault();
   const id = document.getElementById("editContaId").value;
+  const temCartao = document.getElementById("editTemCartao")?.checked || false;
   const dados = {
     nome:         document.getElementById("editContaNome").value.trim(),
     tipo:         document.getElementById("editContaTipo").value,
     saldo_inicial: Number(document.getElementById("editContaSaldo").value),
     saldo_data: document.getElementById("editContaSaldoData")?.value || hojeISO(),
     cor:          _corEscolhidaEdit,
+    tem_cartao:   temCartao,
+    limite:         temCartao ? (Number(document.getElementById("editCartaoLimite")?.value) || 0) : null,
+    dia_fechamento: temCartao ? (Number(document.getElementById("editCartaoFechamento")?.value) || null) : null,
+    dia_vencimento: temCartao ? (Number(document.getElementById("editCartaoVencimento")?.value) || null) : null,
   };
   try {
     const att = await dbUpdate("contas", id, dados);
     const idx = state.bancos.findIndex(b=>b.id===id);
-    if (idx>=0) state.bancos[idx] = { id:att.id, nome:att.nome, tipo:att.tipo, saldoInicial:Number(att.saldo_inicial), saldoData: att.saldo_data || null, cor: att.cor || null };
+    if (idx>=0) state.bancos[idx] = { id:att.id, nome:att.nome, tipo:att.tipo, saldoInicial:Number(att.saldo_inicial), saldoData: att.saldo_data || null, cor: att.cor || null, temCartao: att.tem_cartao || false, limite: att.limite != null ? Number(att.limite) : null, diaFechamento: att.dia_fechamento || null, diaVencimento: att.dia_vencimento || null };
     fecharModal("conta"); renderTudo(); toast("Conta atualizada!","success");
   } catch(err) { tratarErro(err); }
 });
@@ -4622,7 +5118,7 @@ function renderOcorrencias() {
   if (!state.recorrencias.length) {
     listaOcorrenciasEl.innerHTML = vazio(
       ICO.repetir,
-      "Nenhuma conta recorrente",
+      "Nenhum gasto fixo",
       "Cadastre acima e os vencimentos aparecem aqui automaticamente."
     );
     return;
