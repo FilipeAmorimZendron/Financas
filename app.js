@@ -1238,11 +1238,6 @@ function proximaFaturaAberta(cartaoId) {
   return meses[0] || mesAtualISO();
 }
 
-/* A fatura "atual" de um cartão é a do mês vigente (AAAA-MM de hoje). */
-function faturaAtual() {
-  return mesAtualISO();
-}
-
 /* Uma fatura está paga? */
 function faturaEstaPaga(cartaoId, faturaMes) {
   return (state.faturasPagas || []).some(f => f.cartaoId === cartaoId && f.faturaMes === faturaMes);
