@@ -472,6 +472,32 @@
               </button>
             </div>
           </div>
+
+          <div class="hist-filtros" id="histFiltros">
+            <div class="hist-filtro">
+              <label for="histCategoria">Categoria</label>
+              <select id="histCategoria"></select>
+            </div>
+            <div class="hist-filtro">
+              <label for="histTipo">Tipo</label>
+              <select id="histTipo">
+                <option value="todos">Todos</option>
+                <option value="gasto">Gastos</option>
+                <option value="entrada">Entradas</option>
+              </select>
+            </div>
+            <div class="hist-filtro">
+              <label for="histDe">De</label>
+              <input type="date" id="histDe" min="2000-01-01" max="2100-12-31" />
+            </div>
+            <div class="hist-filtro">
+              <label for="histAte">Até</label>
+              <input type="date" id="histAte" min="2000-01-01" max="2100-12-31" />
+            </div>
+            <button type="button" class="btn-ghost hist-limpar" id="histLimpar" hidden>Limpar</button>
+          </div>
+
+          <div id="histResumoFiltro" class="hist-resumo" hidden></div>
           <div id="listaMovimentos" class="lista-container"><div class="empty-state">Carregando...</div></div>
         </div>
       </section>

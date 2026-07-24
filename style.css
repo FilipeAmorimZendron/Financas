@@ -9279,3 +9279,61 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   gap: 4px;
   flex-shrink: 0;
 }
+
+/* ─── Filtros do histórico de movimentações ─────────────── */
+.hist-filtros {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 0 0 16px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-soft, #2C384A);
+}
+.hist-filtro {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1 1 150px;
+  min-width: 130px;
+}
+.hist-filtro label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+.hist-filtro select,
+.hist-filtro input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  font-size: 13.5px;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color .16s, box-shadow .16s;
+}
+.hist-filtro select:focus,
+.hist-filtro input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.hist-limpar {
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  font-size: 13px;
+  height: 36px;
+}
+.hist-resumo {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  padding: 12px 2px 4px;
+}
+
+@media (max-width: 720px) {
+  .hist-filtro { flex: 1 1 calc(50% - 6px); min-width: 0; }
+  .hist-limpar { flex: 1 1 100%; }
+}

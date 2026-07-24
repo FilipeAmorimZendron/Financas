@@ -134,6 +134,7 @@ function atualizarSelectsCategoria() {
     { id: "recCategoria",          entrada: true  },
     { id: "metaCategoria",         entrada: false },
     { id: "filtroCategoriaTabela", entrada: true, todas: true, criar: false },
+    { id: "histCategoria",         entrada: true, todas: true, criar: false },
     { id: "editMovCategoria",      entrada: true  },
     { id: "editRecCategoria",      entrada: true  }
   ];
@@ -2315,15 +2316,85 @@ function renderResumoContasFiltrado(movs) {
   }).join("");
 }
 
+/* Filtros do histórico de movimentações */
+function filtrosHistorico() {
+  return {
+    busca: (buscaMovimentoInput?.value || "").toLowerCase().trim(),
+    categoria: document.getElementById("histCategoria")?.value || "todas",
+    tipo: document.getElementById("histTipo")?.value || "todos",
+    de: document.getElementById("histDe")?.value || "",
+    ate: document.getElementById("histAte")?.value || ""
+  };
+}
+
+/* Aplica os filtros à lista de lançamentos */
+function movimentosFiltradosHistorico() {
+  const f = filtrosHistorico();
+  let movs = [...state.movimentos].sort((a,b) => new Date(b.data) - new Date(a.data));
+
+  if (f.busca) {
+    movs = movs.filter(m =>
+      (m.descricao || "").toLowerCase().includes(f.busca) ||
+      (m.categoria || "").toLowerCase().includes(f.busca)
+    );
+  }
+  if (f.categoria !== "todas") movs = movs.filter(m => m.categoria === f.categoria);
+  if (f.tipo !== "todos")      movs = movs.filter(m => m.tipo === f.tipo);
+  if (f.de)   movs = movs.filter(m => (m.data || "") >= f.de);
+  if (f.ate)  movs = movs.filter(m => (m.data || "") <= f.ate);
+
+  return movs;
+}
+
+/* Algum filtro está ativo? (para mostrar o botão de limpar) */
+function temFiltroHistorico() {
+  const f = filtrosHistorico();
+  return !!(f.busca || f.categoria !== "todas" || f.tipo !== "todos" || f.de || f.ate);
+}
+
+function limparFiltrosHistorico() {
+  if (buscaMovimentoInput) buscaMovimentoInput.value = "";
+  const cat = document.getElementById("histCategoria");
+  const tip = document.getElementById("histTipo");
+  const de  = document.getElementById("histDe");
+  const ate = document.getElementById("histAte");
+  if (cat) cat.value = "todas";
+  if (tip) tip.value = "todos";
+  if (de)  de.value = "";
+  if (ate) ate.value = "";
+  movsVisiveis = PAGINA_TAM;
+  renderMovimentos();
+}
+
 function renderMovimentos() {
   if (!listaMovimentosEl) return;
-  const busca = (buscaMovimentoInput?.value||"").toLowerCase().trim();
-  let movs = [...state.movimentos].sort((a,b)=>new Date(b.data)-new Date(a.data));
-  if (busca) movs = movs.filter(m => m.descricao.toLowerCase().includes(busca) || m.categoria.toLowerCase().includes(busca));
+  const f = filtrosHistorico();
+  const movs = movimentosFiltradosHistorico();
+  const filtrando = temFiltroHistorico();
+
+  // Botão de limpar só aparece quando há filtro ativo
+  const btnLimpar = document.getElementById("histLimpar");
+  if (btnLimpar) btnLimpar.hidden = !filtrando;
+
+  // Resumo do que está sendo mostrado
+  const resumo = document.getElementById("histResumoFiltro");
+  if (resumo) {
+    if (filtrando && movs.length) {
+      const entradas = movs.filter(m => m.tipo === "entrada").reduce((a,m) => a + m.valor, 0);
+      const gastos   = movs.filter(m => m.tipo === "gasto").reduce((a,m) => a + m.valor, 0);
+      const partes = [`${movs.length} lançamento${movs.length > 1 ? "s" : ""}`];
+      if (entradas) partes.push(`entradas ${fmtMoeda(entradas)}`);
+      if (gastos)   partes.push(`gastos ${fmtMoeda(gastos)}`);
+      resumo.innerHTML = partes.join(" · ");
+      resumo.hidden = false;
+    } else {
+      resumo.hidden = true;
+    }
+  }
 
   if (!movs.length) {
-    listaMovimentosEl.innerHTML = busca
-      ? `<div class="empty-state">Nenhum resultado para "${esc(busca)}".</div>`
+    listaMovimentosEl.innerHTML = filtrando
+      ? `<div class="empty-state">Nenhum lançamento com esses filtros.</div>`
       : vazio(ICO.lista, "Nenhum lançamento ainda",
               "Escreva algo como \"gastei 50 no mercado\" no formulário acima.");
     return;
@@ -3844,9 +3915,23 @@ _drop?.addEventListener("drop", e => {
 
 buscaMovimentoInput?.addEventListener("input", () => { movsVisiveis = PAGINA_TAM; renderMovimentos(); });
 
+/* Filtros do histórico: qualquer mudança re-renderiza a lista */
+["histCategoria", "histTipo", "histDe", "histAte"].forEach(id => {
+  document.getElementById(id)?.addEventListener("change", () => {
+    movsVisiveis = PAGINA_TAM;
+    renderMovimentos();
+  });
+});
+document.getElementById("histLimpar")?.addEventListener("click", limparFiltrosHistorico);
+
 exportarCSVBtn?.addEventListener("click", () => {
-  if (!state.movimentos.length) { toast("Nenhuma movimentação para exportar.","warning"); return; }
-  exportarCSV(state.movimentos); toast("CSV exportado com sucesso!","success");
+  // Exporta o que está sendo mostrado, respeitando os filtros
+  const movs = movimentosFiltradosHistorico();
+  if (!movs.length) { toast("Nenhuma movimentação para exportar.","warning"); return; }
+  exportarCSV(movs);
+  toast(temFiltroHistorico()
+    ? `${movs.length} lançamento(s) filtrados exportados.`
+    : "CSV exportado com sucesso!", "success");
 });
 exportarCSVPlanilhaBtn?.addEventListener("click", () => {
   const movs = obterMovimentosTabelaFiltrados();
