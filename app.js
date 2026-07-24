@@ -929,6 +929,10 @@ function calcularAvisos() {
   const saldos = saldosPorConta();
   state.bancos.forEach(b => {
     const saldo = saldos[b.id] ?? 0;
+    // Conta zerada e sem nenhuma movimentação é conta nova, não problema.
+    const temMovimento = state.movimentos.some(m => m.bancoId === b.id);
+    if (saldo === 0 && !temMovimento) return;
+
     if (saldo < 0) {
       avisos.push({
         tipo: "saldo",
@@ -983,10 +987,31 @@ function iconeAviso(tipo) {
 
 /* Renderiza o sino: contador + lista no painel */
 function renderSino() {
-  const avisos = calcularAvisos();
   const contador = document.getElementById("sinoContador");
   const lista = document.getElementById("sinoLista");
   if (!contador || !lista) return;
+
+  // Se qualquer regra de aviso falhar, o sino fica limpo em vez de
+  // congelar num número velho que não corresponde a nada.
+  let avisos;
+  try {
+    avisos = calcularAvisos();
+  } catch (err) {
+    console.error("Erro ao calcular avisos:", err);
+    avisos = [];
+  }
+
+  // Sem nenhum aviso: o sino fica limpo, sem número. Ponto.
+  if (avisos.length === 0) {
+    contador.hidden = true;
+    contador.textContent = "0";
+    lista.innerHTML = `<div class="sino-vazio">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <p>Tudo em dia!</p>
+      <span>Nenhum aviso no momento.</span>
+    </div>`;
+    return;
+  }
 
   // O contador mostra só o que ainda não foi lido
   const lidos = lerAvisosLidos();
@@ -997,16 +1022,7 @@ function renderSino() {
     contador.hidden = false;
   } else {
     contador.hidden = true;
-  }
-
-  // Lista no painel
-  if (avisos.length === 0) {
-    lista.innerHTML = `<div class="sino-vazio">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-      <p>Tudo em dia!</p>
-      <span>Nenhum aviso no momento.</span>
-    </div>`;
-    return;
+    contador.textContent = "0";
   }
 
   lista.innerHTML = avisos.map(a => {
@@ -1043,12 +1059,13 @@ function chaveAviso(a) {
   return `${a.tipo}|${a.texto}`;
 }
 
-/* Marca tudo que está na tela como lido e some com o contador */
+/* Marca tudo que está na tela como lido e atualiza o sino */
 function marcarAvisosLidos() {
   const avisos = calcularAvisos();
+  // Guarda só as assinaturas dos avisos ATUAIS. Assim o registro não
+  // acumula lixo de avisos que já sumiram (conta paga, saldo recuperado).
   gravarAvisosLidos(new Set(avisos.map(chaveAviso)));
-  const contador = document.getElementById("sinoContador");
-  if (contador) contador.hidden = true;
+  renderSino();   // re-renderiza: contador e lista sempre saem do mesmo cálculo
 }
 
 function initSino() {
@@ -1056,12 +1073,21 @@ function initSino() {
   const painel = document.getElementById("sinoPainel");
   if (!btn || !painel) return;
 
+  // Estado inicial: nunca deixa o contador com valor do HTML
+  renderSino();
+
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
     const abrindo = painel.hidden;
-    painel.hidden = !abrindo;
-    // Abriu para ler: os avisos deixam de ser novidade
-    if (abrindo) marcarAvisosLidos();
+    if (abrindo) {
+      // Recalcula na hora de abrir — a situação pode ter mudado
+      // desde o último render (conta paga, tempo passando, etc.)
+      renderSino();
+      painel.hidden = false;
+      marcarAvisosLidos();
+    } else {
+      painel.hidden = true;
+    }
   });
   // Fecha ao clicar fora
   document.addEventListener("click", (e) => {
