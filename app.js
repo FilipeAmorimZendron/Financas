@@ -1105,9 +1105,7 @@ function todosCompromissos(ateISO) {
 
     Object.keys(porMes).forEach(fm => {
       if (porMes[fm] <= 0) return;
-      const [a, mes] = fm.split("-").map(Number);
-      const diaVenc = cartao.diaVencimento || 10;
-      const venc = `${a}-${String(mes).padStart(2,"0")}-${String(diaVenc).padStart(2,"0")}`;
+      const venc = vencimentoDaFatura(fm, cartao);
       if (venc > limiteFatura) return; // ignora faturas muito distantes
       faturasCartao.push({
         origem: "fatura",
@@ -1244,6 +1242,28 @@ function proximaFaturaAberta(cartaoId) {
   return meses[0] || mesAtualISO();
 }
 
+/* Data de vencimento de uma fatura (AAAA-MM) de um cartão.
+   A fatura fecha no dia de fechamento e vence depois disso.
+   Se o dia de vencimento vem DEPOIS do fechamento, vence no mesmo mês.
+   Se vem antes ou no mesmo dia, só pode ser no mês seguinte.
+   Ex: fecha 20, vence 28 -> fatura de julho vence 28/07.
+       fecha 20, vence 10 -> fatura de julho vence 10/08. */
+function vencimentoDaFatura(faturaMes, cartao) {
+  const [a, m] = faturaMes.split("-").map(Number);
+  const diaVenc = cartao?.diaVencimento || 10;
+  const diaFech = cartao?.diaFechamento || 0;
+
+  let ano = a, mes = m;
+  if (diaFech && diaVenc <= diaFech) {
+    mes += 1;
+    if (mes > 12) { mes = 1; ano += 1; }
+  }
+  // Respeita meses curtos (ex: vencimento dia 31 em fevereiro)
+  const ultimoDia = new Date(ano, mes, 0).getDate();
+  const dia = Math.min(diaVenc, ultimoDia);
+  return `${ano}-${String(mes).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+}
+
 /* Uma fatura está paga? */
 function faturaEstaPaga(cartaoId, faturaMes) {
   return (state.faturasPagas || []).some(f => f.cartaoId === cartaoId && f.faturaMes === faturaMes);
@@ -1325,12 +1345,19 @@ function renderTelaCartao() {
   const [ano, mes] = faturaMes.split("-");
   const nomesMes = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
   const tituloFatura = `${nomesMes[Number(mes)-1]} de ${ano}`;
+  const vencFatura = vencimentoDaFatura(faturaMes, c);
+  const diasVenc = diasAte(vencFatura);
+  const vencTxt = diasVenc < 0
+    ? `venceu há ${Math.abs(diasVenc)} ${Math.abs(diasVenc) === 1 ? "dia" : "dias"}`
+    : diasVenc === 0 ? "vence hoje"
+    : diasVenc === 1 ? "vence amanhã"
+    : `vence em ${diasVenc} dias`;
 
   corpo.innerHTML = `
     <div class="cartao-modal-head">
       <div>
         <div class="cartao-modal-nome">${esc(c.nome)}</div>
-        <div class="cartao-modal-sub">Fatura de ${tituloFatura}</div>
+        <div class="cartao-modal-sub">Fatura de ${tituloFatura} · ${vencTxt} (${vencFatura.slice(8,10)}/${vencFatura.slice(5,7)})</div>
       </div>
       <button class="revisao-fechar" onclick="fecharTelaCartao()" aria-label="Fechar">✕</button>
     </div>
@@ -1497,10 +1524,19 @@ function renderCartoesDashboard() {
     const pctUsado = (c.limite && c.limite > 0)
       ? Math.min(100, Math.max(0, ((c.limite - (disponivel ?? c.limite)) / c.limite) * 100))
       : 0;
-    // Nome do mês da fatura para dar contexto
-    const [fa, fm] = faturaMes.split("-");
-    const nomesMesCurto = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-    const labelFatura = `${nomesMesCurto[Number(fm)-1]}/${fa.slice(2)}`;
+    // Data de vencimento real da fatura, para dar contexto
+    const vencCard = vencimentoDaFatura(faturaMes, c);
+    const dVenc = diasAte(vencCard);
+    const labelFatura = aPagar > 0
+      ? (dVenc < 0 ? `venceu ${vencCard.slice(8,10)}/${vencCard.slice(5,7)}`
+         : dVenc === 0 ? "vence hoje"
+         : dVenc === 1 ? "vence amanhã"
+         : `vence ${vencCard.slice(8,10)}/${vencCard.slice(5,7)}`)
+      : (() => {
+          const [fa, fm] = faturaMes.split("-");
+          const nm = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+          return `fatura ${nm[Number(fm)-1]}/${fa.slice(2)}`;
+        })();
 
     return `<div class="cartao-card" onclick="abrirTelaCartao('${c.id}')">
       <div class="cartao-card-top">
