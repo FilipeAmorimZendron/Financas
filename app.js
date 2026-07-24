@@ -204,36 +204,114 @@ async function excluirCategoria(id) {
   } catch (err) { tratarErro(err); }
 }
 
-/* Lista as categorias do usuário na tela de Conta */
+/* Lista as categorias no painel de Gastos Fixos.
+   Mostra as do app (que não podem ser apagadas) e as suas. */
 function renderCategorias() {
   const el = document.getElementById("listaCategorias");
   if (!el) return;
 
   const minhas = state.categorias || [];
-  if (!minhas.length) {
-    el.innerHTML = `<div class="cat-vazio">
-      Você ainda não criou nenhuma categoria.
-      Escolha “+ Criar categoria…” em qualquer campo de categoria para começar.
-    </div>`;
-    return;
+
+  // Contador no cabeçalho do painel
+  const cont = document.getElementById("contadorCategorias");
+  if (cont) {
+    const n = minhas.length;
+    cont.textContent = n ? `${n} sua${n === 1 ? "" : "s"}` : "";
   }
 
-  el.innerHTML = minhas.map(c => {
+  const linhaFixa = nome => {
+    const uso = usosDaCategoria(nome);
+    return `<div class="cat-item cat-item-fixa">
+      <span class="cat-item-icone">${ICONE_CAT[nome] ?? ICONE_CAT_FALLBACK}</span>
+      <div class="cat-item-info">
+        <div class="cat-item-nome">${esc(nome)}</div>
+        <div class="cat-item-sub">${uso.total ? `${uso.total} registro${uso.total > 1 ? "s" : ""}` : "Do app"}</div>
+      </div>
+    </div>`;
+  };
+
+  const linhaMinha = c => {
     const uso = usosDaCategoria(c.nome);
-    const sub = uso.total > 0
-      ? `${uso.total} registro${uso.total > 1 ? "s" : ""}`
-      : "Sem uso ainda";
     return `<div class="cat-item">
       <span class="cat-item-cor" style="background:${esc(c.cor || "#888780")}"></span>
       <div class="cat-item-info">
         <div class="cat-item-nome">${esc(c.nome)}</div>
-        <div class="cat-item-sub">${sub}</div>
+        <div class="cat-item-sub">${uso.total ? `${uso.total} registro${uso.total > 1 ? "s" : ""}` : "Sem uso ainda"}</div>
       </div>
-      <button class="btn-acao btn-acao-danger" onclick="excluirCategoria('${c.id}')" title="Excluir">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-      </button>
+      <div class="cat-item-acoes">
+        <button class="btn-acao" onclick="abrirRenomearCategoria('${c.id}')" title="Renomear">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        </button>
+        <button class="btn-acao btn-acao-danger" onclick="excluirCategoria('${c.id}')" title="Excluir">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
     </div>`;
-  }).join("");
+  };
+
+  let html = "";
+  if (minhas.length) {
+    html += `<div class="cat-grupo-titulo">Suas categorias</div>`;
+    html += minhas.map(linhaMinha).join("");
+  }
+  html += `<div class="cat-grupo-titulo">Do aplicativo</div>`;
+  html += CATEGORIAS_FIXAS.map(linhaFixa).join("");
+
+  el.innerHTML = html;
+}
+
+/* Renomear uma categoria criada pelo usuário.
+   Os lançamentos que usam ela acompanham o novo nome. */
+async function abrirRenomearCategoria(id) {
+  const cat = (state.categorias || []).find(c => c.id === id);
+  if (!cat) return;
+
+  const uso = usosDaCategoria(cat.nome);
+  const aviso = uso.total > 0
+    ? `<br><span style="font-size:12px;opacity:.7">${uso.total} registro(s) passarão a usar o novo nome.</span>`
+    : "";
+
+  const novo = await promptTexto(
+    `Novo nome para <strong>${esc(cat.nome)}</strong>:${aviso}`,
+    cat.nome
+  );
+  if (novo === null) return;
+
+  const nome = novo.trim();
+  if (nome.length < 2) { toast("Escreva um nome com pelo menos 2 letras.", "error"); return; }
+  if (nome === cat.nome) return;
+
+  const existe = todasCategorias().some(c => c.toLowerCase() === nome.toLowerCase())
+                 || nome.toLowerCase() === "entrada";
+  if (existe) { toast("Você já tem uma categoria com esse nome.", "error"); return; }
+
+  mostrarLoading(true, "Renomeando", "Atualizando seus registros...");
+  try {
+    const nomeAntigo = cat.nome;
+    await dbUpdate("categorias", id, { nome });
+
+    // Leva o novo nome para tudo que usava o antigo
+    for (const m of state.movimentos.filter(x => x.categoria === nomeAntigo)) {
+      await dbUpdate("movimentos", m.id, { categoria: nome });
+      m.categoria = nome;
+    }
+    for (const r of state.recorrencias.filter(x => x.categoria === nomeAntigo)) {
+      await dbUpdate("recorrencias", r.id, { categoria: nome });
+      r.categoria = nome;
+    }
+    for (const mt of state.metas.filter(x => x.categoria === nomeAntigo)) {
+      await dbUpdate("metas", mt.id, { categoria: nome });
+      mt.categoria = nome;
+    }
+
+    cat.nome = nome;
+    state.categorias.sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    atualizarSelectsCategoria();
+    renderTudo();
+    toast(`Categoria renomeada para "${nome}".`, "success");
+  } catch (err) {
+    tratarErro(err);
+  } finally { mostrarLoading(false); }
 }
 
 /* ─── Criar categoria ─────────────────────────────────────
@@ -2339,6 +2417,7 @@ function renderTransferencias() {
 function renderRecorrencias() {
   if (!listaRecorrenciasEl) return;
   renderOcorrencias();
+  renderCategorias();
 
   // Contador no cabeçalho do painel
   const cont = document.getElementById("contadorRegras");
@@ -6659,7 +6738,6 @@ function renderConta() {
   const email = state.user?.email || "—";
 
   renderAvatares();
-  renderCategorias();
 
   // E-mail
   const e1 = document.getElementById("userEmail");
@@ -7613,6 +7691,10 @@ document.getElementById("toggleRegras")?.addEventListener("click", () => {
   alternarPainel("painelRegras", "corpoRegras", "toggleRegras");
 });
 
+document.getElementById("toggleCategorias")?.addEventListener("click", () => {
+  alternarPainel("painelCategorias", "corpoCategorias", "toggleCategorias");
+});
+
 /* Restaura o estado salvo */
 function restaurarPaineis() {
   if (localStorage.getItem("fp_painel_painelRegras") === "0") {
@@ -7620,6 +7702,11 @@ function restaurarPaineis() {
     document.getElementById("painelRegras")?.classList.add("recolhido");
     document.getElementById("toggleRegras")?.setAttribute("aria-expanded", "false");
   }
+  // Categorias começa fechado; só abre se o usuário deixou aberto
+  const catAberto = localStorage.getItem("fp_painel_painelCategorias") === "1";
+  document.getElementById("corpoCategorias")?.classList.toggle("open", catAberto);
+  document.getElementById("painelCategorias")?.classList.toggle("recolhido", !catAberto);
+  document.getElementById("toggleCategorias")?.setAttribute("aria-expanded", String(catAberto));
 }
 
 

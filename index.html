@@ -651,6 +651,27 @@
             </div>
           </div>
         </div>
+        <div class="panel panel-collapsible" id="painelCategorias">
+          <button type="button" class="panel-toggle" id="toggleCategorias" aria-expanded="false">
+            <h3 class="panel-title">Categorias</h3>
+            <span class="panel-toggle-count" id="contadorCategorias"></span>
+            <svg class="panel-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="panel-body" id="corpoCategorias">
+            <div class="panel-body-inner">
+              <div class="cat-painel-topo">
+                <p class="cat-painel-desc">
+                  As categorias organizam seus gastos nos relatórios. Além das que já vêm no app, você pode criar as suas — como uma para cada filho, para o pet, ou para um projeto.
+                </p>
+                <button type="button" class="btn-primary btn-nova-cat" onclick="abrirModalCategoria()">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Nova categoria
+                </button>
+              </div>
+              <div id="listaCategorias" class="cat-lista"></div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- METAS -->
@@ -1168,15 +1189,6 @@
               </div>
               <svg class="conta-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
-          </div>
-
-          <!-- CATEGORIAS -->
-          <div class="conta-grupo">
-            <div class="conta-grupo-titulo">Minhas categorias</div>
-            <div class="conta-grupo-desc">
-              Criadas por você. Para adicionar, escolha “+ Criar categoria…” em qualquer campo de categoria.
-            </div>
-            <div id="listaCategorias" class="cat-lista"></div>
           </div>
 
           <!-- DADOS E PRIVACIDADE -->
