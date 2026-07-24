@@ -905,6 +905,10 @@ async function tratarRetornoAssinatura() {
           });
           const dados = await resp.json();
           console.log("Confirmação direta:", dados);
+          // Mostra o diagnóstico já expandido, para não precisar clicar
+          if (dados.diagnostico) {
+            console.log("DIAGNÓSTICO:", JSON.stringify(dados.diagnostico, null, 2));
+          }
           if (dados.ativo) {
             await carregarDadosNuvem();
             renderTudo();
@@ -1336,6 +1340,19 @@ function calcularAvisos() {
       });
     }
   });
+
+  // 1c. Pagamento da assinatura em atraso
+  const diasCorte = diasAteCortePlano();
+  if (diasCorte !== null) {
+    avisos.push({
+      tipo: "vencida",
+      titulo: "Pagamento da assinatura falhou",
+      texto: diasCorte > 0
+        ? `Atualize seu cartão em ${diasCorte} ${diasCorte === 1 ? "dia" : "dias"} para não perder o acesso.`
+        : "Seu acesso aos recursos pagos foi suspenso. Atualize o pagamento para voltar.",
+      prioridade: 1
+    });
+  }
 
   // 2. Saldo baixo ou negativo nas contas
   const saldos = saldosPorConta();
@@ -7138,14 +7155,15 @@ async function salvarPerfil(dados) {
 }
 
 function mapPerfil(p) {
-  if (!p) return { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null, plano: "basico", assinaturaStatus: "inativa" };
+  if (!p) return { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null, plano: "basico", assinaturaStatus: "inativa", atrasoDesde: null };
   return {
     avatarTipo:   p.avatar_tipo   || "inicial",
     avatarPadrao: p.avatar_padrao || null,
     avatarUrl:    p.avatar_url    || null,
     nome:         p.nome          || null,
     plano:            p.plano              || "basico",
-    assinaturaStatus: p.assinatura_status  || "inativa"
+    assinaturaStatus: p.assinatura_status  || "inativa",
+    atrasoDesde:      p.atraso_desde       || null
   };
 }
 
@@ -7162,13 +7180,45 @@ const LIMITES_PLANO = {
 };
 
 /* Retorna o plano ATIVO do usuário. Só vale premium/master se a assinatura estiver ativa. */
+/* Dias de tolerância após o vencimento antes de cortar o acesso.
+   Precisa bater com o DIAS_TOLERANCIA do webhook. */
+const DIAS_TOLERANCIA_PLANO = 5;
+
+/* Retorna o plano ATIVO do usuário.
+   "ativa"    -> acesso liberado
+   "atrasada" -> acesso mantido durante a tolerância, depois cai
+   qualquer outro -> básico */
 function planoAtual() {
   const p = state.perfil || {};
   const status = p.assinaturaStatus || "inativa";
   const plano  = p.plano || "basico";
-  // Se a assinatura não está ativa, cai pro básico (mesmo que plano diga outra coisa)
-  if (status !== "ativa") return "basico";
-  return (plano === "premium" || plano === "master") ? plano : "basico";
+  const ehPago = (plano === "premium" || plano === "master");
+
+  if (status === "ativa") return ehPago ? plano : "basico";
+
+  // Atrasada: o cartão falhou, mas o Asaas ainda vai tentar de novo.
+  // Mantemos o acesso por alguns dias em vez de cortar na hora.
+  if (status === "atrasada" && ehPago) {
+    const desde = p.atrasoDesde;
+    if (!desde) return plano;   // sem data registrada: dá o benefício da dúvida
+    const dias = Math.floor(
+      (new Date(hojeISO() + "T00:00:00") - new Date(desde + "T00:00:00")) / 86400000
+    );
+    if (dias <= DIAS_TOLERANCIA_PLANO) return plano;
+  }
+
+  return "basico";
+}
+
+/* Quantos dias faltam para o acesso cair, quando o pagamento está atrasado.
+   Devolve null se não há atraso. */
+function diasAteCortePlano() {
+  const p = state.perfil || {};
+  if (p.assinaturaStatus !== "atrasada" || !p.atrasoDesde) return null;
+  const dias = Math.floor(
+    (new Date(hojeISO() + "T00:00:00") - new Date(p.atrasoDesde + "T00:00:00")) / 86400000
+  );
+  return Math.max(0, DIAS_TOLERANCIA_PLANO - dias);
 }
 
 /* Pega os limites do plano ativo */

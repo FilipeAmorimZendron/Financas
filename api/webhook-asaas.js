@@ -207,14 +207,27 @@ const EVENTOS_ATIVA = [
   "PAYMENT_CONFIRMED",
 ];
 
-// Eventos que significam "assinatura caiu / precisa bloquear"
-const EVENTOS_INATIVA = [
+// Atraso: NÃO corta na hora. O Asaas ainda vai tentar cobrar de novo,
+// e cartão pode falhar por saldo momentâneo. Marca como atrasada e dá
+// um prazo de tolerância antes de rebaixar.
+const EVENTOS_ATRASO = [
   "PAYMENT_OVERDUE",
-  "PAYMENT_DELETED",
+];
+
+// Corte imediato: aqui não há o que esperar — o dinheiro voltou,
+// foi contestado, ou a assinatura acabou.
+const EVENTOS_CORTE = [
   "PAYMENT_REFUNDED",
   "PAYMENT_CHARGEBACK_REQUESTED",
+  "PAYMENT_CHARGEBACK_DISPUTE",
+  "PAYMENT_DELETED",
   "SUBSCRIPTION_DELETED",
+  "SUBSCRIPTION_INACTIVATED",
 ];
+
+// Dias de tolerância após o vencimento antes de cortar o acesso.
+// O Asaas tenta recobrar o cartão algumas vezes nesse período.
+const DIAS_TOLERANCIA = Number(process.env.DIAS_TOLERANCIA || 5);
 
 export default async function handler(req, res) {
   // Log de entrada: confirma que o Asaas chamou o webhook
@@ -353,14 +366,30 @@ export default async function handler(req, res) {
 
     let novoStatus = null;
     let novoPlano = null;
+    const extras = {};
 
     if (EVENTOS_ATIVA.includes(evento)) {
+      // Pagou: libera (ou renova) o acesso e limpa qualquer marca de atraso
       novoStatus = "ativa";
       novoPlano = plano || "premium";
-    } else if (EVENTOS_INATIVA.includes(evento)) {
+      extras.atraso_desde = null;
+
+    } else if (EVENTOS_ATRASO.includes(evento)) {
+      // Atrasou: NÃO corta agora. Marca a data e mantém o acesso durante
+      // a tolerância — o Asaas ainda vai tentar cobrar de novo.
+      const hoje = new Date().toISOString().slice(0, 10);
+      novoStatus = "atrasada";
+      novoPlano = plano || null;   // mantém o plano atual
+      extras.atraso_desde = hoje;
+      console.log(`ATRASO registrado para ${userId}. Acesso mantido por ${DIAS_TOLERANCIA} dias.`);
+
+    } else if (EVENTOS_CORTE.includes(evento)) {
+      // Estorno, chargeback ou assinatura encerrada: corta na hora
       novoStatus = "inativa";
-      // Ao cair, volta pro básico
       novoPlano = "basico";
+      extras.atraso_desde = null;
+      console.log(`CORTE imediato para ${userId} — evento ${evento}`);
+
     } else {
       // Evento que não muda o status (ex.: PAYMENT_CREATED). Só confirma o recebimento.
       return res.status(200).json({ ok: true, evento: evento, acao: "ignorado" });
@@ -369,8 +398,12 @@ export default async function handler(req, res) {
     // Monta o que vamos atualizar
     const atualizacao = {
       assinatura_status: novoStatus,
-      plano: novoPlano,
+      ...extras,
     };
+    // No atraso, o plano não muda — só mexemos nele quando ativa ou corta
+    if (novoPlano !== null) {
+      atualizacao.plano = novoPlano;
+    }
     // Guarda o id da assinatura do Asaas, se veio
     if (pagamento.subscription) {
       atualizacao.asaas_subscription_id = pagamento.subscription;
