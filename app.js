@@ -37,6 +37,7 @@ let chartCategoriasPlanilha = null;
 let chartFluxoPlanilha      = null;
 let chartEvolucao           = null;
 let _undoSnapshot           = null;
+let _motivoUpgrade          = null;   // por que o usuário foi levado aos planos
 
 /* ─── Ícones por categoria ───────────────────────────────── */
 /* SVGs inline (stroke, herdam cor via currentColor). Classe .cat-icone controla o tamanho. */
@@ -2893,6 +2894,9 @@ function renderTudo() {
 
 /* ─── Navegação ──────────────────────────────────────────── */
 function trocarTela(name) {
+  // Sair de planos limpa o aviso de "por que você veio aqui"
+  if (name !== "planos" && _motivoUpgrade) limparMotivoUpgrade();
+
   menuItems.forEach(i=>i.classList.toggle("active", i.dataset.screen===name));
   screens.forEach(s => {
     s.classList.remove("secao-desfocada");  // limpa desfoque de bloqueio anterior
@@ -2908,12 +2912,12 @@ function trocarTela(name) {
   // O guia da seção NÃO abre sozinho — fica disponível no botão "Como funciona"
   // no cabeçalho de cada tela (ver injetarBotoesGuia).
 
-  // Se for seção premium e o usuário não tem acesso: entra, mas desfoca e mostra o modal
+  // Seção premium sem acesso: em vez de entrar e desfocar, leva direto
+  // para os planos com o motivo em destaque. Menos cliques, mesma resposta.
   const infoPremium = SECOES_PREMIUM[name];
   if (infoPremium && !podeUsar(infoPremium.recurso)) {
-    const secao = document.getElementById(`screen-${name}`);
-    if (secao) secao.classList.add("secao-desfocada");
-    pedirUpgrade(infoPremium.desc, infoPremium.titulo);
+    irParaPlanos(infoPremium.titulo, infoPremium.desc);
+    return;
   }
 
   // Ao abrir investimentos, atualiza os preços das criptos
@@ -2945,7 +2949,7 @@ formBanco?.addEventListener("submit", async e => {
   // Bloqueio de plano: básico pode ter no máximo N contas
   const limiteContas = limitesAtuais().contas;
   if ((state.bancos?.length || 0) >= limiteContas) {
-    pedirUpgrade(`O plano gratuito permite até ${limiteContas} contas. Assine para ter contas ilimitadas.`);
+    pedirUpgrade(`O plano gratuito permite até ${limiteContas} contas. Nos planos pagos não há limite.`, "Limite de contas");
     return;
   }
   try {
@@ -3960,7 +3964,7 @@ formRecorrencia?.addEventListener("submit", async e => {
   e.preventDefault();
   // Bloqueio de plano: recorrências é recurso Premium
   if (!podeUsar("recorrencias")) {
-    pedirUpgrade("Este recurso está disponível a partir do plano Premium.");
+    pedirUpgrade("Cadastre aluguel, assinaturas e salário uma vez e o app cuida dos vencimentos.", "Gastos fixos");
     return;
   }
   if (!state.bancos.length) { toast("Cadastre uma conta antes.","warning"); return; }
@@ -4062,7 +4066,7 @@ formMeta?.addEventListener("submit", async e => {
       // Bloqueio de plano: básico pode ter no máximo N metas
       const limiteMetas = limitesAtuais().metas;
       if ((state.metas?.length || 0) >= limiteMetas) {
-        pedirUpgrade(`O plano gratuito permite até ${limiteMetas} metas. Assine para ter metas ilimitadas.`);
+        pedirUpgrade(`O plano gratuito permite até ${limiteMetas} metas. Nos planos pagos não há limite.`, "Limite de metas");
         return;
       }
       const novo = await dbInsert("metas", { categoria:cat, limite });
@@ -5211,7 +5215,7 @@ formInvestimento?.addEventListener("submit", async e => {
   e.preventDefault();
   // Bloqueio de plano: investimentos é recurso Premium
   if (!podeUsar("investimentos")) {
-    pedirUpgrade("Este recurso está disponível a partir do plano Premium.");
+    pedirUpgrade("Acompanhe CDB, Tesouro, ações e cripto, com simulador de rendimento.", "Investimentos");
     return;
   }
   const tipoSel = document.getElementById("invTipo").value;
@@ -7151,55 +7155,48 @@ function podeUsar(recurso) {
   return lim[recurso] === true || lim[recurso] === Infinity;
 }
 
-/* Mostra um aviso de "recurso premium" com botão que leva aos planos.
-   Usado no bloqueio suave: o usuário vê o recurso, mas para usar precisa assinar. */
+/* Leva para a tela de planos explicando o que o usuário tentou fazer.
+   Sem modal intermediário: quem quer o recurso já cai onde decide. */
+function irParaPlanos(titulo, msg) {
+  _motivoUpgrade = { titulo: titulo || "Recurso dos planos pagos", msg: msg || "" };
+  trocarTela("planos");
+  renderMotivoUpgrade();
+  // Chama atenção para o motivo sem depender de scroll
+  setTimeout(() => {
+    document.getElementById("planosMotivo")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, 80);
+}
+
+
+/* Mostra (ou esconde) a faixa que explica por que o usuário veio parar aqui */
+function renderMotivoUpgrade() {
+  const el = document.getElementById("planosMotivo");
+  if (!el) return;
+  if (!_motivoUpgrade) { el.hidden = true; el.innerHTML = ""; return; }
+
+  el.innerHTML = `
+    <span class="planos-motivo-icone">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </span>
+    <span class="planos-motivo-txt">
+      <strong>${esc(_motivoUpgrade.titulo)}</strong>
+      ${_motivoUpgrade.msg ? `<span>${esc(_motivoUpgrade.msg)}</span>` : ""}
+    </span>
+    <button type="button" class="planos-motivo-fechar" onclick="limparMotivoUpgrade()" aria-label="Fechar">✕</button>
+  `;
+  el.hidden = false;
+}
+
+function limparMotivoUpgrade() {
+  _motivoUpgrade = null;
+  renderMotivoUpgrade();
+}
+
+/* Mantida por compatibilidade: agora só encaminha para os planos.
+   Devolve uma Promise que resolve na hora, para não travar quem usava await. */
 function pedirUpgrade(msg, titulo) {
-  return new Promise(resolve => {
-    const ov = document.createElement("div");
-    ov.className = "upgrade-ov";
-    ov.innerHTML = `
-      <div class="upgrade-modal">
-        <div class="bloqueio-premium-icone">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        </div>
-        <p class="bloqueio-premium-titulo">${titulo || "Recurso Premium"}</p>
-        <p class="bloqueio-premium-desc">${msg || "Esse recurso é exclusivo dos planos pagos."}</p>
-        <div class="bloqueio-premium-planos">
-          <div class="bloqueio-plano">
-            <span class="bloqueio-plano-nome">Premium</span>
-            <span class="bloqueio-plano-preco">R$ 25,90<small>/mês</small></span>
-          </div>
-          <div class="bloqueio-plano">
-            <span class="bloqueio-plano-nome">Master</span>
-            <span class="bloqueio-plano-preco">R$ 47,90<small>/mês</small></span>
-          </div>
-        </div>
-        <div class="upgrade-modal-btns">
-          <button class="btn-ghost upgrade-cancel">Agora não</button>
-          <button class="btn-primary upgrade-ok">Assinar agora</button>
-        </div>
-      </div>`;
-    document.body.appendChild(ov);
-    requestAnimationFrame(() => ov.classList.add("open"));
-    ov.querySelector(".upgrade-ok").onclick = () => {
-      ov.remove();
-      trocarTela("planos");
-      resolve(true);
-    };
-    ov.querySelector(".upgrade-cancel").onclick = () => {
-      ov.remove();
-      // Se estava numa seção desfocada, volta ao dashboard para limpar o desfoque
-      if (document.querySelector(".screen.secao-desfocada")) trocarTela("dashboard");
-      resolve(false);
-    };
-    ov.addEventListener("click", e => {
-      if (e.target === ov) {
-        ov.remove();
-        if (document.querySelector(".screen.secao-desfocada")) trocarTela("dashboard");
-        resolve(false);
-      }
-    });
-  });
+  irParaPlanos(titulo, msg);
+  return Promise.resolve(false);
 }
 
 /* Recursos premium que bloqueiam a seção inteira quando o usuário é básico.
@@ -8914,11 +8911,18 @@ initSino();
       if (!resp.ok) {
         // Limite atingido
         if (dados.erro === "limite") {
-          addMsg(dados.motivo || "Você atingiu o limite de perguntas.", "ia");
-          if (dados.plano === "premium" && typeof pedirUpgrade === "function") {
-            setTimeout(function () {
-              pedirUpgrade("Você usou todas as perguntas do plano Premium este mês. Faça upgrade para o Master e tenha 100 perguntas.", "Limite de perguntas");
-            }, 400);
+          const div = addMsg(dados.motivo || "Você atingiu o limite de perguntas.", "ia");
+          // Não tira o usuário do chat: oferece o caminho, ele decide
+          if (dados.plano === "premium" && div) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "ia-btn-planos";
+            btn.textContent = "Ver planos";
+            btn.onclick = function () {
+              minimizar();
+              irParaPlanos("Limite de perguntas", "No Master você tem 100 perguntas por mês.");
+            };
+            div.appendChild(btn);
           }
           return;
         }

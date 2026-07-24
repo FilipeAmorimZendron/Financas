@@ -9337,3 +9337,82 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   .hist-filtro { flex: 1 1 calc(50% - 6px); min-width: 0; }
   .hist-limpar { flex: 1 1 100%; }
 }
+
+/* ─── Faixa de motivo na tela de planos ─────────────────────
+   Aparece quando o usuário tentou usar um recurso bloqueado. */
+.planos-motivo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--accent-dim, rgba(30,246,221,0.08));
+  border: 1px solid color-mix(in srgb, var(--accent, #1EF6DD) 30%, transparent);
+  border-radius: 12px;
+  padding: 15px 18px;
+  margin-bottom: 26px;
+}
+.planos-motivo-icone {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent, #1EF6DD) 14%, transparent);
+  color: var(--accent, #1EF6DD);
+}
+.planos-motivo-icone svg { width: 19px; height: 19px; }
+.planos-motivo-txt {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.planos-motivo-txt strong {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.planos-motivo-txt span {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.planos-motivo-fechar {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 6px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color .15s, background .15s;
+}
+.planos-motivo-fechar:hover {
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.06);
+}
+
+@media (max-width: 640px) {
+  .planos-motivo { padding: 13px 14px; gap: 11px; }
+  .planos-motivo-icone { width: 34px; height: 34px; }
+}
+
+/* Botão "Ver planos" dentro de uma mensagem do chat da IA */
+.ia-btn-planos {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 7px 14px;
+  background: var(--accent-dim, rgba(30,246,221,0.1));
+  border: 1px solid color-mix(in srgb, var(--accent, #1EF6DD) 32%, transparent);
+  border-radius: 8px;
+  color: var(--accent, #1EF6DD);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s;
+}
+.ia-btn-planos:hover { background: color-mix(in srgb, var(--accent, #1EF6DD) 18%, transparent); }
