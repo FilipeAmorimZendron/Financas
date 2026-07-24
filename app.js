@@ -1031,7 +1031,13 @@ function listarPendentes() {
    não informação. Quem quiser ver o futuro escolhe o período. */
 let periodoDash = "mes";
 
+/* Data escolhida à mão pelo usuário (null = usa o período dos botões) */
+let dataLimiteDash = null;
+
 function limiteDoPeriodo() {
+  // Data personalizada tem prioridade sobre os botões
+  if (dataLimiteDash) return dataLimiteDash;
+
   const hoje = hojeISO();
   const [a, m] = hoje.split("-").map(Number);
   const ultimoDia = (ano, mes) => new Date(ano, mes, 0).getDate();
@@ -2488,6 +2494,12 @@ formTexto?.addEventListener("submit", async e => {
     ? (document.getElementById("cartaoMovimento")?.value || "")
     : contaMovimentoSelect.value;
 
+  // Sem nenhum cartão cadastrado, crédito não é possível
+  if (ehCredito && !state.bancos.some(b => b.temCartao)) {
+    toast("Nenhum cartão cadastrado. Marque \"Este banco tem cartão de crédito\" na tela de Contas.", "warning");
+    return;
+  }
+
   if (!texto || !bancoId || !data) {
     toast(ehCredito ? "Escolha o cartão e preencha os campos." : "Preencha todos os campos.", "error");
     return;
@@ -2560,11 +2572,13 @@ formTexto?.addEventListener("submit", async e => {
 
     formTexto.reset();
     dataMovimentoInput.value = hojeISO();
-    // Volta os campos ao estado padrão (débito)
-    document.getElementById("formaPagamento").value = "debito";
-    document.getElementById("fieldContaMov").style.display = "";
-    document.getElementById("fieldCartaoMov").style.display = "none";
-    document.getElementById("fieldParcelas").style.display = "none";
+    // Volta os campos ao estado padrão (débito) e re-sincroniza o select
+    const selForma = document.getElementById("formaPagamento");
+    if (selForma) {
+      selForma.value = "debito";
+      selForma.dispatchEvent(new Event("change"));
+    }
+    atualizarSelectContas();
     if (labelDataMov) labelDataMov.textContent = "Data";
     renderTudo();
 
@@ -4828,12 +4842,15 @@ function renderResumoCompromissos() {
   if (totalAPagarEl) totalAPagarEl.textContent = fmtMoeda(t.aPagar);
 
   if (descAPagarEl) {
-    const rotulo = {
-      mes:      "neste mês",
-      proximo:  "até o fim do mês que vem",
-      "3meses": "nos próximos 3 meses",
-      tudo:     "no próximo ano"
-    }[periodoDash] || "";
+    const fmtBR = s => `${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(0,4)}`;
+    const rotulo = dataLimiteDash
+      ? `até ${fmtBR(dataLimiteDash)}`
+      : ({
+          mes:      "neste mês",
+          proximo:  "até o fim do mês que vem",
+          "3meses": "nos próximos 3 meses",
+          tudo:     "no próximo ano"
+        }[periodoDash] || "");
 
     if (t.qtdPendentes === 0) {
       descAPagarEl.textContent = `Nada pendente ${rotulo}`;
@@ -4886,12 +4903,15 @@ function renderPendentes() {
         { texto: "Criar recorrência", onclick: "irParaRecorrencias()" }
       );
     } else {
-      const txt = {
-        mes:     "Nada pendente neste mês.",
-        proximo: "Nada pendente até o fim do mês que vem.",
-        "3meses":"Nada pendente nos próximos 3 meses.",
-        tudo:    "Nada pendente no próximo ano."
-      }[periodoDash] || "Nada pendente.";
+      const fmtBR2 = s => `${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(0,4)}`;
+      const txt = dataLimiteDash
+        ? `Nada pendente até ${fmtBR2(dataLimiteDash)}.`
+        : ({
+            mes:     "Nada pendente neste mês.",
+            proximo: "Nada pendente até o fim do mês que vem.",
+            "3meses":"Nada pendente nos próximos 3 meses.",
+            tudo:    "Nada pendente no próximo ano."
+          }[periodoDash] || "Nada pendente.");
       listaPendentesEl.innerHTML = vazio(ICO.check, "Tudo em dia", txt);
     }
     return;
@@ -4979,14 +4999,57 @@ function cardPendente(m) {
 
 /* Seletor de período */
 document.querySelectorAll("#periodoSeletor .periodo-opcao").forEach(btn => {
+  if (btn.id === "btnCompromissosData") return;   // o calendário tem lógica própria
   btn.addEventListener("click", () => {
     document.querySelectorAll("#periodoSeletor .periodo-opcao").forEach(b => b.classList.remove("ativo"));
     btn.classList.add("ativo");
+    dataLimiteDash = null;          // volta ao período pré-definido
     periodoDash = btn.dataset.p;
     renderPendentes();
     renderResumoCompromissos();
   });
 });
+
+/* Escolher uma data específica para ver os compromissos */
+(function initCompromissosData() {
+  const btn      = document.getElementById("btnCompromissosData");
+  const pop      = document.getElementById("compromissosDatasPopover");
+  const inpAte   = document.getElementById("compromissosDataAte");
+  const aplicar  = document.getElementById("compromissosDatasAplicar");
+  const cancelar = document.getElementById("compromissosDatasCancelar");
+  if (!btn || !pop) return;
+
+  const fechar = () => { pop.hidden = true; };
+
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+    if (pop.hidden) {
+      if (!inpAte.value) inpAte.value = dataLimiteDash || somarMeses(hojeISO(), 1);
+      pop.hidden = false;
+    } else {
+      fechar();
+    }
+  });
+
+  cancelar?.addEventListener("click", fechar);
+
+  aplicar?.addEventListener("click", () => {
+    const ate = inpAte.value;
+    if (!ate) return;
+    dataLimiteDash = ate;
+    document.querySelectorAll("#periodoSeletor .periodo-opcao").forEach(b => b.classList.remove("ativo"));
+    btn.classList.add("ativo");
+    fechar();
+    renderPendentes();
+    renderResumoCompromissos();
+  });
+
+  // Fecha ao clicar fora
+  document.addEventListener("click", e => {
+    if (pop.hidden) return;
+    if (!pop.contains(e.target) && !btn.contains(e.target)) fechar();
+  });
+})();
 
 
 /* Marca um compromisso como pago — aí sim afeta o saldo */

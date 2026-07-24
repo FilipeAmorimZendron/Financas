@@ -8999,3 +8999,55 @@ body.scroll-travado {
   margin-bottom: 18px;
 }
 .cartao-pagar-aviso svg { flex-shrink: 0; margin-top: 1px; color: #e2574a; }
+
+/* Seletor de data personalizada nos compromissos */
+#periodoSeletor { position: relative; }
+.periodo-opcao-cal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 9px !important;
+}
+.periodo-opcao-cal svg { display: block; }
+.periodo-datas-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  background: var(--surface, #0D1B2F);
+  border: 1px solid var(--border-soft, #2C384A);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+  min-width: 240px;
+}
+.periodo-datas-pop label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.periodo-datas-pop input[type="date"] {
+  width: 100%;
+  background: var(--surface2, #101f36);
+  border: 1px solid var(--border-soft, #2C384A);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 13.5px;
+  color: var(--text-primary);
+  outline: none;
+  margin-bottom: 14px;
+}
+.periodo-datas-pop input[type="date"]:focus {
+  border-color: var(--teal-500, #0F8A7D);
+}
+.periodo-datas-btns {
+  display: flex;
+  gap: 8px;
+}
+.periodo-datas-btns button {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 13px;
+  border-radius: 8px;
+}
