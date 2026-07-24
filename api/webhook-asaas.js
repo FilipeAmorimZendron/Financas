@@ -79,6 +79,38 @@ async function emailDoCliente(customerId) {
   }
 }
 
+/* O caminho mais confiável: nós mesmos registramos, no momento de criar o
+   checkout, de quem ele é. Não depende do Asaas devolver nada nem do e-mail
+   que a pessoa digitou no formulário de pagamento. */
+async function donoDoCheckout(checkoutId, customerId) {
+  if (!SUPABASE_SERVICE_KEY) return null;
+  const cabecalhos = {
+    apikey: SUPABASE_SERVICE_KEY,
+    Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`
+  };
+
+  // Tenta pelo id do checkout, depois pelo id do cliente
+  const tentativas = [];
+  if (checkoutId) tentativas.push(`asaas_checkout_id=eq.${encodeURIComponent(checkoutId)}`);
+  if (customerId) tentativas.push(`asaas_customer_id=eq.${encodeURIComponent(customerId)}`);
+
+  for (const filtro of tentativas) {
+    try {
+      const url = `${SUPABASE_URL}/rest/v1/checkouts?${filtro}&select=user_id,plano,ciclo&order=criado_em.desc&limit=1`;
+      const resp = await fetch(url, { headers: cabecalhos });
+      if (!resp.ok) continue;
+      const linhas = await resp.json();
+      if (Array.isArray(linhas) && linhas[0]?.user_id) {
+        console.log("CHECKOUT REGISTRADO: achou o dono ->", linhas[0].user_id, linhas[0].plano);
+        return linhas[0];
+      }
+    } catch (e) {
+      console.error("Erro ao consultar checkouts:", String(e));
+    }
+  }
+  return null;
+}
+
 /* A sessão de checkout também guarda a referência que enviamos.
    Os logs mostram que o pagamento traz o campo checkoutSession — é mais
    uma chance de recuperar o userId original em vez de deduzir pelo valor. */
@@ -267,6 +299,17 @@ export default async function handler(req, res) {
     }
 
     let [userId, plano, ciclo] = ref.split("|");
+
+    // Caminho preferencial: a tabela que nós mesmos gravamos ao criar o
+    // checkout. Não depende do Asaas nem do e-mail digitado pela pessoa.
+    if (!userId) {
+      const dono = await donoDoCheckout(pagamento.checkoutSession, pagamento.customer);
+      if (dono) {
+        userId = dono.user_id;
+        plano = dono.plano;
+        ciclo = dono.ciclo;
+      }
+    }
 
     // Último recurso: o cliente do Asaas guarda o userId.
     // Nesse caminho não sabemos o plano pela referência, então deduzimos pelo valor pago.

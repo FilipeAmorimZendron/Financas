@@ -49,6 +49,32 @@ export default async function handler(req, res) {
       }
     }
 
+    // 0. Caminho preferencial: os checkouts que ESTE usuário iniciou.
+    //    Cobre o caso de a pessoa ter digitado outro e-mail no pagamento.
+    if (!listaClientes.length) {
+      try {
+        const url = `${SUPABASE_URL}/rest/v1/checkouts?user_id=eq.${encodeURIComponent(userId)}` +
+                    `&select=asaas_customer_id&order=criado_em.desc&limit=10`;
+        const resp = await fetch(url, {
+          headers: {
+            apikey: SUPABASE_SERVICE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`
+          }
+        });
+        if (resp.ok) {
+          const linhas = await resp.json();
+          const ids = [...new Set((linhas || []).map(l => l.asaas_customer_id).filter(Boolean))];
+          diagnostico.etapas.push(`checkouts registrados deste usuário: ${ids.length}`);
+          for (const id of ids) {
+            const rc = await fetch(`${ASAAS_URL}/customers/${id}`, { headers: headersAsaas });
+            if (rc.ok) listaClientes.push(await rc.json());
+          }
+        }
+      } catch (e) {
+        diagnostico.etapas.push(`falha ao ler checkouts: ${String(e)}`);
+      }
+    }
+
     // 1. Se não veio cliente direto, acha pelos e-mail no Asaas.
     //    Pode haver mais de um (o app cria um a cada tentativa de checkout).
     if (!listaClientes.length) {

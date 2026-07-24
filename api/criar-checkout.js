@@ -235,6 +235,34 @@ export default async function handler(req, res) {
       });
     }
 
+    // Registra de quem é este checkout. É o que garante o vínculo mesmo se
+    // a pessoa digitar outro e-mail no formulário de pagamento do Asaas.
+    if (SERVICE_KEY && checkout.id) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/checkouts`, {
+          method: "POST",
+          headers: {
+            apikey: SERVICE_KEY,
+            Authorization: `Bearer ${SERVICE_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            email: String(email).trim().toLowerCase(),
+            plano: plano,
+            ciclo: ciclo,
+            valor: valor,
+            asaas_checkout_id: checkout.id,
+            asaas_customer_id: cliente.id,
+          }),
+        });
+        console.log("Checkout registrado:", checkout.id, "para", userId);
+      } catch (e) {
+        console.error("Não consegui registrar o checkout:", String(e));
+      }
+    }
+
     return res.status(200).json({ url: link });
 
   } catch (e) {
