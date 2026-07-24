@@ -373,6 +373,12 @@ export default async function handler(req, res) {
       novoStatus = "ativa";
       novoPlano = plano || "premium";
       extras.atraso_desde = null;
+      // Guarda quando vence a próxima, para o app avisar com antecedência
+      if (pagamento.dueDate) {
+        const venc = new Date(pagamento.dueDate + "T00:00:00");
+        venc.setMonth(venc.getMonth() + (ciclo === "anual" ? 12 : 1));
+        extras.proxima_cobranca = venc.toISOString().slice(0, 10);
+      }
 
     } else if (EVENTOS_ATRASO.includes(evento)) {
       // Atrasou: NÃO corta agora. Marca a data e mantém o acesso durante

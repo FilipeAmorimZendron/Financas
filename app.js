@@ -1360,6 +1360,7 @@ function calcularAvisos() {
         titulo: "Pagamento da assinatura falhou",
         texto: `Atualize seu cartão em ${diasCorte} ${diasCorte === 1 ? "dia" : "dias"} ou o plano ${nomePlanoAviso} será cancelado.`,
         prioridade: 1,
+        sempreVisivel: true,
         acao: "trocarTela('planos')"
       });
     } else {
@@ -1370,6 +1371,7 @@ function calcularAvisos() {
         titulo: "Plano cancelado",
         texto: `Seu pagamento atrasou e o plano ${nomePlanoAviso} foi cancelado. Assine novamente para recuperar o acesso.`,
         prioridade: 1,
+        sempreVisivel: true,
         acao: "trocarTela('planos')"
       });
     }
@@ -1386,8 +1388,26 @@ function calcularAvisos() {
         ? `Seu pagamento atrasou e o plano ${nomePerdido} foi cancelado. Assine novamente para recuperar o acesso.`
         : "Seu pagamento atrasou e a assinatura foi cancelada. Assine novamente para recuperar o acesso.",
       prioridade: 1,
+      sempreVisivel: true,
       acao: "trocarTela('planos')"
     });
+
+  } else if (statusAss === "ativa" && nomePlanoAviso && perfilAviso.proximaCobranca) {
+    // Renovação chegando: avisa com 5 dias de antecedência para a pessoa
+    // conferir o cartão antes de a cobrança falhar.
+    const diasRenovacao = Math.floor(
+      (new Date(perfilAviso.proximaCobranca + "T00:00:00") - new Date(hojeISO() + "T00:00:00")) / 86400000
+    );
+    if (diasRenovacao >= 0 && diasRenovacao <= 5) {
+      avisos.push({
+        tipo: "cartao",
+        titulo: "Renovação da assinatura",
+        texto: diasRenovacao === 0
+          ? `Seu plano ${nomePlanoAviso} renova hoje. Confira se o cartão está em dia.`
+          : `Seu plano ${nomePlanoAviso} renova em ${diasRenovacao} ${diasRenovacao === 1 ? "dia" : "dias"}. Confira se o cartão está em dia.`,
+        prioridade: 2
+      });
+    }
   }
 
   // 2. Saldo baixo ou negativo nas contas
@@ -1478,9 +1498,11 @@ function renderSino() {
     return;
   }
 
-  // O contador mostra só o que ainda não foi lido
+  // O contador mostra o que ainda não foi lido — mas avisos críticos
+  // (assinatura em risco ou cancelada) contam sempre, mesmo já vistos.
+  // Silenciar um problema de pagamento seria esconder algo que custa dinheiro.
   const lidos = lerAvisosLidos();
-  const naoLidos = avisos.filter(a => !lidos.has(chaveAviso(a)));
+  const naoLidos = avisos.filter(a => a.sempreVisivel || !lidos.has(chaveAviso(a)));
 
   if (naoLidos.length > 0) {
     contador.textContent = naoLidos.length > 9 ? "9+" : String(naoLidos.length);
@@ -1491,7 +1513,8 @@ function renderSino() {
   }
 
   lista.innerHTML = avisos.map(a => {
-    const novo = !lidos.has(chaveAviso(a));
+    // Críticos ficam sempre destacados; os demais só até serem lidos
+    const novo = a.sempreVisivel || !lidos.has(chaveAviso(a));
     // Avisos com ação viram botão; os demais são só informativos
     const clicavel = a.acao ? ` sino-item-clicavel" onclick="${a.acao}` : "";
     return `
@@ -7203,7 +7226,8 @@ function mapPerfil(p) {
     plano:            p.plano              || "basico",
     assinaturaStatus: p.assinatura_status  || "inativa",
     atrasoDesde:      p.atraso_desde       || null,
-    planoAnterior:    p.plano_anterior     || null
+    planoAnterior:    p.plano_anterior     || null,
+    proximaCobranca:  p.proxima_cobranca   || null
   };
 }
 
