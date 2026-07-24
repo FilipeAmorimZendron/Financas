@@ -988,9 +988,12 @@ function renderSino() {
   const lista = document.getElementById("sinoLista");
   if (!contador || !lista) return;
 
-  // Contador
-  if (avisos.length > 0) {
-    contador.textContent = avisos.length > 9 ? "9+" : String(avisos.length);
+  // O contador mostra só o que ainda não foi lido
+  const lidos = lerAvisosLidos();
+  const naoLidos = avisos.filter(a => !lidos.has(chaveAviso(a)));
+
+  if (naoLidos.length > 0) {
+    contador.textContent = naoLidos.length > 9 ? "9+" : String(naoLidos.length);
     contador.hidden = false;
   } else {
     contador.hidden = true;
@@ -1006,17 +1009,48 @@ function renderSino() {
     return;
   }
 
-  lista.innerHTML = avisos.map(a => `
-    <div class="sino-item sino-item-${a.tipo}">
+  lista.innerHTML = avisos.map(a => {
+    const novo = !lidos.has(chaveAviso(a));
+    return `
+    <div class="sino-item sino-item-${a.tipo} ${novo ? "sino-item-novo" : ""}">
       <div class="sino-item-icone">${iconeAviso(a.tipo)}</div>
       <div class="sino-item-texto">
         <strong>${a.titulo}</strong>
         <span>${esc(a.texto)}</span>
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 }
 
 /* Liga os cliques do sino (abrir/fechar painel) */
+/* ─── Avisos lidos ────────────────────────────────────────
+   Guarda a "assinatura" de cada aviso já visto. Enquanto a situação
+   não muda, o aviso não conta como novo. Se surgir um aviso diferente
+   (ou o valor mudar), ele volta a aparecer no contador. */
+function lerAvisosLidos() {
+  try { return new Set(JSON.parse(localStorage.getItem("fp_avisos_lidos") || "[]")); }
+  catch (e) { return new Set(); }
+}
+
+function gravarAvisosLidos(chaves) {
+  try { localStorage.setItem("fp_avisos_lidos", JSON.stringify([...chaves])); }
+  catch (e) {}
+}
+
+/* Assinatura única de um aviso: tipo + texto. Se o texto mudar
+   (valor, data), vira um aviso novo — e volta a notificar. */
+function chaveAviso(a) {
+  return `${a.tipo}|${a.texto}`;
+}
+
+/* Marca tudo que está na tela como lido e some com o contador */
+function marcarAvisosLidos() {
+  const avisos = calcularAvisos();
+  gravarAvisosLidos(new Set(avisos.map(chaveAviso)));
+  const contador = document.getElementById("sinoContador");
+  if (contador) contador.hidden = true;
+}
+
 function initSino() {
   const btn = document.getElementById("sinoBtn");
   const painel = document.getElementById("sinoPainel");
@@ -1024,7 +1058,10 @@ function initSino() {
 
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
-    painel.hidden = !painel.hidden;
+    const abrindo = painel.hidden;
+    painel.hidden = !abrindo;
+    // Abriu para ler: os avisos deixam de ser novidade
+    if (abrindo) marcarAvisosLidos();
   });
   // Fecha ao clicar fora
   document.addEventListener("click", (e) => {
@@ -4952,25 +4989,48 @@ function renderResumoCompromissos() {
     }
   }
 
-  // Alerta do topo — só considera o que é urgente (atrasado ou 7 dias)
+  // Alerta do topo — reservado para o que é URGENTE de verdade:
+  // contas atrasadas, vencendo hoje, ou nos próximos 3 dias.
+  // O resto fica no sino, para não banalizar o alerta.
   if (alertaVencEl) {
-    const atras = t.atrasados.length;
-    const prox  = t.proximos7.length;
-    if (!atras && !prox) { alertaVencEl.style.display = "none"; }
-    else {
-      let msg = "", cls = "alerta-info";
-      if (atras) {
-        const total = t.atrasados.reduce((a,m)=>a+m.valor,0);
-        msg = `<strong>${atras} conta${atras>1?"s":""} atrasada${atras>1?"s":""}</strong> — ${fmtMoeda(total)}`;
-        cls = "alerta-erro";
-        if (prox) msg += ` · e ${prox} vence${prox>1?"m":""} nos próximos 7 dias`;
+    const atrasadas = t.atrasados;
+    const hojeVence = t.lista.filter(m => diasAte(m.vencimento) === 0);
+    const ate3dias  = t.lista.filter(m => { const d = diasAte(m.vencimento); return d >= 1 && d <= 3; });
+
+    if (!atrasadas.length && !hojeVence.length && !ate3dias.length) {
+      alertaVencEl.style.display = "none";
+    } else {
+      const soma = arr => arr.reduce((a,m) => a + m.valor, 0);
+      const temFatura = arr => arr.some(m => m.origem === "fatura");
+      let msg = "", cls, icone;
+
+      if (atrasadas.length) {
+        const n = atrasadas.length;
+        const oQue = temFatura(atrasadas) && n === 1 ? "Fatura atrasada" : `${n} conta${n>1?"s":""} atrasada${n>1?"s":""}`;
+        msg = `<strong>${oQue}</strong> — ${fmtMoeda(soma(atrasadas))}`;
+        cls = "alerta-erro"; icone = "!";
+        const urgentes = hojeVence.length + ate3dias.length;
+        if (urgentes) msg += ` · e ${urgentes} vence${urgentes>1?"m":""} em breve`;
+
+      } else if (hojeVence.length) {
+        const n = hojeVence.length;
+        const oQue = temFatura(hojeVence) && n === 1
+          ? "Fatura vence hoje"
+          : `${n} conta${n>1?"s":""} vence${n>1?"m":""} hoje`;
+        msg = `<strong>${oQue}</strong> — ${fmtMoeda(soma(hojeVence))}`;
+        cls = "alerta-erro"; icone = "!";
+        if (ate3dias.length) msg += ` · mais ${ate3dias.length} em até 3 dias`;
+
       } else {
-        const total = t.proximos7.reduce((a,m)=>a+m.valor,0);
-        msg = `<strong>${prox} conta${prox>1?"s":""}</strong> vence${prox>1?"m":""} nos próximos 7 dias — ${fmtMoeda(total)}`;
-        cls = "alerta-aviso";
+        const n = ate3dias.length;
+        const oQue = temFatura(ate3dias) && n === 1 ? "Fatura vence" : `${n} conta${n>1?"s":""} vence${n>1?"m":""}`;
+        const dMin = Math.min(...ate3dias.map(m => diasAte(m.vencimento)));
+        msg = `<strong>${oQue} ${dMin === 1 ? "amanhã" : `em ${dMin} dias`}</strong> — ${fmtMoeda(soma(ate3dias))}`;
+        cls = "alerta-aviso"; icone = "•";
       }
+
       alertaVencEl.className = `alerta-venc ${cls}`;
-      alertaVencEl.innerHTML = `<span class="alerta-icone">${atras ? "!" : "•"}</span><span>${msg}</span>`;
+      alertaVencEl.innerHTML = `<span class="alerta-icone">${icone}</span><span>${msg}</span>`;
       alertaVencEl.style.display = "flex";
     }
   }

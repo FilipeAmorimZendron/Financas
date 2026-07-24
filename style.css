@@ -9052,3 +9052,19 @@ body.scroll-travado {
   font-size: 13px;
   border-radius: 8px;
 }
+
+/* Aviso ainda não lido: marca discreta à esquerda */
+.sino-item-novo {
+  position: relative;
+  background: rgba(30, 246, 221, 0.035);
+}
+.sino-item-novo::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2.5px;
+  border-radius: 0 2px 2px 0;
+  background: var(--teal-400, #1EF6DD);
+}
