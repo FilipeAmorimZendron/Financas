@@ -80,24 +80,51 @@ export default async function handler(req, res) {
       "User-Agent": "FAZ Financas",
     };
 
-    // --- 1. Cria o cliente no Asaas ---
-    const respCliente = await fetch(`${ASAAS_URL}/customers`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        name: nome || email,
-        email: email,
-        externalReference: userId, // liga o cliente Asaas ao seu usuário
-      }),
-    });
+    // --- 1. Acha ou cria o cliente no Asaas ---
+    // Primeiro procura um cliente já existente com esse e-mail.
+    // Sem isso, cada tentativa de checkout cria um cliente novo, e a conta
+    // enche de duplicados — o que atrapalha achar o pagamento depois.
+    let cliente = null;
 
-    const cliente = await respCliente.json();
-    console.log("Resposta cliente Asaas:", respCliente.status, JSON.stringify(cliente));
-    if (!respCliente.ok || !cliente.id) {
-      return res.status(502).json({
-        erro: "Falha ao criar cliente no Asaas",
-        detalhe: cliente,
+    const respBusca = await fetch(
+      `${ASAAS_URL}/customers?email=${encodeURIComponent(email)}&limit=1`,
+      { headers }
+    );
+    if (respBusca.ok) {
+      const achados = await respBusca.json();
+      cliente = (achados.data || [])[0] || null;
+      if (cliente) {
+        console.log("Cliente Asaas reaproveitado:", cliente.id);
+        // Garante que a referência ao nosso usuário esteja gravada nele
+        if (cliente.externalReference !== userId) {
+          await fetch(`${ASAAS_URL}/customers/${cliente.id}`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ externalReference: userId }),
+          }).catch(() => {});
+        }
+      }
+    }
+
+    // Não existe ainda: cria
+    if (!cliente) {
+      const respCliente = await fetch(`${ASAAS_URL}/customers`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          name: nome || email,
+          email: email,
+          externalReference: userId,
+        }),
       });
+      cliente = await respCliente.json();
+      console.log("Cliente Asaas criado:", respCliente.status, cliente.id || JSON.stringify(cliente));
+      if (!respCliente.ok || !cliente.id) {
+        return res.status(502).json({
+          erro: "Falha ao criar cliente no Asaas",
+          detalhe: cliente,
+        });
+      }
     }
 
     // --- 2. Cria o checkout recorrente ---
