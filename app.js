@@ -165,6 +165,77 @@ document.addEventListener("change", e => {
   }
 });
 
+/* Quantos registros usam uma categoria */
+function usosDaCategoria(nome) {
+  const movs = state.movimentos.filter(m => m.categoria === nome).length;
+  const recs = state.recorrencias.filter(r => r.categoria === nome).length;
+  const metas = state.metas.filter(m => m.categoria === nome).length;
+  return { movs, recs, metas, total: movs + recs + metas };
+}
+
+/* Exclui uma categoria criada pelo usuário.
+   O histórico é preservado: lançamentos antigos mantêm o nome,
+   mas a categoria some das opções de escolha. */
+async function excluirCategoria(id) {
+  const cat = (state.categorias || []).find(c => c.id === id);
+  if (!cat) return;
+
+  const uso = usosDaCategoria(cat.nome);
+  let msg = `Excluir a categoria <strong>${esc(cat.nome)}</strong>?`;
+  if (uso.total > 0) {
+    const partes = [];
+    if (uso.movs)  partes.push(`${uso.movs} lançamento${uso.movs > 1 ? "s" : ""}`);
+    if (uso.recs)  partes.push(`${uso.recs} gasto${uso.recs > 1 ? "s" : ""} fixo${uso.recs > 1 ? "s" : ""}`);
+    if (uso.metas) partes.push(`${uso.metas} meta${uso.metas > 1 ? "s" : ""}`);
+    msg += `<br><br>Ela está sendo usada em ${partes.join(", ")}.<br>` +
+           `Esses registros <strong>continuam com o nome</strong>, mas a categoria deixa de aparecer para novas escolhas.`;
+  }
+
+  const ok = await confirmar(msg);
+  if (!ok) return;
+
+  try {
+    await dbDelete("categorias", id);
+    state.categorias = state.categorias.filter(c => c.id !== id);
+    atualizarSelectsCategoria();
+    renderCategorias();
+    renderTudo();
+    toast(`Categoria "${cat.nome}" excluída.`, "info");
+  } catch (err) { tratarErro(err); }
+}
+
+/* Lista as categorias do usuário na tela de Conta */
+function renderCategorias() {
+  const el = document.getElementById("listaCategorias");
+  if (!el) return;
+
+  const minhas = state.categorias || [];
+  if (!minhas.length) {
+    el.innerHTML = `<div class="cat-vazio">
+      Você ainda não criou nenhuma categoria.
+      Escolha “+ Criar categoria…” em qualquer campo de categoria para começar.
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = minhas.map(c => {
+    const uso = usosDaCategoria(c.nome);
+    const sub = uso.total > 0
+      ? `${uso.total} registro${uso.total > 1 ? "s" : ""}`
+      : "Sem uso ainda";
+    return `<div class="cat-item">
+      <span class="cat-item-cor" style="background:${esc(c.cor || "#888780")}"></span>
+      <div class="cat-item-info">
+        <div class="cat-item-nome">${esc(c.nome)}</div>
+        <div class="cat-item-sub">${sub}</div>
+      </div>
+      <button class="btn-acao btn-acao-danger" onclick="excluirCategoria('${c.id}')" title="Excluir">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      </button>
+    </div>`;
+  }).join("");
+}
+
 /* ─── Criar categoria ─────────────────────────────────────
    Disparado pela opção "+ Criar categoria…" em qualquer select.
    Guarda de onde veio para devolver o foco e já selecionar a nova. */
@@ -6588,6 +6659,7 @@ function renderConta() {
   const email = state.user?.email || "—";
 
   renderAvatares();
+  renderCategorias();
 
   // E-mail
   const e1 = document.getElementById("userEmail");

@@ -9118,3 +9118,92 @@ select optgroup option {
   border-color: color-mix(in srgb, var(--cat-cor) 35%, transparent);
   background: color-mix(in srgb, var(--cat-cor) 12%, transparent);
 }
+
+/* ─── Campos de data ──────────────────────────────────────
+   O ícone de calendário nativo do Chrome vem escuro e some
+   no tema escuro. Aqui ele é invertido e ganha área de clique. */
+input[type="date"] {
+  position: relative;
+  color-scheme: dark;
+  font-family: inherit;
+  cursor: pointer;
+}
+[data-theme="light"] input[type="date"] { color-scheme: light; }
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.55;
+  padding: 3px;
+  margin-right: -2px;
+  border-radius: 4px;
+  transition: opacity .15s, background .15s;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.08);
+}
+[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  background: rgba(0,0,0,0.06);
+}
+/* Campo vazio: o "dd/mm/aaaa" fica com cor de placeholder */
+input[type="date"]:not(:focus):invalid,
+input[type="date"]:not(:focus)[value=""] {
+  color: var(--text-muted);
+}
+input[type="date"]::-webkit-datetime-edit-day-field:focus,
+input[type="date"]::-webkit-datetime-edit-month-field:focus,
+input[type="date"]::-webkit-datetime-edit-year-field:focus {
+  background: var(--teal-500, #0F8A7D);
+  color: #fff;
+  border-radius: 3px;
+  outline: none;
+}
+
+/* Lista de categorias do usuário (tela de Conta) */
+.conta-grupo-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: -6px 0 14px;
+  padding: 0 2px;
+}
+.cat-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface2, #101f36);
+  border: 1px solid var(--border-soft, #2C384A);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.cat-item-cor {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cat-item-info { flex: 1; min-width: 0; }
+.cat-item-nome {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.cat-item-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.cat-vazio {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  background: var(--surface2, #101f36);
+  border: 1px dashed var(--border-soft, #2C384A);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
