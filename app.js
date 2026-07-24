@@ -773,6 +773,9 @@ async function carregarDadosNuvem() {
     }));
     const perfilExistente = (perfilRows||[])[0];
     state.perfil = mapPerfil(perfilExistente);
+    // O plano pode ter mudado no servidor (pagamento, atraso, cancelamento).
+    // Atualiza o selo e os cadeados na hora, sem esperar o próximo render.
+    try { atualizarCadeadosMenu(); } catch (e) {}
     // Se o usuário ainda não tem linha de perfil, cria uma agora (plano básico).
     // Assim todo usuário aparece na tabela perfil e pode receber premium.
     if (!perfilExistente && state.user?.id) {
@@ -7246,6 +7249,31 @@ function planoAtual() {
 
   // cancelada_falta_pagamento, inativa e qualquer outro: sem acesso pago
   return "basico";
+}
+
+/* Diagnóstico do plano — rode verPlano() no Console para ver o estado real.
+   Útil para entender por que o acesso está (ou não está) liberado. */
+function verPlano() {
+  const p = state.perfil || {};
+  const desde = p.atrasoDesde;
+  let dias = null;
+  if (desde) {
+    dias = Math.floor(
+      (new Date(hojeISO() + "T00:00:00") - new Date(desde + "T00:00:00")) / 86400000
+    );
+  }
+  const info = {
+    "plano contratado": p.plano || "(nenhum)",
+    "status da assinatura": p.assinaturaStatus || "(nenhum)",
+    "atraso desde": desde || "(sem atraso)",
+    "dias de atraso": dias === null ? "—" : dias,
+    "tolerância": DIAS_TOLERANCIA_PLANO + " dias",
+    "plano anterior": p.planoAnterior || "—",
+    "ACESSO ATUAL": planoAtual(),
+    "hoje": hojeISO()
+  };
+  console.table(info);
+  return info;
 }
 
 /* Quantos dias faltam para o acesso cair, quando o pagamento está atrasado.

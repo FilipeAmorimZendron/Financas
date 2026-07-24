@@ -9432,3 +9432,7 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   align-self: center;
   color: var(--text-muted);
 }
+
+/* O atributo hidden precisa vencer o display:flex do contador,
+   senão o "0" continua visível quando não há avisos. */
+.sino-contador[hidden] { display: none !important; }
