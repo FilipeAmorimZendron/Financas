@@ -142,9 +142,9 @@ export default async function handler(req, res) {
     fim.setFullYear(fim.getFullYear() + 10);
     const endDate = fim.toISOString().slice(0, 10);
 
-    // Monta o corpo do checkout. O customerData faz o Asaas reaproveitar o
-    // cliente existente com esse e-mail, em vez de criar um novo — é o que
-    // liga o pagamento ao nosso userId.
+    // Monta o corpo do checkout. A referência vai em externalReference, mas
+    // o Asaas costuma não devolvê-la — por isso o vínculo real com o usuário
+    // fica na nossa tabela de checkouts, gravada logo abaixo.
     const corpoBase = {
       billingTypes: ["CREDIT_CARD"],
       chargeTypes: ["RECURRENT"],
@@ -171,28 +171,15 @@ export default async function handler(req, res) {
       externalReference: `${userId}|${plano}|${ciclo}`,
     };
 
-    // 1ª tentativa: com os dados do cliente
-    let respCheckout = await fetch(`${ASAAS_URL}/checkouts`, {
+    // Cria o checkout. Não mandamos customerData: o Asaas passa a exigir
+    // telefone quando esse campo vem, e não precisamos dele — o vínculo com
+    // o usuário fica registrado na nossa tabela de checkouts.
+    const respCheckout = await fetch(`${ASAAS_URL}/checkouts`, {
       method: "POST",
       headers,
-      body: JSON.stringify({
-        ...corpoBase,
-        customerData: { name: nome || email, email: email },
-      }),
+      body: JSON.stringify(corpoBase),
     });
-
-    // Se o Asaas recusar por causa do customerData, tenta sem ele.
-    // Melhor um checkout que abre do que um erro na cara do cliente.
-    if (!respCheckout.ok) {
-      const erro1 = await respCheckout.clone().json().catch(() => ({}));
-      console.log("Checkout com customerData falhou:", respCheckout.status, JSON.stringify(erro1));
-      respCheckout = await fetch(`${ASAAS_URL}/checkouts`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(corpoBase),
-      });
-      console.log("Retentativa sem customerData:", respCheckout.status);
-    }
+    console.log("Checkout criado:", respCheckout.status);
 
     const checkout = await respCheckout.json();
 
