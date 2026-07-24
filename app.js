@@ -1153,17 +1153,19 @@ function limiteDoPeriodo() {
 function todosCompromissos(ateISO) {
   const limite = ateISO || limiteDoPeriodo();
 
-  // 1. Lançamentos avulsos marcados como pendentes
-  const avulsos = listarPendentes().map(m => ({
-    origem: "avulso",
-    id: m.id,
-    descricao: m.descricao,
-    valor: m.valor,
-    tipo: m.tipo,
-    categoria: m.categoria,
-    contaId: m.bancoId,
-    vencimento: vencDe(m)
-  }));
+  // 1. Lançamentos avulsos marcados como pendentes (dentro do período)
+  const avulsos = listarPendentes()
+    .filter(m => vencDe(m) <= limite)
+    .map(m => ({
+      origem: "avulso",
+      id: m.id,
+      descricao: m.descricao,
+      valor: m.valor,
+      tipo: m.tipo,
+      categoria: m.categoria,
+      contaId: m.bancoId,
+      vencimento: vencDe(m)
+    }));
 
   // 2. Ocorrências de recorrências ainda não pagas
   const recorrentes = ocorrenciasNaJanela("2000-01-01", limite)
@@ -1180,10 +1182,8 @@ function todosCompromissos(ateISO) {
       vencimento: o.vencimento
     }));
 
-  // 3. Faturas de cartão em aberto — SEMPRE aparecem, mesmo fora do período,
-  //    porque são dívidas já contraídas. Limita às próximas para não poluir.
+  // 3. Faturas de cartão em aberto, dentro do período escolhido
   const faturasCartao = [];
-  const limiteFatura = somarMeses(hojeISO(), 4); // até 4 meses de faturas à frente
   state.bancos.filter(b => b.temCartao).forEach(cartao => {
     const pagas = new Set((state.faturasPagas || [])
       .filter(f => f.cartaoId === cartao.id)
@@ -1196,7 +1196,7 @@ function todosCompromissos(ateISO) {
     Object.keys(porMes).forEach(fm => {
       if (porMes[fm] <= 0) return;
       const venc = vencimentoDaFatura(fm, cartao);
-      if (venc > limiteFatura) return; // ignora faturas muito distantes
+      if (venc > limite) return;   // fora do período escolhido
       faturasCartao.push({
         origem: "fatura",
         id: `fatura|${cartao.id}|${fm}`,
