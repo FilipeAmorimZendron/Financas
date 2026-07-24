@@ -115,42 +115,57 @@ export default async function handler(req, res) {
     fim.setFullYear(fim.getFullYear() + 10);
     const endDate = fim.toISOString().slice(0, 10);
 
-    const respCheckout = await fetch(`${ASAAS_URL}/checkouts`, {
+    // Monta o corpo do checkout. O customerData faz o Asaas reaproveitar o
+    // cliente existente com esse e-mail, em vez de criar um novo — é o que
+    // liga o pagamento ao nosso userId.
+    const corpoBase = {
+      billingTypes: ["CREDIT_CARD"],
+      chargeTypes: ["RECURRENT"],
+      minutesToExpire: 60,
+      callback: {
+        successUrl: `${SITE_URL}/?assinatura=sucesso`,
+        cancelUrl: `${SITE_URL}/?assinatura=cancelada`,
+        expiredUrl: `${SITE_URL}/?assinatura=expirada`,
+      },
+      items: [
+        {
+          name: config.nome,
+          description: `Assinatura ${plano} (${ciclo})`,
+          quantity: 1,
+          value: valor,
+        },
+      ],
+      subscription: {
+        cycle: ciclo === "anual" ? "YEARLY" : "MONTHLY",
+        nextDueDate: nextDueDate,
+        endDate: endDate,
+        externalReference: `${userId}|${plano}|${ciclo}`,
+      },
+      externalReference: `${userId}|${plano}|${ciclo}`,
+    };
+
+    // 1ª tentativa: com os dados do cliente
+    let respCheckout = await fetch(`${ASAAS_URL}/checkouts`, {
       method: "POST",
       headers,
       body: JSON.stringify({
-        billingTypes: ["CREDIT_CARD"],
-        chargeTypes: ["RECURRENT"],
-        minutesToExpire: 60,
-        // Amarra o checkout ao cliente que acabamos de criar.
-        // Sem isto o Asaas cria OUTRO cliente com o que a pessoa digitar,
-        // e o nosso fica órfão — foi o que impediu de achar o pagamento.
-        customer: cliente.id,
-        callback: {
-          successUrl: `${SITE_URL}/?assinatura=sucesso`,
-          cancelUrl: `${SITE_URL}/?assinatura=cancelada`,
-          expiredUrl: `${SITE_URL}/?assinatura=expirada`,
-        },
-        items: [
-          {
-            name: config.nome,
-            description: `Assinatura ${plano} (${ciclo})`,
-            quantity: 1,
-            value: valor,
-          },
-        ],
-        subscription: {
-          cycle: ciclo === "anual" ? "YEARLY" : "MONTHLY",
-          nextDueDate: nextDueDate,
-          endDate: endDate,
-          // Repete a referência aqui: sem isso a assinatura (e as cobranças que
-          // ela gera todo mês) não sabem a qual usuário pertencem, e o webhook
-          // não consegue liberar o plano.
-          externalReference: `${userId}|${plano}|${ciclo}`,
-        },
-        externalReference: `${userId}|${plano}|${ciclo}`,
+        ...corpoBase,
+        customerData: { name: nome || email, email: email },
       }),
     });
+
+    // Se o Asaas recusar por causa do customerData, tenta sem ele.
+    // Melhor um checkout que abre do que um erro na cara do cliente.
+    if (!respCheckout.ok) {
+      const erro1 = await respCheckout.clone().json().catch(() => ({}));
+      console.log("Checkout com customerData falhou:", respCheckout.status, JSON.stringify(erro1));
+      respCheckout = await fetch(`${ASAAS_URL}/checkouts`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(corpoBase),
+      });
+      console.log("Retentativa sem customerData:", respCheckout.status);
+    }
 
     const checkout = await respCheckout.json();
 
@@ -159,8 +174,14 @@ export default async function handler(req, res) {
 
     // Se o Asaas recusou (status não-2xx), devolve o motivo
     if (!respCheckout.ok) {
+      // Extrai a mensagem legível do Asaas para mostrar ao usuário
+      const msgAsaas =
+        checkout?.errors?.[0]?.description ||
+        checkout?.message ||
+        "O banco recusou a criação do pagamento.";
+      console.error("Checkout recusado:", respCheckout.status, JSON.stringify(checkout));
       return res.status(502).json({
-        erro: "Falha ao criar checkout no Asaas",
+        erro: msgAsaas,
         detalhe: checkout,
       });
     }
