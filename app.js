@@ -1352,9 +1352,9 @@ function calcularAvisos() {
                        : planoContratado === "premium" ? "Premium" : null;
 
   if (statusAss === "atrasada" && nomePlanoAviso) {
-    const diasCorte = diasAteCortePlano();
-    if (diasCorte > 0) {
-      // Ainda dentro da tolerância: dá para salvar
+    if (dentroDaTolerancia()) {
+      // Ainda dá tempo de resolver
+      const diasCorte = diasAteCortePlano();
       avisos.push({
         tipo: "vencida",
         titulo: "Pagamento da assinatura falhou",
@@ -7237,14 +7237,10 @@ function planoAtual() {
   if (status === "ativa") return ehPago ? plano : "basico";
 
   // Atrasada: o cartão falhou, mas o Asaas ainda vai tentar de novo.
-  // Mantemos o acesso por alguns dias em vez de cortar na hora.
+  // Mantemos o acesso durante a tolerância em vez de cortar na hora.
   if (status === "atrasada" && ehPago) {
-    const desde = p.atrasoDesde;
-    if (!desde) return plano;   // sem data registrada: dá o benefício da dúvida
-    const dias = Math.floor(
-      (new Date(hojeISO() + "T00:00:00") - new Date(desde + "T00:00:00")) / 86400000
-    );
-    if (dias <= DIAS_TOLERANCIA_PLANO) return plano;
+    if (!p.atrasoDesde) return plano;   // sem data: dá o benefício da dúvida
+    if (dentroDaTolerancia()) return plano;
   }
 
   // cancelada_falta_pagamento, inativa e qualquer outro: sem acesso pago
@@ -7255,19 +7251,15 @@ function planoAtual() {
    Útil para entender por que o acesso está (ou não está) liberado. */
 function verPlano() {
   const p = state.perfil || {};
-  const desde = p.atrasoDesde;
-  let dias = null;
-  if (desde) {
-    dias = Math.floor(
-      (new Date(hojeISO() + "T00:00:00") - new Date(desde + "T00:00:00")) / 86400000
-    );
-  }
+  const dias = diasDeAtraso();
   const info = {
     "plano contratado": p.plano || "(nenhum)",
     "status da assinatura": p.assinaturaStatus || "(nenhum)",
-    "atraso desde": desde || "(sem atraso)",
+    "atraso desde": p.atrasoDesde || "(sem atraso)",
     "dias de atraso": dias === null ? "—" : dias,
     "tolerância": DIAS_TOLERANCIA_PLANO + " dias",
+    "protegido pela tolerância": dias === null ? "—" : (dentroDaTolerancia() ? "SIM" : "NÃO"),
+    "dias até o corte": diasAteCortePlano() ?? "—",
     "plano anterior": p.planoAnterior || "—",
     "ACESSO ATUAL": planoAtual(),
     "hoje": hojeISO()
@@ -7276,14 +7268,28 @@ function verPlano() {
   return info;
 }
 
-/* Quantos dias faltam para o acesso cair, quando o pagamento está atrasado.
-   Devolve null se não há atraso. */
-function diasAteCortePlano() {
+/* Dias corridos desde o início do atraso. Null se não há atraso. */
+function diasDeAtraso() {
   const p = state.perfil || {};
   if (p.assinaturaStatus !== "atrasada" || !p.atrasoDesde) return null;
-  const dias = Math.floor(
+  return Math.floor(
     (new Date(hojeISO() + "T00:00:00") - new Date(p.atrasoDesde + "T00:00:00")) / 86400000
   );
+}
+
+/* A tolerância ainda protege o acesso?
+   É a ÚNICA fonte da decisão — o acesso e o aviso leem daqui, para
+   não acontecer de a tela dizer "cancelado" com o plano ainda ativo. */
+function dentroDaTolerancia() {
+  const dias = diasDeAtraso();
+  if (dias === null) return false;
+  return dias < DIAS_TOLERANCIA_PLANO;
+}
+
+/* Quantos dias faltam para o acesso cair. Null se não há atraso. */
+function diasAteCortePlano() {
+  const dias = diasDeAtraso();
+  if (dias === null) return null;
   return Math.max(0, DIAS_TOLERANCIA_PLANO - dias);
 }
 
