@@ -9068,3 +9068,53 @@ body.scroll-travado {
   border-radius: 0 2px 2px 0;
   background: var(--teal-400, #1EF6DD);
 }
+
+/* Criar categoria: seletor de cores */
+.cat-cores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 4px 0;
+}
+.cat-cor {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform .12s, border-color .12s;
+}
+.cat-cor:hover { transform: scale(1.1); }
+.cat-cor.ativa {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.campo-dica {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  min-height: 16px;
+}
+.campo-dica-erro { color: #e24b4a; }
+
+/* Categorias do usuário no select: leve destaque */
+select optgroup {
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+}
+select optgroup option {
+  color: var(--text-primary);
+  font-weight: 400;
+}
+
+/* Badge de categoria criada pelo usuário: ganha a cor escolhida */
+.badge-cat-custom {
+  color: var(--cat-cor);
+  border-color: color-mix(in srgb, var(--cat-cor) 35%, transparent);
+  background: color-mix(in srgb, var(--cat-cor) 12%, transparent);
+}

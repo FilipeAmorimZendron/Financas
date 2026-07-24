@@ -1577,6 +1577,30 @@
   </div>
 
   <!-- MODAL DOCUMENTOS LEGAIS -->
+  <div class="modal-overlay" id="modalCategoria">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Nova categoria</h3>
+        <button type="button" class="modal-fechar" id="fecharModalCategoria" aria-label="Fechar">✕</button>
+      </div>
+      <form id="formCategoria">
+        <div class="field">
+          <label for="novaCategoriaNome">Nome</label>
+          <input type="text" id="novaCategoriaNome" maxlength="30" placeholder="Luiz — meu filho" autocomplete="off" required />
+          <span class="campo-dica" id="novaCategoriaErro"></span>
+        </div>
+        <div class="field">
+          <label>Cor</label>
+          <div class="cat-cores" id="novaCategoriaCores"></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="cancelarCategoria">Cancelar</button>
+          <button type="submit" class="btn-primary">Criar categoria</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="modalDocumento">
     <div class="modal modal-doc">
       <div class="modal-header">

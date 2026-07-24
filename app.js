@@ -27,7 +27,7 @@ const _h = { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Author
 /* ─── Estado em memória ──────────────────────────────────── */
 const state = {
   bancos: [], movimentos: [], transferencias: [], recorrencias: [], metas: [],
-  faturasPagas: [],
+  faturasPagas: [], categorias: [],
   objetivos: [], investimentos: [], recPagamentos: [],
   perfil: { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null },
   user: null
@@ -50,6 +50,228 @@ const ICONE_CAT = {
   "Outros":           _sv('<path d="M21 8v13H3V8"/><rect x="1" y="3" width="22" height="5" rx="1"/><line x1="12" y1="3" x2="12" y2="21"/>')
 };
 const ICONE_CAT_FALLBACK = _sv('<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/>');
+
+/* ============================================================
+   CATEGORIAS — fonte única de verdade
+   As fixas vêm com o app. As personalizadas o usuário cria,
+   e ficam salvas na conta dele (tabela "categorias").
+   ============================================================ */
+
+/* As que vêm de fábrica. Não podem ser apagadas. */
+const CATEGORIAS_FIXAS = [
+  "Alimentação", "Transporte", "Moradia", "Saúde",
+  "Lazer", "Educação", "Serviços", "Compras", "Outros"
+];
+
+/* Cores oferecidas ao criar uma categoria */
+const CORES_CATEGORIA = [
+  "#7F77DD", "#1D9E75", "#D85A30", "#378ADD",
+  "#BA7517", "#D4537E", "#639922", "#888780"
+];
+
+/* Todas as categorias disponíveis: fixas + as do usuário */
+function todasCategorias() {
+  const minhas = (state.categorias || []).map(c => c.nome);
+  return [...CATEGORIAS_FIXAS, ...minhas];
+}
+
+/* Categorias válidas para gastos (exclui "Entrada", que é de receita) */
+function categoriasDeGasto() {
+  return todasCategorias().filter(c => c !== "Entrada");
+}
+
+/* A cor de uma categoria personalizada (fixas usam o padrão do tema) */
+function corDaCategoria(nome) {
+  const c = (state.categorias || []).find(x => x.nome === nome);
+  return c?.cor || null;
+}
+
+/* Monta as <option> de um select de categoria.
+   incluirEntrada: para formulários que aceitam receitas.
+   incluirCriar: adiciona a opção de criar uma nova.
+   selecionada: qual deve vir marcada. */
+function opcoesCategoria(selecionada, opcoes = {}) {
+  const { incluirEntrada = true, incluirCriar = true, incluirTodas = false } = opcoes;
+
+  let html = "";
+  if (incluirTodas) {
+    html += `<option value="todas"${selecionada === "todas" ? " selected" : ""}>Todas</option>`;
+  }
+  if (incluirEntrada) {
+    html += `<option value="Entrada"${selecionada === "Entrada" ? " selected" : ""}>Entrada</option>`;
+  }
+
+  // Fixas
+  html += CATEGORIAS_FIXAS
+    .map(c => `<option value="${esc(c)}"${selecionada === c ? " selected" : ""}>${esc(c)}</option>`)
+    .join("");
+
+  // Personalizadas, agrupadas para ficar claro que são do usuário
+  const minhas = state.categorias || [];
+  if (minhas.length) {
+    html += `<optgroup label="Minhas categorias">`;
+    html += minhas
+      .map(c => `<option value="${esc(c.nome)}"${selecionada === c.nome ? " selected" : ""}>${esc(c.nome)}</option>`)
+      .join("");
+    html += `</optgroup>`;
+  }
+
+  // Se a categoria salva não existe mais na lista, preserva para não perder o dado
+  if (selecionada && selecionada !== "todas" && !todasCategorias().includes(selecionada) && selecionada !== "Entrada") {
+    html += `<option value="${esc(selecionada)}" selected>${esc(selecionada)}</option>`;
+  }
+
+  if (incluirCriar) {
+    html += `<option value="__nova__">+ Criar categoria…</option>`;
+  }
+  return html;
+}
+
+/* Repopula todos os selects de categoria do app de uma vez.
+   Chamada sempre que a lista muda (criou, renomeou, excluiu). */
+function atualizarSelectsCategoria() {
+  const alvos = [
+    { id: "recCategoria",          entrada: true  },
+    { id: "metaCategoria",         entrada: false },
+    { id: "filtroCategoriaTabela", entrada: true, todas: true, criar: false },
+    { id: "editMovCategoria",      entrada: true  },
+    { id: "editRecCategoria",      entrada: true  }
+  ];
+  alvos.forEach(({ id, entrada, todas, criar }) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const valorAtual = sel.value;
+    sel.innerHTML = opcoesCategoria(valorAtual, {
+      incluirEntrada: entrada,
+      incluirTodas: !!todas,
+      incluirCriar: criar !== false
+    });
+    if (valorAtual && [...sel.options].some(o => o.value === valorAtual)) {
+      sel.value = valorAtual;
+    }
+  });
+}
+
+/* Liga os selects de categoria à opção "+ Criar categoria…".
+   Delegação no documento: funciona mesmo com selects repopulados. */
+document.addEventListener("focusin", e => {
+  if (e.target.tagName === "SELECT" && /[Cc]ategoria/.test(e.target.id)) {
+    guardarValorCategoria(e.target);
+  }
+});
+document.addEventListener("change", e => {
+  if (e.target.tagName === "SELECT" && /[Cc]ategoria/.test(e.target.id)) {
+    aoTrocarSelectCategoria(e.target);
+  }
+});
+
+/* ─── Criar categoria ─────────────────────────────────────
+   Disparado pela opção "+ Criar categoria…" em qualquer select.
+   Guarda de onde veio para devolver o foco e já selecionar a nova. */
+
+let _selectOrigemCategoria = null;   // id do select que abriu o modal
+let _selectValorAnterior = null;     // valor que estava escolhido antes
+let _corCategoriaEscolhida = CORES_CATEGORIA[0];
+
+/* Um select escolheu "+ Criar categoria…" */
+function aoTrocarSelectCategoria(sel) {
+  if (sel.value !== "__nova__") return;
+  _selectOrigemCategoria = sel.id;
+  // Volta o select ao valor anterior — só troca de verdade se a criação der certo
+  sel.value = _selectValorAnterior && [...sel.options].some(o => o.value === _selectValorAnterior)
+    ? _selectValorAnterior
+    : (sel.options[0]?.value || "");
+  abrirModalCategoria();
+}
+
+/* Guarda o valor antes de trocar, para poder voltar se cancelar */
+function guardarValorCategoria(sel) {
+  if (sel.value !== "__nova__") _selectValorAnterior = sel.value;
+}
+
+function abrirModalCategoria() {
+  const campo = document.getElementById("novaCategoriaNome");
+  const erro  = document.getElementById("novaCategoriaErro");
+  if (campo) campo.value = "";
+  if (erro) { erro.textContent = ""; erro.classList.remove("campo-dica-erro"); }
+  _corCategoriaEscolhida = CORES_CATEGORIA[0];
+  montarCoresCategoria();
+  abrirModal("modalCategoria");
+  setTimeout(() => campo?.focus(), 100);
+}
+
+function montarCoresCategoria() {
+  const box = document.getElementById("novaCategoriaCores");
+  if (!box) return;
+  box.innerHTML = CORES_CATEGORIA.map(c => `
+    <button type="button" class="cat-cor ${c === _corCategoriaEscolhida ? "ativa" : ""}"
+      style="background:${c}" data-cor="${c}" aria-label="Cor ${c}"></button>
+  `).join("");
+  box.querySelectorAll(".cat-cor").forEach(b => {
+    b.addEventListener("click", () => {
+      _corCategoriaEscolhida = b.dataset.cor;
+      box.querySelectorAll(".cat-cor").forEach(x => x.classList.remove("ativa"));
+      b.classList.add("ativa");
+    });
+  });
+}
+
+/* Salva a categoria nova */
+document.getElementById("formCategoria")?.addEventListener("submit", async e => {
+  e.preventDefault();
+  const campo = document.getElementById("novaCategoriaNome");
+  const erro  = document.getElementById("novaCategoriaErro");
+  const nome  = (campo?.value || "").trim();
+
+  const avisar = msg => {
+    if (erro) { erro.textContent = msg; erro.classList.add("campo-dica-erro"); }
+    campo?.focus();
+  };
+
+  if (nome.length < 2) return avisar("Escreva um nome com pelo menos 2 letras.");
+  if (nome === "__nova__" || nome === "todas") return avisar("Esse nome é reservado pelo app.");
+
+  // Já existe? (não diferencia maiúscula/minúscula)
+  const existe = todasCategorias().some(c => c.toLowerCase() === nome.toLowerCase())
+                 || nome.toLowerCase() === "entrada";
+  if (existe) return avisar("Você já tem uma categoria com esse nome.");
+
+  try {
+    const nova = await dbInsert("categorias", {
+      user_id: state.user.id,
+      nome,
+      cor: _corCategoriaEscolhida
+    });
+    state.categorias.push({ id: nova.id, nome: nova.nome, cor: nova.cor || null });
+    state.categorias.sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
+    atualizarSelectsCategoria();
+
+    // Já deixa a nova categoria escolhida no select de onde o usuário veio
+    if (_selectOrigemCategoria) {
+      const sel = document.getElementById(_selectOrigemCategoria);
+      if (sel) sel.value = nome;
+      _selectOrigemCategoria = null;
+    }
+
+    fecharModal("modalCategoria");
+    renderTudo();
+    toast(`Categoria "${nome}" criada.`, "success");
+  } catch (err) {
+    if (String(err.message || "").includes("duplicate")) {
+      avisar("Você já tem uma categoria com esse nome.");
+    } else {
+      tratarErro(err);
+    }
+  }
+});
+
+["fecharModalCategoria", "cancelarCategoria"].forEach(id => {
+  document.getElementById(id)?.addEventListener("click", () => {
+    _selectOrigemCategoria = null;
+    fecharModal("modalCategoria");
+  });
+});
 
 /* ─── Tema claro / escuro ────────────────────────────────── */
 const SVG_SOL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
@@ -367,7 +589,7 @@ async function dbDelete(tabela, id) {
 async function carregarDadosNuvem() {
   mostrarLoading(true, "Carregando seus dados", "Buscando contas, lançamentos e metas...");
   try {
-    const [contas, movimentos, transferencias, recorrencias, metas, objetivos, investimentos, recPagamentos, perfilRows, faturasPagas] = await Promise.all([
+    const [contas, movimentos, transferencias, recorrencias, metas, objetivos, investimentos, recPagamentos, perfilRows, faturasPagas, categorias] = await Promise.all([
       dbSelect("contas"),
       dbSelect("movimentos"),
       dbSelect("transferencias"),
@@ -377,13 +599,17 @@ async function carregarDadosNuvem() {
       dbSelect("investimentos").catch(()=>[]),
       dbSelect("recorrencia_pagamentos").catch(()=>[]),
       dbSelect("perfil").catch(()=>[]),
-      dbSelect("faturas_pagas").catch(()=>[])
+      dbSelect("faturas_pagas").catch(()=>[]),
+      dbSelect("categorias").catch(()=>[])
     ]);
     // Mapear campos do banco para o formato do app
     state.bancos         = contas.map(c => ({ id:c.id, nome:c.nome, tipo:c.tipo, saldoInicial: Number(c.saldo_inicial), saldoData: c.saldo_data || null, cor: c.cor || null, temCartao: c.tem_cartao || false, limite: c.limite != null ? Number(c.limite) : null, diaFechamento: c.dia_fechamento || null, diaVencimento: c.dia_vencimento || null }));
     state.movimentos     = movimentos.map(m => ({ id:m.id, descricao:m.descricao, bancoId:m.conta_id, data:m.data, valor:Number(m.valor), tipo:m.tipo, categoria:m.categoria, recorrenciaId:m.recorrencia_id, status:m.status||"pago", vencimento:m.vencimento||null, pagoEm:m.pago_em||null, formaPagamento:m.forma_pagamento||null, cartaoId:m.cartao_id||null, faturaMes:m.fatura_mes||null, parcelaNum:m.parcela_num||null, parcelaTotal:m.parcela_total||null, compraId:m.compra_id||null }));
     state.transferencias = transferencias.map(t => ({ id:t.id, origem:t.conta_origem, destino:t.conta_destino, valor:Number(t.valor), data:t.data, descricao:t.descricao||"" }));
     state.faturasPagas   = (faturasPagas||[]).map(f => ({ id:f.id, cartaoId:f.cartao_id, faturaMes:f.fatura_mes, contaId:f.conta_id||null, valor:Number(f.valor), pagoEm:f.pago_em }));
+    state.categorias     = (categorias||[])
+      .map(c => ({ id:c.id, nome:c.nome, cor:c.cor||null }))
+      .sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
     state.recorrencias   = recorrencias.map(r => ({
       id:r.id, descricao:r.descricao, valor:Number(r.valor), tipo:r.tipo,
       categoria:r.categoria, contaId:r.conta_id, dia:r.dia,
@@ -714,7 +940,10 @@ const hojeISO = () => {
 const mesAtualISO = () => hojeISO().slice(0,7);
 
 function badge(cat) {
-  return `<span class="badge badge-cat">${ICONE_CAT[cat] ?? ICONE_CAT_FALLBACK}<span>${esc(cat)}</span></span>`;
+  const cor = corDaCategoria(cat);
+  const estilo = cor ? ` style="--cat-cor:${cor}"` : "";
+  const cls = cor ? "badge badge-cat badge-cat-custom" : "badge badge-cat";
+  return `<span class="${cls}"${estilo}>${ICONE_CAT[cat] ?? ICONE_CAT_FALLBACK}<span>${esc(cat)}</span></span>`;
 }
 
 /* ─── Classificação ─────────────────────────────────────── */
@@ -2252,6 +2481,12 @@ function renderPlanilha() {
 /* ─── Gráficos planilha ──────────────────────────────────── */
 const CHART_COLORS = ["#2d6a72","#2d8a5f","#d99a2b","#c0453f","#8b5cf6","#0ea5e9","#ec4899","#10b981"];
 
+/* Cor de uma categoria no gráfico: usa a que o usuário escolheu,
+   ou uma da paleta padrão pela posição. */
+function corGrafico(categoria, indice) {
+  return corDaCategoria(categoria) || CHART_COLORS[indice % CHART_COLORS.length];
+}
+
 function _tooltipMoeda(ctx) {
   const total = (ctx.chart.data.datasets[0].data||[]).reduce((a,v)=>a+v, 0);
   return `${ctx.label}: ${fmtMoeda(ctx.raw)} (${total>0?((ctx.raw/total)*100).toFixed(1):"0.0"}%)`;
@@ -2308,7 +2543,7 @@ function renderGraficosPlanilha(movs) {
       chartCategoriasPlanilha = new Chart(c1, {
         type: "doughnut",
         data: { labels, datasets: [{
-          data, backgroundColor: CHART_COLORS,
+          data, backgroundColor: labels.map((l, i) => corGrafico(l, i)),
           borderColor: getComputedStyle(document.documentElement).getPropertyValue("--surface").trim(),
           borderWidth: 3, hoverOffset: 6
         }]},
@@ -2323,7 +2558,7 @@ function renderGraficosPlanilha(movs) {
       document.getElementById("legendaCategorias").innerHTML = pares.map(([cat, val], i) => {
         const pct = totalGasto > 0 ? Math.round((val/totalGasto)*100) : 0;
         return `<div class="plan-leg-item">
-          <span class="plan-leg-cor" style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></span>
+          <span class="plan-leg-cor" style="background:${corGrafico(cat, i)}"></span>
           <span class="plan-leg-nome">${esc(cat)}</span>
           <span class="plan-leg-val">${fmtMoeda(val)}</span>
           <span class="plan-leg-pct">${pct}%</span>
@@ -2418,6 +2653,7 @@ function renderTudo() {
   renderSino();             // atualiza os avisos do sino
   renderConta();   // dados podem ter mudado — recalcula na próxima leitura
   atualizarSelectContas();
+  atualizarSelectsCategoria();
   ajustarFormPorTipo();
   ajustarFormRecorrencia();
   renderResumoDashboard();
@@ -3062,10 +3298,11 @@ async function processarExtratoChat(arquivo, bancoId, addChat) {
    O que ela não soube vira pergunta; o resto pode ser corrigido.
    ============================================================ */
 
-const CATEGORIAS_APP = [
-  "Alimentação", "Transporte", "Moradia", "Saúde",
-  "Lazer", "Educação", "Serviços", "Compras", "Outros"
-];
+/* Categorias oferecidas na revisão do extrato.
+   É uma função porque a lista muda quando o usuário cria as dele. */
+function categoriasRevisao() {
+  return todasCategorias();
+}
 
 let revisaoDados = { itens: [], duvidas: [], bancoId: null };
 
@@ -3192,7 +3429,7 @@ function renderRevisao() {
         </div>
         <div class="rev-duvida-pergunta">${esc(d.data || "")} · ${esc(d.pergunta || "Qual categoria?")}</div>
         <div class="rev-duvida-opcoes">
-          ${(d.opcoes || CATEGORIAS_APP).map((op, oi) => `
+          ${(d.opcoes || categoriasRevisao()).map((op, oi) => `
             <button type="button" class="rev-opcao ${d.resposta === op ? "rev-opcao-ativa" : ""}"
               onclick="responderDuvida(${i}, ${oi})">${esc(op)}</button>
           `).join("")}
@@ -3216,7 +3453,7 @@ function renderRevisao() {
         <span class="rev-item-desc">${esc(it.descricao || "")}</span>
         <select class="rev-item-cat" onchange="trocarCategoriaItem(${i}, this.value)">
           ${(() => {
-            const opcoes = CATEGORIAS_APP.concat(it.tipo === "entrada" ? ["Entrada"] : []);
+            const opcoes = categoriasRevisao().concat(it.tipo === "entrada" ? ["Entrada"] : []);
             // Se a IA devolveu uma categoria fora da lista, inclui para não perder o valor
             if (it.categoria && !opcoes.includes(it.categoria)) opcoes.unshift(it.categoria);
             return opcoes.map(c =>
@@ -3244,7 +3481,7 @@ function responderDuvida(indice, indiceOpcao) {
   if (indiceOpcao === -1) {
     d.resposta = "__ignorar";
   } else {
-    const opcoes = d.opcoes || CATEGORIAS_APP;
+    const opcoes = d.opcoes || categoriasRevisao();
     const escolha = opcoes[indiceOpcao] || "Outros";
 
     // Pergunta de transferência: a primeira opção descarta o lançamento
