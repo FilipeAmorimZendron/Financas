@@ -122,6 +122,10 @@ export default async function handler(req, res) {
         billingTypes: ["CREDIT_CARD"],
         chargeTypes: ["RECURRENT"],
         minutesToExpire: 60,
+        // Amarra o checkout ao cliente que acabamos de criar.
+        // Sem isto o Asaas cria OUTRO cliente com o que a pessoa digitar,
+        // e o nosso fica órfão — foi o que impediu de achar o pagamento.
+        customer: cliente.id,
         callback: {
           successUrl: `${SITE_URL}/?assinatura=sucesso`,
           cancelUrl: `${SITE_URL}/?assinatura=cancelada`,

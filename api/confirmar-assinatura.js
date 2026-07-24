@@ -67,31 +67,42 @@ export default async function handler(req, res) {
     }
 
     // 2. Não achou pelo e-mail? Procura nos pagamentos recentes da conta.
-    //    Cobre o caso de a pessoa ter digitado outro e-mail no checkout.
+    //    Cobre o caso de o Asaas ter criado outro cliente no checkout.
     if (!listaClientes.length) {
+      // Varre os pagamentos recentes de qualquer status, não só confirmados:
+      // assim conseguimos ver o que existe e por que não bateu.
       const respTodos = await fetch(
-        `${ASAAS_URL}/payments?status=CONFIRMED&limit=100`,
+        `${ASAAS_URL}/payments?limit=100`,
         { headers: headersAsaas }
       );
       if (respTodos.ok) {
         const todos = await respTodos.json();
         const pagos = todos.data || [];
-        diagnostico.etapas.push(`pagamentos confirmados na conta: ${pagos.length}`);
+        diagnostico.etapas.push(`pagamentos na conta: ${pagos.length}`);
 
-        // Para cada pagamento, checa se o cliente tem o nosso userId ou e-mail
+        // Guarda os e-mails que apareceram, para diagnóstico
+        const emailsVistos = new Set();
+
         for (const p of pagos) {
           if (!p.customer) continue;
           const rc = await fetch(`${ASAAS_URL}/customers/${p.customer}`, { headers: headersAsaas });
           if (!rc.ok) continue;
           const c = await rc.json();
           const emailCliente = (c.email || "").trim().toLowerCase();
+          if (emailCliente) emailsVistos.add(emailCliente);
           const refCliente = c.externalReference || "";
           if (emailCliente === emailLimpo || refCliente === userId) {
             listaClientes = [c];
-            diagnostico.etapas.push(`achou pelo pagamento ${p.id}`);
+            diagnostico.etapas.push(`achou pelo pagamento ${p.id} (cliente ${c.id})`);
             break;
           }
         }
+        if (!listaClientes.length) {
+          diagnostico.emailsNaConta = [...emailsVistos].slice(0, 10);
+          diagnostico.etapas.push("nenhum cliente bateu com o e-mail nem com o userId");
+        }
+      } else {
+        diagnostico.etapas.push(`falha ao listar pagamentos: ${respTodos.status}`);
       }
     }
 
