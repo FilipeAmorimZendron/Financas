@@ -878,8 +878,10 @@ async function tratarRetornoAssinatura() {
   // Pagamento aprovado: espera o webhook liberar o plano
   mostrarLoading(true, "Confirmando seu pagamento", "Isso leva alguns segundos...");
   try {
-    for (let tentativa = 0; tentativa < 6; tentativa++) {
-      await new Promise(r => setTimeout(r, 2500));
+    // Tenta por ~30s. O webhook do Asaas costuma chegar em poucos segundos,
+    // mas em horário de pico pode demorar um pouco mais.
+    for (let tentativa = 0; tentativa < 10; tentativa++) {
+      await new Promise(r => setTimeout(r, 3000));
       await carregarDadosNuvem();
       const plano = planoAtual();
       if (plano === "premium" || plano === "master") {
@@ -888,10 +890,40 @@ async function tratarRetornoAssinatura() {
         toast(`Pagamento confirmado! Seu plano ${plano === "master" ? "Master" : "Premium"} já está ativo. 🎉`, "success");
         return;
       }
+      // Na metade do caminho, pergunta direto ao Asaas em vez de só esperar.
+      // Cobre o caso do webhook falhar ou não chegar.
+      if (tentativa === 4) {
+        mostrarLoading(true, "Ainda confirmando", "Verificando direto com o banco...");
+        try {
+          const resp = await fetch("/api/confirmar-assinatura", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: state.user?.email,
+              userId: state.user?.id
+            })
+          });
+          const dados = await resp.json();
+          console.log("Confirmação direta:", dados);
+          if (dados.ativo) {
+            await carregarDadosNuvem();
+            renderTudo();
+            mostrarLoading(false);
+            toast(`Pagamento confirmado! Seu plano ${dados.plano === "master" ? "Master" : "Premium"} já está ativo. 🎉`, "success");
+            return;
+          }
+        } catch (e) {
+          console.error("Falha na confirmação direta:", e);
+        }
+      }
     }
     // Passou do tempo: o pagamento pode estar em processamento
     mostrarLoading(false);
-    toast("Recebemos seu pagamento! A liberação pode levar alguns minutos. Se não ativar, fale com o suporte.", "info");
+    toast(
+      "Recebemos seu pagamento. A liberação pode levar alguns minutos — recarregue a página em instantes. " +
+      "Se não ativar, escreva para contato@fazfinancas.com.",
+      "info"
+    );
   } catch (e) {
     mostrarLoading(false);
     console.error("Erro ao confirmar assinatura:", e);

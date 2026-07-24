@@ -61,6 +61,104 @@ async function userIdDoCliente(customerId) {
   }
 }
 
+/* Busca o e-mail do cliente no Asaas.
+   É o dado mais confiável: sempre existe (o Asaas exige) e o usuário
+   digitou o mesmo e-mail que usa para entrar no app. */
+async function emailDoCliente(customerId) {
+  if (!customerId || !ASAAS_KEY) return "";
+  try {
+    const resp = await fetch(`${ASAAS_URL}/customers/${customerId}`, {
+      headers: { access_token: ASAAS_KEY }
+    });
+    if (!resp.ok) return "";
+    const cliente = await resp.json();
+    return (cliente.email || "").trim().toLowerCase();
+  } catch (e) {
+    console.error("Erro ao buscar e-mail do cliente:", e);
+    return "";
+  }
+}
+
+/* A sessão de checkout também guarda a referência que enviamos.
+   Os logs mostram que o pagamento traz o campo checkoutSession — é mais
+   uma chance de recuperar o userId original em vez de deduzir pelo valor. */
+async function refDoCheckout(checkoutSessionId) {
+  if (!checkoutSessionId || !ASAAS_KEY) return "";
+  try {
+    const resp = await fetch(`${ASAAS_URL}/checkouts/${checkoutSessionId}`, {
+      headers: { access_token: ASAAS_KEY }
+    });
+    console.log("CHECKOUT busca:", resp.status);
+    if (!resp.ok) return "";
+    const sessao = await resp.json();
+    const ref = sessao.externalReference || sessao.subscription?.externalReference || "";
+    console.log("CHECKOUT externalReference:", ref || "(vazio)");
+    return ref;
+  } catch (e) {
+    console.error("Erro ao consultar checkout:", String(e));
+    return "";
+  }
+}
+
+/* Acha o usuário no Supabase pelo e-mail.
+   A tabela perfil guarda o e-mail; se não achar lá, procura no auth. */
+async function userIdPeloEmail(email) {
+  if (!email) { console.error("EMAIL: vazio, nada a buscar"); return ""; }
+  if (!SUPABASE_SERVICE_KEY) { console.error("EMAIL: falta SUPABASE_SERVICE_KEY"); return ""; }
+
+  const cabecalhos = {
+    apikey: SUPABASE_SERVICE_KEY,
+    Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`
+  };
+
+  // 1. Tenta na tabela perfil (mais direto)
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/perfil?email=eq.${encodeURIComponent(email)}&select=user_id`;
+    const resp = await fetch(url, { headers: cabecalhos });
+    const texto = await resp.text();
+    console.log("EMAIL busca perfil:", resp.status, texto.slice(0, 300));
+
+    if (resp.ok) {
+      const linhas = JSON.parse(texto);
+      if (Array.isArray(linhas) && linhas[0]?.user_id) {
+        console.log("EMAIL: achou na tabela perfil ->", linhas[0].user_id);
+        return linhas[0].user_id;
+      }
+      console.log("EMAIL: tabela perfil não tem esse e-mail");
+    }
+  } catch (e) {
+    console.error("EMAIL: erro ao consultar perfil:", String(e));
+  }
+
+  // 2. Não achou: procura na base de autenticação do Supabase
+  try {
+    const urlAuth = `${SUPABASE_URL}/auth/v1/admin/users?per_page=1000`;
+    const respAuth = await fetch(urlAuth, { headers: cabecalhos });
+    console.log("EMAIL busca auth:", respAuth.status);
+
+    if (respAuth.ok) {
+      const dados = await respAuth.json();
+      const lista = dados.users || dados;
+      if (Array.isArray(lista)) {
+        console.log("EMAIL: auth devolveu", lista.length, "usuários");
+        const achado = lista.find(u => (u.email || "").toLowerCase() === email);
+        if (achado?.id) {
+          console.log("EMAIL: achou no auth ->", achado.id);
+          return achado.id;
+        }
+        console.error("EMAIL: nenhum usuário do auth tem o e-mail", email);
+      }
+    } else {
+      const err = await respAuth.text();
+      console.error("EMAIL: auth recusou:", respAuth.status, err.slice(0, 200));
+    }
+  } catch (e) {
+    console.error("EMAIL: erro ao consultar auth:", String(e));
+  }
+
+  return "";
+}
+
 /* Descobre o plano a partir do valor pago, quando não sabemos pela referência.
    Precisa bater com os preços de criar-checkout.js. */
 function planoPeloValor(valor) {
@@ -89,6 +187,15 @@ const EVENTOS_INATIVA = [
 export default async function handler(req, res) {
   // Log de entrada: confirma que o Asaas chamou o webhook
   console.log("Webhook chamado:", req.method, "| evento:", req.body?.event || "?");
+
+  // Diagnóstico de configuração: mostra o que está faltando, sem expor as chaves
+  console.log("CONFIG:", JSON.stringify({
+    temServiceKey: !!SUPABASE_SERVICE_KEY,
+    temAsaasKey: !!ASAAS_KEY,
+    asaasUrl: ASAAS_URL,
+    supabaseUrl: SUPABASE_URL,
+    exigeToken: !!WEBHOOK_TOKEN
+  }));
 
   // Só aceita POST
   if (req.method !== "POST") {
@@ -141,15 +248,22 @@ export default async function handler(req, res) {
       evento: evento,
       externalReference: pagamento.externalReference || "(vazio)",
       subscription: pagamento.subscription || "(sem)",
+      checkoutSession: pagamento.checkoutSession || "(sem)",
       customer: pagamento.customer || "(sem)",
-      paymentId: pagamento.id || "(sem)",
-      camposDoPayment: Object.keys(pagamento)
+      valor: pagamento.value,
+      paymentId: pagamento.id || "(sem)"
     }));
 
     // Se a cobrança não trouxe a referência, ela está na assinatura que a gerou.
     if (!ref && pagamento.subscription) {
       ref = await refDaAssinatura(pagamento.subscription);
       console.log("Referência buscada na assinatura:", ref || "(não encontrada)");
+    }
+
+    // Ainda sem referência: tenta na sessão de checkout que originou tudo.
+    if (!ref && pagamento.checkoutSession) {
+      ref = await refDoCheckout(pagamento.checkoutSession);
+      console.log("Referência buscada no checkout:", ref || "(não encontrada)");
     }
 
     let [userId, plano, ciclo] = ref.split("|");
@@ -164,10 +278,34 @@ export default async function handler(req, res) {
       }
     }
 
+    // Plano D: identificar pelo e-mail.
+    // O Asaas às vezes não devolve o externalReference em lugar nenhum,
+    // mas o e-mail do cliente sempre existe — e é único no Supabase.
+    if (!userId && pagamento.customer) {
+      const email = await emailDoCliente(pagamento.customer);
+      console.log("PLANO D: e-mail do cliente no Asaas =", email || "(vazio)");
+      if (email) {
+        userId = await userIdPeloEmail(email);
+        if (userId) {
+          plano = plano || planoPeloValor(pagamento.value);
+          console.log("PLANO D OK: usuário", userId, "| plano", plano);
+        } else {
+          console.error("PLANO D FALHOU: e-mail", email, "não corresponde a nenhum usuário do app");
+        }
+      }
+    }
+
     // Se não conseguimos identificar o usuário, não há o que fazer.
     if (!userId) {
-      console.error("DIAGNOSTICO: sem externalReference — não dá para saber o usuário");
-      return res.status(200).json({ ok: true, motivo: "sem externalReference" });
+      console.error(
+        "FALHA TOTAL: nenhum dos 5 caminhos identificou o usuário.",
+        "customer:", pagamento.customer || "(sem)",
+        "| subscription:", pagamento.subscription || "(sem)",
+        "| checkoutSession:", pagamento.checkoutSession || "(sem)",
+        "| valor:", pagamento.value,
+        "— libere manualmente no Supabase ou chame /api/confirmar-assinatura"
+      );
+      return res.status(200).json({ ok: true, motivo: "usuário não identificado" });
     }
 
     let novoStatus = null;

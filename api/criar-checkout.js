@@ -47,6 +47,32 @@ export default async function handler(req, res) {
     const config = PLANOS[plano];
     const valor = config[ciclo];
 
+    // Garante que o e-mail esteja gravado no perfil ANTES do pagamento.
+    // O webhook usa o e-mail para identificar o usuário quando o Asaas
+    // não devolve o externalReference — sem isso, o plano não libera.
+    const SUPABASE_URL = process.env.SUPABASE_URL || "https://yuvhkrwksdnajfautkru.supabase.co";
+    const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+    if (SERVICE_KEY) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/perfil`, {
+          method: "POST",
+          headers: {
+            apikey: SERVICE_KEY,
+            Authorization: `Bearer ${SERVICE_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "resolution=merge-duplicates,return=minimal",
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            email: String(email).trim().toLowerCase(),
+          }),
+        });
+      } catch (e) {
+        // Não impede o checkout: o webhook ainda pode achar pelo auth
+        console.error("Não consegui gravar o e-mail no perfil:", e);
+      }
+    }
+
     // Cabeçalhos padrão para chamar o Asaas
     const headers = {
       "Content-Type": "application/json",
@@ -138,12 +164,16 @@ export default async function handler(req, res) {
     // --- 3. Devolve o link da página de pagamento ---
     // O Asaas pode usar nomes diferentes para o link/id dependendo da versão.
     // Tentamos os campos mais comuns, na ordem.
+    // O domínio do fallback acompanha o ambiente: sandbox ou produção.
+    const ehSandbox = ASAAS_URL.includes("sandbox");
+    const dominioCheckout = ehSandbox ? "https://sandbox.asaas.com" : "https://www.asaas.com";
+
     const link =
       checkout.link ||
       checkout.url ||
       checkout.invoiceUrl ||
       checkout.checkoutUrl ||
-      (checkout.id ? `https://sandbox.asaas.com/checkoutSession/show?id=${checkout.id}` : null);
+      (checkout.id ? `${dominioCheckout}/checkoutSession/show?id=${checkout.id}` : null);
 
     if (!link) {
       // Não achamos o link — devolve a resposta inteira para investigarmos
