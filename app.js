@@ -1341,16 +1341,49 @@ function calcularAvisos() {
     }
   });
 
-  // 1c. Pagamento da assinatura em atraso
-  const diasCorte = diasAteCortePlano();
-  if (diasCorte !== null) {
+  // 1c. Assinatura com problema de pagamento
+  const perfilAviso = state.perfil || {};
+  const statusAss = perfilAviso.assinaturaStatus || "inativa";
+  const planoContratado = perfilAviso.plano || "basico";
+  const nomePlanoAviso = planoContratado === "master" ? "Master"
+                       : planoContratado === "premium" ? "Premium" : null;
+
+  if (statusAss === "atrasada" && nomePlanoAviso) {
+    const diasCorte = diasAteCortePlano();
+    if (diasCorte > 0) {
+      // Ainda dentro da tolerância: dá para salvar
+      avisos.push({
+        tipo: "vencida",
+        titulo: "Pagamento da assinatura falhou",
+        texto: `Atualize seu cartão em ${diasCorte} ${diasCorte === 1 ? "dia" : "dias"} ou o plano ${nomePlanoAviso} será cancelado.`,
+        prioridade: 1,
+        acao: "trocarTela('planos')"
+      });
+    } else {
+      // Tolerância esgotada: o acesso já caiu, mesmo que o Asaas ainda
+      // não tenha mandado o evento de cancelamento.
+      avisos.push({
+        tipo: "vencida",
+        titulo: "Plano cancelado",
+        texto: `Seu pagamento atrasou e o plano ${nomePlanoAviso} foi cancelado. Assine novamente para recuperar o acesso.`,
+        prioridade: 1,
+        acao: "trocarTela('planos')"
+      });
+    }
+
+  } else if (statusAss === "cancelada_falta_pagamento") {
+    // O Asaas encerrou a assinatura por falta de pagamento
+    const perdido = perfilAviso.planoAnterior;
+    const nomePerdido = perdido === "master" ? "Master"
+                      : perdido === "premium" ? "Premium" : null;
     avisos.push({
       tipo: "vencida",
-      titulo: "Pagamento da assinatura falhou",
-      texto: diasCorte > 0
-        ? `Atualize seu cartão em ${diasCorte} ${diasCorte === 1 ? "dia" : "dias"} para não perder o acesso.`
-        : "Seu acesso aos recursos pagos foi suspenso. Atualize o pagamento para voltar.",
-      prioridade: 1
+      titulo: "Plano cancelado",
+      texto: nomePerdido
+        ? `Seu pagamento atrasou e o plano ${nomePerdido} foi cancelado. Assine novamente para recuperar o acesso.`
+        : "Seu pagamento atrasou e a assinatura foi cancelada. Assine novamente para recuperar o acesso.",
+      prioridade: 1,
+      acao: "trocarTela('planos')"
     });
   }
 
@@ -1456,13 +1489,16 @@ function renderSino() {
 
   lista.innerHTML = avisos.map(a => {
     const novo = !lidos.has(chaveAviso(a));
+    // Avisos com ação viram botão; os demais são só informativos
+    const clicavel = a.acao ? ` sino-item-clicavel" onclick="${a.acao}` : "";
     return `
-    <div class="sino-item sino-item-${a.tipo} ${novo ? "sino-item-novo" : ""}">
+    <div class="sino-item sino-item-${a.tipo} ${novo ? "sino-item-novo" : ""}${clicavel}">
       <div class="sino-item-icone">${iconeAviso(a.tipo)}</div>
       <div class="sino-item-texto">
         <strong>${a.titulo}</strong>
         <span>${esc(a.texto)}</span>
       </div>
+      ${a.acao ? `<svg class="sino-item-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>` : ""}
     </div>`;
   }).join("");
 }
@@ -7163,7 +7199,8 @@ function mapPerfil(p) {
     nome:         p.nome          || null,
     plano:            p.plano              || "basico",
     assinaturaStatus: p.assinatura_status  || "inativa",
-    atrasoDesde:      p.atraso_desde       || null
+    atrasoDesde:      p.atraso_desde       || null,
+    planoAnterior:    p.plano_anterior     || null
   };
 }
 
@@ -7207,6 +7244,7 @@ function planoAtual() {
     if (dias <= DIAS_TOLERANCIA_PLANO) return plano;
   }
 
+  // cancelada_falta_pagamento, inativa e qualquer outro: sem acesso pago
   return "basico";
 }
 

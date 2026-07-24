@@ -9416,3 +9416,19 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   transition: background .15s;
 }
 .ia-btn-planos:hover { background: color-mix(in srgb, var(--accent, #1EF6DD) 18%, transparent); }
+
+/* Aviso do sino que leva a uma ação */
+.sino-item-clicavel {
+  cursor: pointer;
+  transition: background .15s;
+}
+.sino-item-clicavel:hover {
+  background: rgba(255,255,255,0.04);
+}
+.sino-item-seta {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--text-muted);
+}

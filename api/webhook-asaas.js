@@ -384,11 +384,21 @@ export default async function handler(req, res) {
       console.log(`ATRASO registrado para ${userId}. Acesso mantido por ${DIAS_TOLERANCIA} dias.`);
 
     } else if (EVENTOS_CORTE.includes(evento)) {
-      // Estorno, chargeback ou assinatura encerrada: corta na hora
-      novoStatus = "inativa";
+      // Corta na hora. Guarda o motivo e qual plano foi perdido, para o app
+      // conseguir explicar ao cliente o que aconteceu.
       novoPlano = "basico";
       extras.atraso_desde = null;
-      console.log(`CORTE imediato para ${userId} — evento ${evento}`);
+      if (plano && plano !== "basico") extras.plano_anterior = plano;
+
+      // Falta de pagamento tem status próprio: a mensagem ao cliente é outra
+      // (ele pode reassinar) comparada a um estorno ou contestação.
+      const porFaltaDePagamento =
+        evento === "SUBSCRIPTION_DELETED" ||
+        evento === "SUBSCRIPTION_INACTIVATED" ||
+        evento === "PAYMENT_DELETED";
+      novoStatus = porFaltaDePagamento ? "cancelada_falta_pagamento" : "inativa";
+
+      console.log(`CORTE imediato para ${userId} — evento ${evento} — status ${novoStatus}`);
 
     } else {
       // Evento que não muda o status (ex.: PAYMENT_CREATED). Só confirma o recebimento.
