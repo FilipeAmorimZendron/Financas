@@ -76,11 +76,6 @@ function todasCategorias() {
   return [...CATEGORIAS_FIXAS, ...minhas];
 }
 
-/* Categorias válidas para gastos (exclui "Entrada", que é de receita) */
-function categoriasDeGasto() {
-  return todasCategorias().filter(c => c !== "Entrada");
-}
-
 /* A cor de uma categoria personalizada (fixas usam o padrão do tema) */
 function corDaCategoria(nome) {
   const c = (state.categorias || []).find(x => x.nome === nome);
@@ -4809,14 +4804,6 @@ async function excluirObjetivo(id) {
 }
 
 
-async function excluirObjetivoSilencioso(id) {
-  try {
-    await dbDelete("objetivos", id);
-    state.objetivos = state.objetivos.filter(o => o.id !== id);
-    renderObjetivos();
-  } catch(err) { /* silencioso */ }
-}
-
 function mapObjetivo(o) {
   return {
     id: o.id, nome: o.nome, icone: o.icone,
@@ -5155,34 +5142,6 @@ function renderInvestimentos() {
 }
 
 
-/* Atualiza quanto o investimento vale hoje */
-async function atualizarValorAtual(id) {
-  const i = state.investimentos.find(x => x.id === id); if (!i) return;
-  const atual = i.valorAtual != null ? i.valorAtual : i.valor;
-  const valor = await promptValor(
-    `Quanto <strong>${tituloInvestimento(i)}</strong> vale hoje?<br>
-     <span style="font-size:12px;opacity:.7">Você aplicou ${fmtMoeda(i.valor)}</span>`,
-    atual
-  );
-  if (valor === null || isNaN(valor) || valor < 0) return;
-  try {
-    const att = await dbUpdate("investimentos", id, {
-      valor_atual: valor,
-      valor_atual_em: hojeISO()
-    });
-    i.valorAtual = Number(att.valor_atual);
-    i.valorAtualEm = att.valor_atual_em;
-    renderInvestimentos();
-    const res = resultadoRV(i);
-    if (res) {
-      const msg = res.ganho >= 0
-        ? `Valor atualizado! Ganho de ${fmtMoeda(res.ganho)} (${res.pct.toFixed(1)}%)`
-        : `Valor atualizado. Prejuízo de ${fmtMoeda(Math.abs(res.ganho))} (${res.pct.toFixed(1)}%)`;
-      toast(msg, res.ganho >= 0 ? "success" : "info");
-    }
-  } catch(err) { tratarErro(err); }
-}
-
 /* Resumo: total investido por instituição */
 function renderResumoInstituicoes() {
   const el = document.getElementById("resumoInstituicoes");
@@ -5448,20 +5407,6 @@ function nomeInstituicao(contaId) {
   if (!contaId) return null;
   const c = state.bancos.find(b => b.id === contaId);
   return c ? c.nome : null;
-}
-
-/* Preenche o simulador com os dados de um investimento salvo */
-function simularDoInvestimento(id) {
-  const i = state.investimentos.find(i => i.id === id); if (!i) return;
-  document.getElementById("simValor").value = i.valor;
-  document.getElementById("simAporte").value = "";
-  document.getElementById("simTaxa").value = i.taxa;
-  document.getElementById("simTaxaPeriodo").value = i.taxaPeriodo;
-  document.getElementById("simRegime").value = i.regime;
-  document.getElementById("simTempo").value = 12;
-  document.getElementById("simTempoUnidade").value = "mes";
-  abrirSimulador();
-  document.getElementById("formSimulador").dispatchEvent(new Event("submit"));
 }
 
 /* O botão "Simular" de um investimento abre a aba do simulador */
