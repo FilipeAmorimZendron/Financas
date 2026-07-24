@@ -882,18 +882,44 @@ function calcularAvisos() {
   // 1. Contas vencidas (atrasadas) e vencendo em breve
   const compromissos = todosCompromissos(limiteProximo).filter(c => c.tipo === "gasto");
   compromissos.forEach(c => {
+    const ehFatura = c.origem === "fatura";
+    const dias = diasAte(c.vencimento);
+
     if (c.vencimento < hoje) {
       avisos.push({
         tipo: "vencida",
-        titulo: "Conta atrasada",
-        texto: `${c.descricao} venceu em ${formatarDataBR(c.vencimento)}`,
+        titulo: ehFatura ? "Fatura atrasada" : "Conta atrasada",
+        texto: `${c.descricao} venceu em ${formatarDataBR(c.vencimento)} · ${fmtMoeda(c.valor)}`,
+        prioridade: 1
+      });
+    } else if (dias === 0) {
+      avisos.push({
+        tipo: "vencendo",
+        titulo: ehFatura ? "Fatura vence hoje" : "Conta vence hoje",
+        texto: `${c.descricao} · ${fmtMoeda(c.valor)}`,
         prioridade: 1
       });
     } else {
       avisos.push({
         tipo: "vencendo",
-        titulo: "Conta a vencer",
-        texto: `${c.descricao} vence em ${formatarDataBR(c.vencimento)}`,
+        titulo: ehFatura ? "Fatura a vencer" : "Conta a vencer",
+        texto: `${c.descricao} vence ${dias === 1 ? "amanhã" : "em " + formatarDataBR(c.vencimento)} · ${fmtMoeda(c.valor)}`,
+        prioridade: 2
+      });
+    }
+  });
+
+  // 1b. Limite do cartão quase no fim
+  state.bancos.filter(b => b.temCartao && b.limite).forEach(cartao => {
+    const disp = limiteDisponivel(cartao.id);
+    if (disp == null) return;
+    const usado = cartao.limite - disp;
+    const pct = cartao.limite > 0 ? (usado / cartao.limite) * 100 : 0;
+    if (pct >= 90) {
+      avisos.push({
+        tipo: "cartao",
+        titulo: "Limite quase no fim",
+        texto: `${cartao.nome}: restam ${fmtMoeda(disp)} de ${fmtMoeda(cartao.limite)}`,
         prioridade: 2
       });
     }
@@ -949,7 +975,8 @@ function iconeAviso(tipo) {
     vencida:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
     vencendo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
     saldo:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
-    meta:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`
+    meta:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
+    cartao:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>`
   };
   return icones[tipo] || icones.vencendo;
 }
@@ -2584,9 +2611,36 @@ formTexto?.addEventListener("submit", async e => {
         item.categoria = await categorizarComIA(item.descricao);
       }
 
-      if (ehCredito && item.tipo === "gasto") {
+      // Compra no crédito só vira parcela de fatura quando já foi feita.
+      // Se o usuário escolheu "Agendar", ele quer uma conta a pagar na data
+      // marcada — tratamos como compromisso normal, que aparece em "A pagar".
+      if (ehCredito && item.tipo === "gasto" && !pendente) {
         // Compra no crédito: gera uma parcela por fatura, não desconta conta agora
         await lancarCompraCredito(item, bancoId, data, parcelas);
+      } else if (ehCredito && item.tipo === "gasto" && pendente && parcelas > 1) {
+        // Crédito agendado e parcelado: uma conta a pagar por mês
+        const valorParcela = Math.round((item.valor / parcelas) * 100) / 100;
+        const compraId = (crypto?.randomUUID?.() || String(Date.now() + Math.random()));
+        for (let p = 1; p <= parcelas; p++) {
+          const venc = somarMeses(data, p - 1);
+          const novo = await dbInsert("movimentos", {
+            descricao: `${item.descricao} (${p}/${parcelas})`,
+            conta_id: bancoId, data: venc,
+            valor: valorParcela, tipo: item.tipo, categoria: item.categoria,
+            status: "pendente",
+            vencimento: venc,
+            pago_em: null,
+            forma_pagamento: forma,
+            parcela_num: p, parcela_total: parcelas, compra_id: compraId
+          });
+          state.movimentos.push({
+            id:novo.id, descricao:novo.descricao, bancoId:novo.conta_id, data:novo.data,
+            valor:Number(novo.valor), tipo:novo.tipo, categoria:novo.categoria,
+            status:novo.status, vencimento:novo.vencimento, pagoEm:novo.pago_em,
+            formaPagamento: novo.forma_pagamento || forma,
+            parcelaNum: p, parcelaTotal: parcelas, compraId: compraId
+          });
+        }
       } else {
         // Débito, pix, dinheiro ou entrada: comportamento normal
         const novo = await dbInsert("movimentos", {

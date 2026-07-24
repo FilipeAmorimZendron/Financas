@@ -7781,7 +7781,8 @@ body.scroll-travado {
   background: rgba(226, 75, 74, 0.12);
   color: var(--red, #e24b4a);
 }
-.sino-item-meta .sino-item-icone {
+.sino-item-meta .sino-item-icone,
+.sino-item-cartao .sino-item-icone {
   background: var(--amber-dim);
   color: var(--amber);
 }
