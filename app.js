@@ -3614,7 +3614,12 @@ async function processarExtratoChat(arquivo, bancoId, addChat) {
 
     const total = lancamentos.length + duvidas.length;
     addChat(`Pronto! Encontrei **${total} lançamento(s)**. Abri a tela de revisão para você conferir antes de salvar.`, "ia");
-    abrirRevisao(lancamentos, duvidas, dados.resumo, bancoId);
+    try {
+      abrirRevisao(lancamentos, duvidas, dados.resumo, bancoId);
+    } catch (erroRevisao) {
+      console.error("Erro ao abrir a revisão:", erroRevisao);
+      addChat("Li o extrato, mas tive um problema ao montar a tela de revisão. Já anotei o erro — tente de novo, e se persistir me avise.", "ia");
+    }
 
   } catch (err) {
     pensando?.remove();
@@ -3679,9 +3684,14 @@ function gravarMemoriaCategoria(descricao, categoria) {
 function abrirRevisao(lancamentos, duvidas, resumo, bancoId) {
   const memoria = lerMemoriaCategorias();
   const porData = (a, b) => String(a.data || "").localeCompare(String(b.data || ""));
+  // Descarta itens nulos ou sem valor que a IA possa ter devolvido
+  lancamentos = (lancamentos || []).filter(x => x && typeof x === "object");
+  duvidas = (duvidas || []).filter(x => x && typeof x === "object");
   // Normaliza o tipo: o app usa "gasto", mas a IA pode devolver "saida"
   const norm = (x) => {
-    const t = (x.tipo === "saida" || x.tipo === "debito" || x.tipo === "débito") ? "gasto" : x.tipo;
+    const t = (x.tipo === "saida" || x.tipo === "debito" || x.tipo === "débito") ? "gasto"
+            : (x.tipo === "entrada" || x.tipo === "gasto") ? x.tipo
+            : "gasto";  // default seguro se a IA não classificou
     return { ...x, tipo: t };
   };
 
@@ -3757,7 +3767,8 @@ function abrirRevisao(lancamentos, duvidas, resumo, bancoId) {
   }
 
   renderRevisao();
-  document.getElementById("revisaoOverlay").style.display = "flex";
+  const overlay = document.getElementById("revisaoOverlay");
+  if (overlay) overlay.style.display = "flex";
   document.body.style.overflow = "hidden";
 }
 
