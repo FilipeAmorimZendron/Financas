@@ -1113,7 +1113,18 @@ const resumoContasDashboard  = document.getElementById("resumoContasDashboard");
 const tabelaMovimentosBody   = document.getElementById("tabelaMovimentosBody");
 
 /* ─── Utilitários ────────────────────────────────────────── */
-const fmtMoeda = v => v.toLocaleString("pt-BR", { style:"currency", currency:"BRL" });
+const fmtMoeda = v => {
+  // Converte para número antes de formatar. A IA às vezes devolve o valor
+  // como string ("10.50" ou "1.234,56"); sem isto, .toLocaleString quebra.
+  let n = v;
+  if (typeof n === "string") {
+    // Trata formato brasileiro: 1.234,56 -> 1234.56
+    n = n.replace(/[R$\s]/g, "").replace(/\.(?=\d{3})/g, "").replace(",", ".");
+    n = parseFloat(n);
+  }
+  if (typeof n !== "number" || !isFinite(n)) n = 0;
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+};
 // "pule" para o dia seguinte à noite. Usa o fuso local do dispositivo.
 const hojeISO = () => {
   const agora = new Date();
@@ -3618,7 +3629,9 @@ async function processarExtratoChat(arquivo, bancoId, addChat) {
       abrirRevisao(lancamentos, duvidas, dados.resumo, bancoId);
     } catch (erroRevisao) {
       console.error("Erro ao abrir a revisão:", erroRevisao);
-      addChat("Li o extrato, mas tive um problema ao montar a tela de revisão. Já anotei o erro — tente de novo, e se persistir me avise.", "ia");
+      // Mostra o erro real na tela para diagnóstico rápido
+      const detalhe = (erroRevisao && erroRevisao.message) ? erroRevisao.message : String(erroRevisao);
+      addChat("Li o extrato, mas tive um problema ao montar a revisão. Detalhe técnico: " + detalhe, "ia");
     }
 
   } catch (err) {
