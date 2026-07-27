@@ -3717,7 +3717,29 @@ function abrirRevisao(lancamentos, duvidas, resumo, bancoId) {
     bancoId
   };
 
-  const el = document.getElementById("revisaoResumo");
+  // Registra o extrato que a IA acabou de ler, para responder perguntas
+  // como "quanto gastei nesse extrato?" mesmo antes de o usuário salvar.
+  // Aqui contam TODOS os lançamentos do arquivo, tal como o cliente enviou.
+  try {
+    const todosLidos = lancamentos.map(norm);
+    const gastosL = todosLidos.filter(m => m.tipo === "gasto");
+    const entradasL = todosLidos.filter(m => m.tipo === "entrada");
+    const datasL = todosLidos.map(m => m.data).filter(Boolean).sort();
+    const bancoL = state.bancos.find(b => b.id === bancoId);
+    ultimaImportacao = {
+      quando: Date.now(),
+      conta: bancoL ? bancoL.nome : "conta",
+      salvo: false,
+      total: todosLidos.length,
+      totalGasto: gastosL.reduce((s,m) => s + Number(m.valor || 0), 0),
+      totalEntrada: entradasL.reduce((s,m) => s + Number(m.valor || 0), 0),
+      qtdGastos: gastosL.length,
+      qtdEntradas: entradasL.length,
+      dataInicio: datasL[0] || null,
+      dataFim: datasL[datasL.length - 1] || null,
+      itens: todosLidos.map(m => ({ descricao: m.descricao, valor: Number(m.valor || 0), tipo: m.tipo, categoria: m.categoria, data: m.data }))
+    };
+  } catch (e) {}
   if (el) {
     const total = revisaoDados.itens.length + revisaoDados.duvidas.length;
     let txt = resumo || `${total} lançamento(s) encontrado(s) · revise antes de salvar`;
@@ -3966,23 +3988,14 @@ async function salvarRevisao() {
     formImportarExtrato?.reset();
     resetarDropImport();
 
-    // Registra esta importação para a IA poder falar sobre ela depois
-    const gastosImp = novos.filter(m => m.tipo === "gasto");
-    const entradasImp = novos.filter(m => m.tipo === "entrada");
-    const datas = novos.map(m => m.data).filter(Boolean).sort();
-    const banco = state.bancos.find(b => b.id === bancoId);
-    ultimaImportacao = {
-      quando: Date.now(),
-      conta: banco ? banco.nome : "conta",
-      total: novos.length,
-      totalGasto: gastosImp.reduce((s,m) => s + Number(m.valor), 0),
-      totalEntrada: entradasImp.reduce((s,m) => s + Number(m.valor), 0),
-      qtdGastos: gastosImp.length,
-      qtdEntradas: entradasImp.length,
-      dataInicio: datas[0] || null,
-      dataFim: datas[datas.length - 1] || null,
-      itens: novos.map(m => ({ descricao: m.descricao, valor: Number(m.valor), tipo: m.tipo, categoria: m.categoria, data: m.data }))
-    };
+    // A memória do extrato já foi registrada na abertura da revisão.
+    // Aqui só marcamos que foi efetivamente salvo e quantos entraram.
+    if (ultimaImportacao) {
+      ultimaImportacao.salvo = true;
+      ultimaImportacao.novosSalvos = novos.length;
+      ultimaImportacao.jaExistiam = dup;
+      ultimaImportacao.quando = Date.now();
+    }
 
     renderTudo();
 
@@ -8926,15 +8939,17 @@ function montarResumoFinanceiro() {
   if (ultimaImportacao) {
     const minAtras = Math.round((Date.now() - ultimaImportacao.quando) / 60000);
     const imp = ultimaImportacao;
-    linhas.push(`ÚLTIMO EXTRATO IMPORTADO pelo usuário (há ${minAtras} min, na conta ${imp.conta}):`);
-    linhas.push(`  - Foram importados ${imp.total} lançamento(s)` +
+    const situacao = imp.salvo
+      ? (imp.jaExistiam ? ` (${imp.novosSalvos} salvos agora, ${imp.jaExistiam} já existiam)` : " (salvo)")
+      : " (em revisão, ainda não salvo)";
+    linhas.push(`ÚLTIMO EXTRATO IMPORTADO pelo usuário (há ${minAtras} min, conta ${imp.conta})${situacao}:`);
+    linhas.push(`  - O extrato tem ${imp.total} lançamento(s)` +
       (imp.dataInicio ? `, de ${formatarDataBR(imp.dataInicio)} a ${formatarDataBR(imp.dataFim)}` : "") + ".");
-    if (imp.qtdGastos) linhas.push(`  - Gastos nesse extrato: ${fmtMoeda(imp.totalGasto)} em ${imp.qtdGastos} lançamento(s).`);
-    if (imp.qtdEntradas) linhas.push(`  - Entradas nesse extrato: ${fmtMoeda(imp.totalEntrada)} em ${imp.qtdEntradas} lançamento(s).`);
-    linhas.push("  - Se o usuário perguntar sobre 'o extrato que enviei', 'esses lançamentos' ou algo recém-importado, é DESTE extrato que ele fala. Use estes números.");
-    // Lista os itens para perguntas específicas ("teve algum gasto com farmácia?")
+    linhas.push(`  - Total de GASTOS no extrato: ${fmtMoeda(imp.totalGasto)} em ${imp.qtdGastos} lançamento(s).`);
+    linhas.push(`  - Total de ENTRADAS no extrato: ${fmtMoeda(imp.totalEntrada)} em ${imp.qtdEntradas} lançamento(s).`);
+    linhas.push("  - Se o usuário perguntar sobre 'o extrato que enviei', 'esses lançamentos' ou algo recém-importado, é DESTE extrato que ele fala. Use EXATAMENTE estes números.");
     if (imp.itens && imp.itens.length) {
-      linhas.push("  - Lançamentos importados:");
+      linhas.push("  - Lançamentos do extrato:");
       imp.itens.slice(0, 40).forEach(it => {
         const t = it.tipo === "entrada" ? "entrada" : "gasto";
         linhas.push(`      ${formatarDataBR(it.data)} ${it.descricao}: ${fmtMoeda(it.valor)} (${t}, ${it.categoria || "Outros"})`);
