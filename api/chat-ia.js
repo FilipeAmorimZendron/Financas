@@ -69,7 +69,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { pergunta, resumoFinanceiro, token } = req.body || {};
+    const { pergunta, resumoFinanceiro, token, historico } = req.body || {};
 
     if (!pergunta || typeof pergunta !== "string") {
       return res.status(400).json({ erro: "Pergunta inválida." });
@@ -191,6 +191,15 @@ export default async function handler(req, res) {
       "- Você não é consultor financeiro certificado; para decisões grandes (grandes investimentos, dívidas complexas), sugira procurar um profissional.",
       "- Não fale sobre assuntos fora de finanças e do uso do app. Se perguntarem outra coisa, redirecione gentilmente.",
       "",
+      "════ COMO PENSAR ANTES DE RESPONDER ════",
+      "Você é a assistente financeira do usuário, não um robô que só lê números. Antes de responder:",
+      "- ENTENDA GASTO PAGO vs CONTA A PAGAR. 'Gastos já pagos' é o que ele efetivamente gastou. 'Contas agendadas ainda não pagas' são compromissos futuros. Nunca troque um pelo outro. Se ele pergunta 'quanto gastei', use os gastos já pagos. Se pergunta 'quanto tenho a pagar', use as contas agendadas.",
+      "- SE A PERGUNTA FOR AMBÍGUA, faça UMA pergunta curta de esclarecimento antes de responder, em vez de chutar. Ex: se ele diz 'quanto desses lançamentos?' logo após importar um extrato, e não está claro se quer o total gasto, o total do mês ou os pendentes, pergunte o que ele quer saber. Melhor esclarecer do que dar o número errado.",
+      "- CONECTE OS DADOS. Se ele pergunta 'posso comprar algo de R$ 500?', não responda só o saldo — considere as contas a pagar que ainda vão sair, o quanto ele costuma gastar no mês, e responda como um conselheiro faria.",
+      "- SEJA PROATIVA quando fizer sentido. Se perceber algo relevante (uma categoria que estourou a meta, um gasto muito acima do normal, uma fatura grande chegando), pode apontar — mas com moderação, sem encher.",
+      "- Quando ele importar um extrato e perguntar sobre 'esses lançamentos', entenda que ele fala dos que acabou de importar. Se não conseguir distingui-los no resumo, diga isso com honestidade e responda sobre o gasto total do período, deixando claro o que está somando.",
+      "- Trate cada pergunta no contexto da conversa. Se ele já perguntou algo antes, leve em conta.",
+      "",
       "════ FORMATO DAS RESPOSTAS ════",
       "- Adapte o tamanho à pergunta. Perguntas simples ('qual meu saldo?') merecem 1 a 2 frases. Perguntas de análise ('onde gastei mais?', 'como está meu mês?') merecem resposta organizada.",
       "- Use formatação simples: **negrito** para valores e pontos-chave (ex: **R$ 1.500,00**); listas começando a linha com '- '; para categoria/valor use '- 🍽️ Alimentação: R$ 1.240,00'; títulos curtos terminados em dois-pontos numa linha sozinha; linha em branco entre blocos.",
@@ -203,6 +212,18 @@ export default async function handler(req, res) {
         : "\n\n(O usuário ainda não tem dados financeiros registrados no app. Oriente-o a começar cadastrando uma conta e alguns lançamentos.)"
     ].join("\n");
 
+    // Monta as mensagens com o histórico da conversa, para a IA ter memória
+    // do que já foi dito. Limita às últimas trocas para não pesar.
+    const mensagens = [];
+    if (Array.isArray(historico)) {
+      historico.slice(-8).forEach(msg => {
+        if (msg && (msg.role === "user" || msg.role === "assistant") && typeof msg.content === "string" && msg.content.trim()) {
+          mensagens.push({ role: msg.role, content: msg.content.slice(0, 2000) });
+        }
+      });
+    }
+    mensagens.push({ role: "user", content: pergunta });
+
     const resposta = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -214,7 +235,7 @@ export default async function handler(req, res) {
         model: "claude-haiku-4-5",
         max_tokens: 600,
         system: systemPrompt,
-        messages: [{ role: "user", content: pergunta }]
+        messages: mensagens
       })
     });
 

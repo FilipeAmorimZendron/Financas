@@ -8785,9 +8785,10 @@ function montarResumoFinanceiro() {
   const movsMes = state.movimentos.filter(m => (m.data || "").slice(0,7) === mesAtual && ehPago(m));
   const entradas = movsMes.filter(m => m.tipo === "entrada").reduce((s,m) => s + m.valor, 0);
   const gastos = movsMes.filter(m => m.tipo === "gasto").reduce((s,m) => s + m.valor, 0);
+  const qtdGastosMes = movsMes.filter(m => m.tipo === "gasto").length;
   linhas.push(`Este mês (${MESES_PT[Number(mes)-1]}/${ano}):`);
-  linhas.push(`  - Entradas: ${fmtMoeda(entradas)}`);
-  linhas.push(`  - Gastos: ${fmtMoeda(gastos)}`);
+  linhas.push(`  - Entradas recebidas: ${fmtMoeda(entradas)}`);
+  linhas.push(`  - Gastos já pagos: ${fmtMoeda(gastos)} (${qtdGastosMes} lançamento(s) confirmados)`);
   linhas.push(`  - Saldo do mês: ${fmtMoeda(entradas - gastos)}`);
 
   // Gastos por categoria (este mês)
@@ -8840,9 +8841,10 @@ function montarResumoFinanceiro() {
   // ─── Lançamentos pendentes (aguardando confirmação) ───
   const pendentes = state.movimentos.filter(m => m.status === "pendente");
   if (pendentes.length) {
-    linhas.push("Lançamentos pendentes (aguardando confirmação):");
+    const totalPend = pendentes.filter(m => m.tipo === "gasto").reduce((s,m) => s + m.valor, 0);
+    linhas.push(`Contas agendadas ainda NÃO pagas (${fmtMoeda(totalPend)} a pagar — isto é diferente dos gastos já feitos):`);
     pendentes.slice(0, 10).forEach(m => {
-      const tipo = m.tipo === "entrada" ? "receber" : "pagar";
+      const tipo = m.tipo === "entrada" ? "a receber" : "a pagar";
       linhas.push(`  - ${m.descricao}: ${tipo} ${fmtMoeda(m.valor)}${m.vencimento ? " (vence " + formatarDataBR(m.vencimento) + ")" : ""}`);
     });
     linhas.push("");
@@ -8929,6 +8931,8 @@ initSino();
    ═══════════════════════════════════════════════════════════ */
 (function () {
   let conversaIniciada = false;
+  // Memória da conversa, para a IA lembrar do que já foi dito
+  const historicoConversa = [];
 
   // Pega o primeiro nome do usuário (perfil, ou parte do email como fallback)
   function primeiroNome() {
@@ -9052,11 +9056,15 @@ initSino();
       let resumo = "";
       try { resumo = montarResumoFinanceiro(); } catch (e) { resumo = ""; }
       const token = localStorage.getItem("fp_token") || "";
+      // Envia o histórico ANTES de adicionar a pergunta atual (ela vai separada)
+      const historicoEnvio = historicoConversa.slice();
       const resp = await fetch("/api/chat-ia", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ pergunta: pergunta, resumoFinanceiro: resumo, token: token })
+        body: JSON.stringify({ pergunta: pergunta, resumoFinanceiro: resumo, token: token, historico: historicoEnvio })
       });
+      // Registra a pergunta no histórico
+      historicoConversa.push({ role: "user", content: pergunta });
       const dados = await resp.json();
       if (carregando) carregando.remove();
 
@@ -9089,6 +9097,12 @@ initSino();
 
       const resposta = dados.resposta || "Não consegui gerar uma resposta.";
       addMsg(resposta, "ia");
+      // Guarda a resposta no histórico, para a próxima pergunta ter contexto.
+      // Limita o histórico às últimas 12 mensagens (6 trocas) para não crescer sem fim.
+      historicoConversa.push({ role: "assistant", content: resposta });
+      if (historicoConversa.length > 12) {
+        historicoConversa.splice(0, historicoConversa.length - 12);
+      }
 
       // Atualiza o contador de usos
       if (dados.usos) {
