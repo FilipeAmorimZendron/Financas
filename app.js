@@ -8738,6 +8738,13 @@ function montarResumoFinanceiro() {
   linhas.push(`Data de hoje: ${formatarDataBR(hoje)}`);
   if (nome) linhas.push(`Nome do usuário: ${nome}`);
   linhas.push(`Plano da conta: ${nomePlano}`);
+  // Situação da assinatura, para a IA responder dúvidas de pagamento
+  const statusAss = state.perfil?.assinaturaStatus;
+  if (statusAss === "atrasada") {
+    linhas.push("Situação: pagamento atrasado — o acesso pode ser suspenso em breve se não regularizar.");
+  } else if (statusAss === "cancelada_falta_pagamento") {
+    linhas.push("Situação: plano cancelado por falta de pagamento. Precisa assinar de novo para recuperar o acesso.");
+  }
   linhas.push("");
 
   // ─── Saldo total e por conta ───
@@ -8886,6 +8893,28 @@ function montarResumoFinanceiro() {
         detalhe += `, taxa ${fmtNum(inv.taxa)}% ${inv.taxaPeriodo === "mes" ? "a.m." : "a.a."}`;
       }
       linhas.push(detalhe);
+    });
+    linhas.push("");
+  }
+
+  // ─── Cartões de crédito e faturas ───
+  const cartoes = state.bancos.filter(b => b.temCartao);
+  if (cartoes.length) {
+    linhas.push("Cartões de crédito:");
+    cartoes.forEach(c => {
+      const disp = (typeof limiteDisponivel === "function") ? limiteDisponivel(c.id) : null;
+      const faturaMes = (typeof proximaFaturaAberta === "function") ? proximaFaturaAberta(c.id) : null;
+      const totalFat = (faturaMes && typeof totalFatura === "function") ? totalFatura(c.id, faturaMes) : 0;
+      let linha = `  - ${c.nome}: limite ${fmtMoeda(c.limite || 0)}`;
+      if (disp != null) linha += `, disponível ${fmtMoeda(disp)}`;
+      if (totalFat > 0 && faturaMes) {
+        const venc = (typeof vencimentoDaFatura === "function") ? vencimentoDaFatura(faturaMes, c) : null;
+        linha += `, fatura em aberto ${fmtMoeda(totalFat)}`;
+        if (venc) linha += ` (vence ${formatarDataBR(venc)})`;
+      } else {
+        linha += ", sem fatura em aberto";
+      }
+      linhas.push(linha);
     });
     linhas.push("");
   }
