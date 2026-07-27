@@ -4666,7 +4666,6 @@ const GUIAS = {
   }
 };
 
-const GUIA_STORAGE_KEY = "fp_guia_visto_";
 
 function mostrarGuia(screen) {
   const guia = GUIAS[screen];
@@ -5042,14 +5041,6 @@ function unidadeParaMeses(valor, unidade) {
 /* Valor que o investimento vale hoje (usa valorAtual se informado) */
 function valorHoje(i) {
   return i.valorAtual != null ? i.valorAtual : i.valor;
-}
-
-/* Resultado de um investimento de renda variável */
-function resultadoRV(i) {
-  if (i.valorAtual == null) return null;
-  const ganho = i.valorAtual - i.valor;
-  const pct = i.valor > 0 ? (ganho / i.valor) * 100 : 0;
-  return { ganho, pct };
 }
 
 /* Alíquota de IR do CDB/renda fixa pela tabela regressiva.
@@ -5435,14 +5426,6 @@ formInvestimento?.addEventListener("submit", async e => {
 });
 
 /* Monta o título exibido do investimento */
-/* Retorna HTML seguro (já escapado) — usado direto em innerHTML */
-function tituloInvestimento(i) {
-  const inst = nomeInstituicao(i.contaId);
-  if (i.nome && i.nome.trim()) return esc(i.nome);      // apelido definido pelo usuário
-  if (inst) return `${esc(i.tipo)} · ${esc(inst)}`;     // ex: "CDB · Nubank"
-  return esc(i.tipo);                                   // ex: "CDB"
-}
-
 async function excluirInvestimento(id) {
   const ok = await confirmar("Excluir este investimento?"); if (!ok) return;
   const label = state.investimentos.find(i => i.id === id)?.nome || "Investimento";
@@ -5474,13 +5457,6 @@ function nomeInstituicao(contaId) {
   const c = state.bancos.find(b => b.id === contaId);
   return c ? c.nome : null;
 }
-
-/* O botão "Simular" de um investimento abre a aba do simulador */
-function abrirSimulador() {
-  trocarTela("investimentos");
-  trocarAbaInv("simulador");
-}
-
 
 /* ============================================================
    SIMULADOR DE RENDIMENTO
