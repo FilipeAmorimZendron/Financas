@@ -3618,8 +3618,15 @@ async function processarExtratoChat(arquivo, bancoId, addChat) {
 
   } catch (err) {
     pensando?.remove();
-    addChat("Deu um problema ao ler o arquivo. Tente de novo.", "ia");
-    console.error(err);
+    console.error("Erro ao ler extrato:", err);
+    // Mensagem conforme a causa provável
+    let msg = "Deu um problema ao ler o arquivo. ";
+    if (err && /timeout|network|fetch|Failed/i.test(String(err.message || err))) {
+      msg += "A conexão falhou ou o arquivo é muito grande. Tente um extrato menor (por exemplo, de um mês só) ou verifique sua internet.";
+    } else {
+      msg += "Verifique se o arquivo é um extrato válido (CSV, OFX, PDF ou foto) e tente de novo.";
+    }
+    addChat(msg, "ia");
   }
 }
 

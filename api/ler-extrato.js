@@ -54,6 +54,50 @@ async function lerPerfil(userId, serviceKey) {
   return linhas[0] || null;
 }
 
+/* Extratos grandes podem levar mais de 10s (o padrão da Vercel) para a IA
+   ler e devolver. Damos mais tempo para não cortar no meio. */
+export const config = { maxDuration: 60 };
+
+/* Tenta consertar um JSON levemente quebrado vindo da IA.
+   Cobre os casos comuns: resposta cortada no limite de tokens (JSON
+   incompleto) e vírgulas sobrando. Devolve o objeto ou null se não deu. */
+function repararJSON(texto) {
+  if (!texto) return null;
+
+  // Tentativa 1: remover vírgulas antes de } ou ]
+  try {
+    const limpo = texto.replace(/,\s*([}\]])/g, "$1");
+    return JSON.parse(limpo);
+  } catch (e) {}
+
+  // Tentativa 2: a resposta foi cortada no meio. Recupera os lançamentos
+  // completos que já vieram, ignorando o pedaço truncado no final.
+  try {
+    const inicio = texto.indexOf('"lancamentos"');
+    if (inicio === -1) return null;
+    const abre = texto.indexOf("[", inicio);
+    if (abre === -1) return null;
+
+    // Varre o array pegando cada objeto {...} bem-formado
+    const itens = [];
+    let i = abre + 1, nivel = 0, ini = -1;
+    for (; i < texto.length; i++) {
+      const c = texto[i];
+      if (c === "{") { if (nivel === 0) ini = i; nivel++; }
+      else if (c === "}") {
+        nivel--;
+        if (nivel === 0 && ini !== -1) {
+          try { itens.push(JSON.parse(texto.slice(ini, i + 1))); } catch (e) {}
+          ini = -1;
+        }
+      } else if (c === "]" && nivel === 0) break;
+    }
+    if (itens.length) return { lancamentos: itens, duvidas: [], resumo: "" };
+  } catch (e) {}
+
+  return null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ erro: "Método não permitido" });
@@ -220,8 +264,16 @@ export default async function handler(req, res) {
     try {
       resultado = JSON.parse(bruto);
     } catch (e) {
-      console.error("JSON inválido da IA:", bruto.slice(0, 500));
-      return res.status(502).json({ erro: "A IA não conseguiu organizar esse extrato. Tente outro arquivo." });
+      // A IA às vezes devolve JSON com pequenos defeitos (vírgula sobrando,
+      // resposta cortada no limite de tokens). Tenta consertar antes de desistir.
+      const reparado = repararJSON(bruto);
+      if (reparado) {
+        resultado = reparado;
+        console.log("JSON reparado com sucesso");
+      } else {
+        console.error("JSON inválido da IA:", bruto.slice(0, 500));
+        return res.status(502).json({ erro: "A IA não conseguiu organizar esse extrato. Tente um arquivo menor ou divida em partes." });
+      }
     }
 
     return res.status(200).json({
