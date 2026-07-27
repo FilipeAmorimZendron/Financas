@@ -3629,9 +3629,7 @@ async function processarExtratoChat(arquivo, bancoId, addChat) {
       abrirRevisao(lancamentos, duvidas, dados.resumo, bancoId);
     } catch (erroRevisao) {
       console.error("Erro ao abrir a revisão:", erroRevisao);
-      // Mostra o erro real na tela para diagnóstico rápido
-      const detalhe = (erroRevisao && erroRevisao.message) ? erroRevisao.message : String(erroRevisao);
-      addChat("Li o extrato, mas tive um problema ao montar a revisão. Detalhe técnico: " + detalhe, "ia");
+      addChat("Li o extrato, mas tive um problema ao montar a tela de revisão. Tente de novo, e se persistir me avise.", "ia");
     }
 
   } catch (err) {
@@ -3770,6 +3768,8 @@ function abrirRevisao(lancamentos, duvidas, resumo, bancoId) {
       itens: todosLidos.map(m => ({ descricao: m.descricao, valor: Number(m.valor || 0), tipo: m.tipo, categoria: m.categoria, data: m.data }))
     };
   } catch (e) {}
+
+  const el = document.getElementById("revisaoResumo");
   if (el) {
     const total = revisaoDados.itens.length + revisaoDados.duvidas.length;
     let txt = resumo || `${total} lançamento(s) encontrado(s) · revise antes de salvar`;
