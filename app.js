@@ -3636,6 +3636,9 @@ function categoriasRevisao() {
 }
 
 let revisaoDados = { itens: [], duvidas: [], bancoId: null };
+// Guarda o que foi importado por último, para a IA saber responder
+// perguntas como "quanto gastei nesse extrato que enviei?".
+let ultimaImportacao = null;
 
 /* Memória de categorias: aprende as escolhas do usuário.
    Se ele já categorizou "PAG*JLM" como Serviços, não perguntamos de novo.
@@ -3962,6 +3965,25 @@ async function salvarRevisao() {
     fecharRevisao();
     formImportarExtrato?.reset();
     resetarDropImport();
+
+    // Registra esta importação para a IA poder falar sobre ela depois
+    const gastosImp = novos.filter(m => m.tipo === "gasto");
+    const entradasImp = novos.filter(m => m.tipo === "entrada");
+    const datas = novos.map(m => m.data).filter(Boolean).sort();
+    const banco = state.bancos.find(b => b.id === bancoId);
+    ultimaImportacao = {
+      quando: Date.now(),
+      conta: banco ? banco.nome : "conta",
+      total: novos.length,
+      totalGasto: gastosImp.reduce((s,m) => s + Number(m.valor), 0),
+      totalEntrada: entradasImp.reduce((s,m) => s + Number(m.valor), 0),
+      qtdGastos: gastosImp.length,
+      qtdEntradas: entradasImp.length,
+      dataInicio: datas[0] || null,
+      dataFim: datas[datas.length - 1] || null,
+      itens: novos.map(m => ({ descricao: m.descricao, valor: Number(m.valor), tipo: m.tipo, categoria: m.categoria, data: m.data }))
+    };
+
     renderTudo();
 
     let msg = `${novos.length} lançamento(s) salvos.`;
@@ -8896,6 +8918,28 @@ function montarResumoFinanceiro() {
       }
       linhas.push(detalhe);
     });
+    linhas.push("");
+  }
+
+  // ─── Última importação de extrato (se recente) ───
+  // Para a IA responder "quanto gastei no extrato que enviei?"
+  if (ultimaImportacao) {
+    const minAtras = Math.round((Date.now() - ultimaImportacao.quando) / 60000);
+    const imp = ultimaImportacao;
+    linhas.push(`ÚLTIMO EXTRATO IMPORTADO pelo usuário (há ${minAtras} min, na conta ${imp.conta}):`);
+    linhas.push(`  - Foram importados ${imp.total} lançamento(s)` +
+      (imp.dataInicio ? `, de ${formatarDataBR(imp.dataInicio)} a ${formatarDataBR(imp.dataFim)}` : "") + ".");
+    if (imp.qtdGastos) linhas.push(`  - Gastos nesse extrato: ${fmtMoeda(imp.totalGasto)} em ${imp.qtdGastos} lançamento(s).`);
+    if (imp.qtdEntradas) linhas.push(`  - Entradas nesse extrato: ${fmtMoeda(imp.totalEntrada)} em ${imp.qtdEntradas} lançamento(s).`);
+    linhas.push("  - Se o usuário perguntar sobre 'o extrato que enviei', 'esses lançamentos' ou algo recém-importado, é DESTE extrato que ele fala. Use estes números.");
+    // Lista os itens para perguntas específicas ("teve algum gasto com farmácia?")
+    if (imp.itens && imp.itens.length) {
+      linhas.push("  - Lançamentos importados:");
+      imp.itens.slice(0, 40).forEach(it => {
+        const t = it.tipo === "entrada" ? "entrada" : "gasto";
+        linhas.push(`      ${formatarDataBR(it.data)} ${it.descricao}: ${fmtMoeda(it.valor)} (${t}, ${it.categoria || "Outros"})`);
+      });
+    }
     linhas.push("");
   }
 
