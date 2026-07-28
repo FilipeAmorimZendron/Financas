@@ -4909,7 +4909,34 @@ document.getElementById("formEditarConta")?.addEventListener("submit", async e =
     const att = await dbUpdate("contas", id, dados);
     const idx = state.bancos.findIndex(b=>b.id===id);
     if (idx>=0) state.bancos[idx] = { id:att.id, nome:att.nome, tipo:att.tipo, saldoInicial:Number(att.saldo_inicial), saldoData: att.saldo_data || null, cor: att.cor || null, temCartao: att.tem_cartao || false, limite: att.limite != null ? Number(att.limite) : null, diaFechamento: att.dia_fechamento || null, diaVencimento: att.dia_vencimento || null };
-    fecharModal("conta"); renderTudo(); toast("Conta atualizada!","success");
+
+    // Se informou uma fatura em aberto, cria uma conta a pagar
+    let faturaMsg = "";
+    if (temCartao) {
+      const faturaAtual = Number(document.getElementById("editCartaoFaturaAtual")?.value) || 0;
+      if (faturaAtual > 0) {
+        const venc = proximoVencimentoCartao(att.dia_vencimento);
+        const movFatura = await dbInsert("movimentos", {
+          descricao: `Fatura ${att.nome}`,
+          conta_id: att.id,
+          data: venc,
+          valor: faturaAtual,
+          tipo: "gasto",
+          categoria: "Cartão de crédito",
+          status: "pendente",
+          vencimento: venc
+        });
+        state.movimentos.push({
+          id: movFatura.id, descricao: movFatura.descricao, bancoId: movFatura.conta_id,
+          data: movFatura.data, valor: Number(movFatura.valor), tipo: "gasto",
+          categoria: movFatura.categoria, status: "pendente",
+          vencimento: movFatura.vencimento, pagoEm: null
+        });
+        faturaMsg = ` Fatura de ${fmtMoeda(faturaAtual)} registrada para pagar.`;
+      }
+    }
+
+    fecharModal("conta"); renderTudo(); toast(`Conta atualizada!${faturaMsg}`,"success");
   } catch(err) { tratarErro(err); }
 });
 

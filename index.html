@@ -1530,18 +1530,20 @@
             <span class="dica-balao">Só contam os lançamentos a partir dessa data. O que for anterior já está embutido no saldo informado.</span>
           </span>
         </label><input type="date" id="editContaSaldoData" required /></div>
-        <div class="field field-cartao-toggle">
-          <label class="check-linha">
-            <input type="checkbox" id="editTemCartao" onchange="toggleEditCartao()" />
-            <span>Este banco tem cartão de crédito</span>
-          </label>
-        </div>
+        <label class="cartao-toggle">
+          <input type="checkbox" id="editTemCartao" onchange="toggleEditCartao()" />
+          <span class="cartao-toggle-marca"></span>
+          <span class="cartao-toggle-texto">
+            <strong>Este banco tem cartão de crédito</strong>
+            <small>Controle limite e faturas</small>
+          </span>
+        </label>
         <div class="cartao-box" id="editCartaoBox" style="display:none">
           <div class="cartao-box-titulo">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
             Dados do cartão
           </div>
-          <div class="cartao-box-campos">
+          <div class="form-conta-grid">
             <div class="field">
               <label for="editCartaoLimite">Limite (R$)</label>
               <input type="number" id="editCartaoLimite" step="0.01" placeholder="0,00" />
@@ -1553,6 +1555,18 @@
             <div class="field">
               <label for="editCartaoVencimento">Vencimento</label>
               <input type="number" id="editCartaoVencimento" min="1" max="31" placeholder="Ex: 28" />
+            </div>
+          </div>
+          <div class="cartao-fatura-atual">
+            <div class="field">
+              <label for="editCartaoFaturaAtual">Adicionar fatura em aberto (R$)
+                <span class="dica-info" tabindex="0" aria-label="Ajuda sobre fatura">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                  <span class="dica-balao">Informe o valor de uma fatura que você tem a pagar. O app cria uma conta a pagar com o vencimento do cartão. Deixe em branco se não quiser adicionar.</span>
+                </span>
+              </label>
+              <input type="number" id="editCartaoFaturaAtual" step="0.01" placeholder="0,00 (opcional)" />
+              <small class="field-hint">Cria uma nova conta a pagar. Não mexe nas faturas já registradas.</small>
             </div>
           </div>
         </div>
