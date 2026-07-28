@@ -2269,8 +2269,10 @@ function renderGraficoEvolucao() {
     dataFim = hojeZero;
     dataIni = new Date(hojeZero); dataIni.setDate(dataIni.getDate() - 6); // hoje + 6 antes = 7 dias
   } else if (_periodoTipo === "mes") {
+    // Mês inteiro: dia 1 até o último dia, para ver todos os dias organizados.
+    // Dias futuros ficam sem barras e o saldo se mantém na linha.
     dataIni = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    dataFim = hojeZero;
+    dataFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
   } else if (_periodoTipo === "mesanterior") {
     dataIni = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
     dataFim = new Date(hoje.getFullYear(), hoje.getMonth(), 0); // último dia do mês anterior
@@ -2295,8 +2297,11 @@ function renderGraficoEvolucao() {
     const n = Math.min(diasIntervalo, 62);
     pontos = Array.from({length:n}, (_,i) => {
       const d = new Date(dataIni.getFullYear(), dataIni.getMonth(), dataIni.getDate()+i);
+      const diaISO = isoDe(d);
       return {
-        limNum: Number(isoDe(d).replace(/-/g,"")),   // AAAAMMDD para comparação
+        limNum: Number(diaISO.replace(/-/g,"")),   // AAAAMMDD para comparação
+        iniISO: diaISO,                             // início do intervalo = o próprio dia
+        fimISO: diaISO,
         label: `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`,
         tooltip: `${d.getDate()} ${PT[d.getMonth()]} ${d.getFullYear()}`
       };
@@ -2310,6 +2315,8 @@ function renderGraficoEvolucao() {
       const fimMes = new Date(d.getFullYear(), d.getMonth()+1, 0);
       return {
         limNum: Number(`${fimMes.getFullYear()}${pad2(fimMes.getMonth()+1)}${pad2(fimMes.getDate())}`),
+        iniISO: isoDe(d),           // primeiro dia do mês
+        fimISO: isoDe(fimMes),      // último dia do mês
         label: PT[d.getMonth()],
         tooltip: `${PT[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
       };
@@ -2335,26 +2342,21 @@ function renderGraficoEvolucao() {
     }
   }
 
-  // Saldo acumulado até a data-limite de cada ponto.
-  // Usa a MESMA regra do card do dashboard (crédito não conta, respeita
-  // data de saldo e transferências), para o gráfico não divergir do card.
-  const pad2b = n => String(n).padStart(2, "0");
-  // Três séries por ponto: saldo total, entradas acumuladas e gastos acumulados.
-  // Entradas/gastos são o total dentro do período ATÉ aquele ponto.
-  const iniPeriodo = isoDe(dataIni);
+  // Saldo é ACUMULADO (linha que sobe/desce), mas entradas e gastos são
+  // o total DE CADA intervalo isolado (barras que mostram o movimento do dia).
   const dadosSaldo = [];
   const dadosEntradas = [];
   const dadosGastos = [];
-  pontos.forEach(({limNum}) => {
+  pontos.forEach(({limNum, iniISO, fimISO}) => {
     const s = String(limNum);
     const dataLimISO = `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;
     dadosSaldo.push(saldoTotalAteData(dataLimISO));
-    // Entradas e gastos DENTRO do período, do início até este ponto
+    // Entradas e gastos SÓ deste intervalo (este dia, ou este mês)
     let ent = 0, gas = 0;
     for (const m of state.movimentos) {
       if (!ehPago(m) || m.formaPagamento === "credito" || !m.data) continue;
       const d = m.data.slice(0,10);
-      if (d < iniPeriodo || d > dataLimISO) continue;
+      if (d < iniISO || d > fimISO) continue;
       if (m.tipo === "entrada") ent += m.valor; else gas += m.valor;
     }
     dadosEntradas.push(ent);
@@ -2397,52 +2399,50 @@ function renderGraficoEvolucao() {
   // Carteira zerada: mostra o convite, não uma linha reta no zero
   const vazio = dadosSaldo.every(v => v === 0) && dadosEntradas.every(v => v === 0) && dadosGastos.every(v => v === 0);
 
-  const linhaBase = {
-    borderWidth: 2.5,
-    tension: 0.35,
-    pointRadius: 0,
-    pointHoverRadius: 5,
-    pointHoverBorderWidth: 2.5,
-    pointHoverBorderColor: dark ? "#011025" : "#ffffff",
-    clip: false
-  };
-
   chartEvolucao = new Chart(canvas, {
-    type: "line",
+    type: "bar",
     data: {
       labels: pontos.map(p => p.label),
       datasets: [
         {
-          ...linhaBase,
+          type: "line",
           label: "Saldo",
           data: dadosSaldo,
           borderColor: accent,
           backgroundColor: gradSaldo,
+          borderWidth: 2.5,
+          tension: 0.35,
           fill: true,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBorderWidth: 2.5,
           pointHoverBackgroundColor: accent,
-          order: 3
+          pointHoverBorderColor: dark ? "#011025" : "#ffffff",
+          yAxisID: "ySaldo",
+          order: 0,
+          clip: false
         },
         {
-          ...linhaBase,
+          type: "bar",
           label: "Entradas",
           data: dadosEntradas,
-          borderColor: corEntrada,
-          backgroundColor: "transparent",
-          fill: false,
-          borderWidth: 2,
-          pointHoverBackgroundColor: corEntrada,
-          order: 1
+          backgroundColor: hexParaRgba(corEntrada, 0.85),
+          hoverBackgroundColor: corEntrada,
+          borderRadius: 4,
+          maxBarThickness: 18,
+          yAxisID: "yMov",
+          order: 2
         },
         {
-          ...linhaBase,
+          type: "bar",
           label: "Gastos",
           data: dadosGastos,
-          borderColor: corGasto,
-          backgroundColor: "transparent",
-          fill: false,
-          borderWidth: 2,
-          pointHoverBackgroundColor: corGasto,
-          order: 2
+          backgroundColor: hexParaRgba(corGasto, 0.85),
+          hoverBackgroundColor: corGasto,
+          borderRadius: 4,
+          maxBarThickness: 18,
+          yAxisID: "yMov",
+          order: 1
         }
       ]
     },
@@ -2491,8 +2491,9 @@ function renderGraficoEvolucao() {
             maxTicksLimit: porDia ? 8 : 12
           }
         },
-        y: {
-          // Sem dados, não força uma escala falsa de -1 a 1
+        ySaldo: {
+          // Eixo do saldo (linha) — à esquerda
+          position: "left",
           suggestedMin: vazio ? 0 : undefined,
           suggestedMax: vazio ? 100 : undefined,
           grid: { color: grid, drawTicks: false },
@@ -2501,6 +2502,20 @@ function renderGraficoEvolucao() {
             color: txt,
             font: { family: "IBM Plex Mono", size: 10.5 },
             padding: 10,
+            maxTicksLimit: 5,
+            callback: v => fmtCompacto(v)
+          }
+        },
+        yMov: {
+          // Eixo das barras (entradas/gastos do dia) — à direita, escala própria
+          position: "right",
+          beginAtZero: true,
+          grid: { display: false },
+          border: { display: false },
+          ticks: {
+            color: txt,
+            font: { family: "IBM Plex Mono", size: 10 },
+            padding: 6,
             maxTicksLimit: 5,
             callback: v => fmtCompacto(v)
           }
