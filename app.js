@@ -7475,6 +7475,27 @@ function verGrafico() {
   info["com conta INEXISTENTE (invisiveis no saldo)"] = semConta;
   info["no credito (nao afetam saldo)"] = credito;
   console.table(info);
+
+  // Mostra a data de saldo de cada conta — se for recente, ela ignora
+  // movimentos antigos e deixa a linha do gráfico reta.
+  console.log("Contas e suas datas de saldo:");
+  console.table(state.bancos.map(b => ({
+    conta: b.nome,
+    saldoInicial: b.saldoInicial,
+    "saldo_data (ignora movs. antes disto)": b.saldoData || "(sem data — conta tudo)"
+  })));
+
+  // Diagnóstico automático: movimentos ignorados pela data de saldo
+  let ignoradosPorData = 0;
+  const desde = {};
+  state.bancos.forEach(b => desde[b.id] = b.saldoData || null);
+  movs.forEach(m => {
+    if (m.data && desde[m.bancoId] && m.data < desde[m.bancoId]) ignoradosPorData++;
+  });
+  if (ignoradosPorData > 0) {
+    console.warn(`⚠️ ${ignoradosPorData} movimento(s) são anteriores à data de saldo da conta e por isso NÃO entram no gráfico. Se quiser que contem, ajuste a data de saldo da conta para antes deles (ou remova a data de saldo).`);
+  }
+
   if (semConta) {
     console.warn("Movimentos com conta que nao existe mais:");
     console.table(movs.filter(m => !contasIds.has(m.bancoId)).map(m => ({
