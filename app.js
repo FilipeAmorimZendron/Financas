@@ -2302,7 +2302,7 @@ function renderGraficoEvolucao() {
         limNum: Number(diaISO.replace(/-/g,"")),   // AAAAMMDD para comparação
         iniISO: diaISO,                             // início do intervalo = o próprio dia
         fimISO: diaISO,
-        label: `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`,
+        label: diasIntervalo > 15 ? `${pad2(d.getDate())}` : `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`,
         tooltip: `${d.getDate()} ${PT[d.getMonth()]} ${d.getFullYear()}`
       };
     });
@@ -2448,7 +2448,39 @@ function renderGraficoEvolucao() {
           pointHoverBorderWidth: 2.5,
           pointHoverBackgroundColor: accent,
           pointHoverBorderColor: dark ? "#011025" : "#ffffff",
+          yAxisID: "ySaldo",
+          order: 0,
           clip: false
+        },
+        {
+          label: "Entradas",
+          data: dadosEntradas,
+          borderColor: corEntrada,
+          backgroundColor: "transparent",
+          borderWidth: 2,
+          tension: 0.3,
+          fill: false,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: corEntrada,
+          pointHoverBorderColor: dark ? "#011025" : "#ffffff",
+          yAxisID: "yMov",
+          order: 1
+        },
+        {
+          label: "Gastos",
+          data: dadosGastos,
+          borderColor: corGasto,
+          backgroundColor: "transparent",
+          borderWidth: 2,
+          tension: 0.3,
+          fill: false,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: corGasto,
+          pointHoverBorderColor: dark ? "#011025" : "#ffffff",
+          yAxisID: "yMov",
+          order: 2
         }
       ]
     },
@@ -2497,14 +2529,18 @@ function renderGraficoEvolucao() {
           border: { display: false },
           ticks: {
             color: txt,
-            font: { family: "Inter", size: 11 },
-            padding: 8,
-            maxRotation: 0,
-            autoSkip: true,
-            maxTicksLimit: porDia ? 8 : 12
+            font: { family: "Inter", size: 9.5 },
+            padding: 6,
+            autoSkip: false,           // não pula nenhum dia
+            maxRotation: 90,           // rotaciona para caber todos
+            minRotation: porDia && pontos.length > 15 ? 90 : 0,
+            callback: function(value, index) {
+              return pontos[index]?.label || "";
+            }
           }
         },
-        y: {
+        ySaldo: {
+          position: "left",
           suggestedMin: vazio ? 0 : undefined,
           suggestedMax: vazio ? 100 : undefined,
           grid: { color: grid, drawTicks: false },
@@ -2516,6 +2552,14 @@ function renderGraficoEvolucao() {
             maxTicksLimit: 5,
             callback: v => fmtCompacto(v)
           }
+        },
+        yMov: {
+          // Eixo das entradas/gastos do dia — escala própria (valores menores).
+          // Oculto para não poluir; serve só para as duas linhas terem proporção.
+          position: "right",
+          beginAtZero: true,
+          display: false,
+          grid: { display: false }
         }
       }
     }
