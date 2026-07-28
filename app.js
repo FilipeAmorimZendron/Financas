@@ -2529,12 +2529,22 @@ function renderGraficoEvolucao() {
           border: { display: false },
           ticks: {
             color: txt,
-            font: { family: "Inter", size: 9.5 },
-            padding: 6,
-            autoSkip: false,           // não pula nenhum dia
-            maxRotation: 90,           // rotaciona para caber todos
-            minRotation: porDia && pontos.length > 15 ? 90 : 0,
+            font: { family: "Inter", size: 10 },
+            padding: 8,
+            maxRotation: 0,            // sempre em pé (horizontal)
+            minRotation: 0,
+            autoSkip: false,
             callback: function(value, index) {
+              const total = pontos.length;
+              // Muitos dias: mostra o rótulo espaçado para caber na horizontal,
+              // mas garante que o primeiro e o último sempre apareçam.
+              if (porDia && total > 16) {
+                const passo = total > 24 ? 3 : 2;
+                if (index === 0 || index === total - 1 || index % passo === 0) {
+                  return pontos[index]?.label || "";
+                }
+                return "";
+              }
               return pontos[index]?.label || "";
             }
           }

@@ -140,28 +140,30 @@
       <!-- DASHBOARD -->
       <section class="screen active" id="screen-dashboard">
         <div class="page-header dash-header">
-          <div>
+          <div class="dash-header-titulo">
             <p class="page-eyebrow">Visão geral</p>
             <h2 class="page-title">Dashboard</h2>
           </div>
-          <div class="dash-periodo" id="dashPeriodo">
-            <button type="button" class="dash-periodo-btn" id="dashPeriodoBtn">
-              <span id="dashPeriodoLabel">Este mês</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <span class="dash-periodo-datas" id="dashPeriodoDatas"></span>
-            <div class="dash-periodo-menu" id="dashPeriodoMenu" hidden>
-              <button type="button" class="dash-periodo-opcao" data-periodo="hoje">Hoje</button>
-              <button type="button" class="dash-periodo-opcao" data-periodo="ontem">Ontem</button>
-              <button type="button" class="dash-periodo-opcao" data-periodo="7dias">Últimos 7 dias</button>
-              <button type="button" class="dash-periodo-opcao ativo" data-periodo="mes">Este mês</button>
-              <button type="button" class="dash-periodo-opcao" data-periodo="mesanterior">Mês anterior</button>
-              <button type="button" class="dash-periodo-opcao" data-periodo="tudo">Todo o período</button>
-              <div class="dash-periodo-sep"></div>
-              <div class="dash-periodo-custom">
-                <label>De <input type="date" id="dashDataDe"></label>
-                <label>Até <input type="date" id="dashDataAte"></label>
-                <button type="button" class="dash-periodo-aplicar" id="dashDataAplicar">Aplicar</button>
+          <div class="dash-header-direita">
+            <div class="dash-periodo" id="dashPeriodo">
+              <button type="button" class="dash-periodo-btn" id="dashPeriodoBtn">
+                <span id="dashPeriodoLabel">Este mês</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <span class="dash-periodo-datas" id="dashPeriodoDatas"></span>
+              <div class="dash-periodo-menu" id="dashPeriodoMenu" hidden>
+                <button type="button" class="dash-periodo-opcao" data-periodo="hoje">Hoje</button>
+                <button type="button" class="dash-periodo-opcao" data-periodo="ontem">Ontem</button>
+                <button type="button" class="dash-periodo-opcao" data-periodo="7dias">Últimos 7 dias</button>
+                <button type="button" class="dash-periodo-opcao ativo" data-periodo="mes">Este mês</button>
+                <button type="button" class="dash-periodo-opcao" data-periodo="mesanterior">Mês anterior</button>
+                <button type="button" class="dash-periodo-opcao" data-periodo="tudo">Todo o período</button>
+                <div class="dash-periodo-sep"></div>
+                <div class="dash-periodo-custom">
+                  <label>De <input type="date" id="dashDataDe"></label>
+                  <label>Até <input type="date" id="dashDataAte"></label>
+                  <button type="button" class="dash-periodo-aplicar" id="dashDataAplicar">Aplicar</button>
+                </div>
               </div>
             </div>
           </div>

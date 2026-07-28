@@ -9362,12 +9362,29 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  position: relative;
+}
+.dash-header-titulo { flex: 1; }
+/* O botão "Como funciona" (injetado por JS) e o período ficam numa
+   coluna à direita, o período logo abaixo do "Como funciona". */
+.dash-header .btn-guia-secao {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+.dash-header-direita {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 40px;   /* espaço para o "Como funciona" que fica acima */
 }
 .dash-periodo {
   position: relative;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
 }
 .dash-periodo-btn {
   display: flex;
@@ -9393,7 +9410,7 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
 }
 .dash-periodo-menu {
   position: absolute;
-  top: calc(100% + 8px);
+  top: 44px;
   right: 0;
   z-index: 50;
   min-width: 240px;
