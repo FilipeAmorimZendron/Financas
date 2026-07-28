@@ -9515,3 +9515,12 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
 }
 .leg-entrada .leg-cor { border-color: #22C55E; }
 .leg-gasto .leg-cor { border-color: #F0642E; }
+
+/* Tempo relativo nos avisos de evento ("há 5 min") */
+.sino-item-tempo {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted, #7C8FA3);
+  margin-top: 3px;
+  opacity: 0.75;
+}

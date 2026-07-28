@@ -1332,6 +1332,47 @@ function saldoTotalAteData(dataLimISO) {
 function formatarDataBR(iso) {
   return new Date(iso + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 }
+/* ─── Avisos de EVENTO (efêmeros) ────────────────────────
+   Além dos avisos derivados do estado (contas a vencer, saldo, etc.),
+   registramos eventos que acontecem: importou extrato, IA respondeu.
+   Ficam guardados por até 24h e aparecem no sino. */
+function registrarEvento(tipo, titulo, texto, acao) {
+  try {
+    const eventos = lerEventos();
+    eventos.unshift({
+      tipo, titulo, texto,
+      acao: acao || null,
+      quando: Date.now(),
+      id: `${tipo}-${Date.now()}`
+    });
+    // Guarda no máximo 20 eventos, dos últimos 2 dias
+    const corte = Date.now() - 2 * 24 * 60 * 60 * 1000;
+    const limpos = eventos.filter(e => e.quando >= corte).slice(0, 20);
+    localStorage.setItem("fp_eventos", JSON.stringify(limpos));
+    if (typeof renderSino === "function") renderSino();
+  } catch (e) {}
+}
+
+function lerEventos() {
+  try {
+    const corte = Date.now() - 2 * 24 * 60 * 60 * 1000;
+    return (JSON.parse(localStorage.getItem("fp_eventos") || "[]"))
+      .filter(e => e && e.quando >= corte);
+  } catch (e) { return []; }
+}
+
+/* Texto amigável de "há quanto tempo" */
+function tempoRelativo(ts) {
+  const dif = Date.now() - ts;
+  const min = Math.floor(dif / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h} h`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "ontem" : `há ${d} dias`;
+}
+
 function calcularAvisos() {
   const avisos = [];
   const hoje = hojeISO();
@@ -1494,6 +1535,51 @@ function calcularAvisos() {
     }
   });
 
+  // 4. Contas do mês ainda não pagas (resumo ao entrar no app)
+  const mesAtual = hoje.slice(0, 7);
+  const naoPagasDoMes = state.movimentos.filter(m =>
+    m.tipo === "gasto" && ehPendente(m) && (m.data || m.vencimento || "").slice(0, 7) === mesAtual
+  );
+  if (naoPagasDoMes.length > 0) {
+    const total = naoPagasDoMes.reduce((s, m) => s + (Number(m.valor) || 0), 0);
+    avisos.push({
+      tipo: "vencendo",
+      titulo: `${naoPagasDoMes.length} ${naoPagasDoMes.length === 1 ? "conta" : "contas"} a pagar este mês`,
+      texto: `Você tem ${fmtMoeda(total)} em contas ainda não pagas neste mês.`,
+      prioridade: 2,
+      acao: "trocarTela('lancamentos')"
+    });
+  }
+
+  // 4b. Entradas a receber nos próximos dias (salário, recebimentos)
+  const entradasProximas = todosCompromissos(limiteProximo).filter(c =>
+    c.tipo === "entrada" && c.vencimento >= hoje
+  );
+  entradasProximas.forEach(c => {
+    const dias = diasAte(c.vencimento);
+    avisos.push({
+      tipo: "sucesso",
+      titulo: dias === 0 ? "Recebimento hoje" : "Recebimento a caminho",
+      texto: dias === 0
+        ? `${c.descricao} · ${fmtMoeda(c.valor)}`
+        : `${c.descricao} ${dias === 1 ? "amanhã" : "em " + formatarDataBR(c.vencimento)} · ${fmtMoeda(c.valor)}`,
+      prioridade: 3
+    });
+  });
+
+  // 5. Eventos recentes (importou extrato, IA respondeu, etc.)
+  lerEventos().forEach(ev => {
+    avisos.push({
+      tipo: ev.tipo,
+      titulo: ev.titulo,
+      texto: ev.texto,
+      prioridade: 3,
+      acao: ev.acao,
+      quando: ev.quando,
+      ehEvento: true
+    });
+  });
+
   // Ordena por prioridade (1 = mais urgente primeiro)
   return avisos.sort((a, b) => a.prioridade - b.prioridade);
 }
@@ -1505,7 +1591,10 @@ function iconeAviso(tipo) {
     vencendo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
     saldo:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
     meta:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
-    cartao:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>`
+    cartao:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>`,
+    extrato:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>`,
+    ia:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/><circle cx="8.5" cy="14.5" r="1"/><circle cx="15.5" cy="14.5" r="1"/></svg>`,
+    sucesso:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
   };
   return icones[tipo] || icones.vencendo;
 }
@@ -1563,6 +1652,7 @@ function renderSino() {
       <div class="sino-item-texto">
         <strong>${a.titulo}</strong>
         <span>${esc(a.texto)}</span>
+        ${a.ehEvento && a.quando ? `<time class="sino-item-tempo">${tempoRelativo(a.quando)}</time>` : ""}
       </div>
       ${a.acao ? `<svg class="sino-item-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>` : ""}
     </div>`;
@@ -4308,6 +4398,17 @@ async function salvarRevisao() {
     if (dup > 0) msg += ` ${dup} já existia(m).`;
     if (descartados > 0) msg += ` ${descartados} com dados inválidos foram ignorados.`;
     toast(msg, "success");
+
+    // Notifica no sino que o extrato foi importado
+    if (novos.length > 0) {
+      const totalImp = novos.reduce((s, m) => s + (Number(m.valor) || 0), 0);
+      registrarEvento(
+        "extrato",
+        "Extrato importado",
+        `${novos.length} ${novos.length === 1 ? "lançamento foi adicionado" : "lançamentos foram adicionados"} ao seu histórico.`,
+        "trocarTela('planilha')"
+      );
+    }
 
   } catch (err) {
     tratarErro(err);
@@ -9506,6 +9607,21 @@ initSino();
 
       const resposta = dados.resposta || "Não consegui gerar uma resposta.";
       addMsg(resposta, "ia");
+
+      // Se o chat estiver minimizado/fechado, notifica no sino que a
+      // resposta chegou (se estiver aberto, a pessoa já está vendo).
+      const chatEl = document.getElementById("iaChat");
+      const chatFechado = !chatEl || chatEl.hidden;
+      if (chatFechado) {
+        const previa = resposta.replace(/[#*`_]/g, "").slice(0, 80);
+        registrarEvento(
+          "ia",
+          "O assistente respondeu",
+          previa + (resposta.length > 80 ? "…" : ""),
+          null
+        );
+      }
+
       // Guarda a resposta no histórico, para a próxima pergunta ter contexto.
       // Limita o histórico às últimas 12 mensagens (6 trocas) para não crescer sem fim.
       historicoConversa.push({ role: "assistant", content: resposta });
