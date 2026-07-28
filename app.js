@@ -578,6 +578,10 @@ async function sbLogout() {
   }
   localStorage.removeItem("fp_token");
   localStorage.removeItem("fp_user");
+  // Limpa avisos/eventos do sino — são do usuário que estava logado,
+  // não devem aparecer para quem logar depois no mesmo navegador.
+  localStorage.removeItem("fp_eventos");
+  localStorage.removeItem("fp_avisos_lidos");
 }
 
 function getAuthHeader() {
@@ -1338,16 +1342,22 @@ function formatarDataBR(iso) {
    Ficam guardados por até 24h e aparecem no sino. */
 function registrarEvento(tipo, titulo, texto, acao) {
   try {
-    const eventos = lerEventos();
-    eventos.unshift({
+    const dono = state.user?.id || null;
+    // Lê a lista bruta (todos os donos) para não apagar de outros, mas
+    // só o dono atual será exibido em lerEventos.
+    let brutos;
+    try { brutos = JSON.parse(localStorage.getItem("fp_eventos") || "[]"); }
+    catch (e) { brutos = []; }
+    brutos.unshift({
       tipo, titulo, texto,
       acao: acao || null,
       quando: Date.now(),
+      dono,
       id: `${tipo}-${Date.now()}`
     });
     // Guarda no máximo 20 eventos, dos últimos 2 dias
     const corte = Date.now() - 2 * 24 * 60 * 60 * 1000;
-    const limpos = eventos.filter(e => e.quando >= corte).slice(0, 20);
+    const limpos = brutos.filter(e => e && e.quando >= corte).slice(0, 20);
     localStorage.setItem("fp_eventos", JSON.stringify(limpos));
     if (typeof renderSino === "function") renderSino();
   } catch (e) {}
@@ -1356,8 +1366,12 @@ function registrarEvento(tipo, titulo, texto, acao) {
 function lerEventos() {
   try {
     const corte = Date.now() - 2 * 24 * 60 * 60 * 1000;
+    const dono = state.user?.id || null;
     return (JSON.parse(localStorage.getItem("fp_eventos") || "[]"))
-      .filter(e => e && e.quando >= corte);
+      .filter(e => e && e.quando >= corte)
+      // Só mostra eventos do usuário logado (eventos antigos sem dono
+      // são descartados, para não vazar entre contas).
+      .filter(e => e.dono && e.dono === dono);
   } catch (e) { return []; }
 }
 
