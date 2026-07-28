@@ -1292,6 +1292,40 @@ function saldoComporta(bancoId, valor) {
 
 const calcularSaldoTotal = () => state.bancos.reduce((a,b)=>a+calcularSaldoBanco(b.id),0);
 
+/* Saldo total de todas as contas ATÉ uma data (inclusive).
+   Usa exatamente as mesmas regras do card do dashboard: ignora compras no
+   crédito, respeita a data de saldo de cada conta e conta transferências.
+   É isto que o gráfico de evolução usa, para não divergir do card. */
+function saldoTotalAteData(dataLimISO) {
+  const saldos = {};
+  const desde = {};
+  state.bancos.forEach(b => {
+    saldos[b.id] = b.saldoInicial;
+    desde[b.id] = b.saldoData || null;
+  });
+
+  for (const m of state.movimentos) {
+    if (!ehPago(m)) continue;
+    if (m.formaPagamento === "credito") continue;   // crédito não mexe no saldo
+    if (saldos[m.bancoId] === undefined) continue;
+    if (!m.data) continue;
+    if (desde[m.bancoId] && m.data < desde[m.bancoId]) continue;
+    if (m.data > dataLimISO) continue;               // só até a data do ponto
+    saldos[m.bancoId] += (m.tipo === "entrada" ? m.valor : -m.valor);
+  }
+  for (const t of state.transferencias) {
+    if (!t.data || t.data > dataLimISO) continue;
+    if (saldos[t.destino] !== undefined && !(desde[t.destino] && t.data < desde[t.destino])) {
+      saldos[t.destino] += t.valor;
+    }
+    if (saldos[t.origem] !== undefined && !(desde[t.origem] && t.data < desde[t.origem])) {
+      saldos[t.origem] -= t.valor;
+    }
+  }
+
+  return Object.values(saldos).reduce((a,v) => a + v, 0);
+}
+
 /* ─── Avisos / Notificações ──────────────────────────────
    Calcula avisos proativos a partir dos dados do app.
    Não usa IA — é só lógica sobre vencimentos, saldos e metas. */
@@ -2248,13 +2282,15 @@ function renderGraficoEvolucao() {
     }
   }
 
-  // Saldo acumulado até a data-limite de cada ponto
+  // Saldo acumulado até a data-limite de cada ponto.
+  // Usa a MESMA regra do card do dashboard (crédito não conta, respeita
+  // data de saldo e transferências), para o gráfico não divergir do card.
+  const pad2b = n => String(n).padStart(2, "0");
   const dados = pontos.map(({limNum}) => {
-    const base = state.bancos.reduce((a,b)=>a+b.saldoInicial, 0);
-    const mov  = state.movimentos
-      .filter(m => ehPago(m) && m.data && Number(String(m.data).slice(0,10).replace(/-/g,"")) <= limNum)
-      .reduce((a,m) => m.tipo==="entrada" ? a+m.valor : a-m.valor, 0);
-    return base + mov;
+    // limNum é AAAAMMDD; converte de volta para AAAA-MM-DD
+    const s = String(limNum);
+    const dataLimISO = `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;
+    return saldoTotalAteData(dataLimISO);
   });
 
   const canvas = document.getElementById("chartEvolucao");
