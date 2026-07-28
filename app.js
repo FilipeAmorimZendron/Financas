@@ -2574,15 +2574,18 @@ function renderGraficoEvolucao() {
           borderWidth: 1,
           titleColor: dark ? "#E6EEF5" : "#16233a",
           bodyColor: dark ? "#E6EEF5" : "#16233a",
-          titleFont: { family: "Inter", size: 12, weight: "600" },
-          bodyFont: { family: "IBM Plex Mono", size: 13, weight: "500" },
-          padding: 11,
+          titleFont: { family: "Inter", size: 12.5, weight: "700" },
+          bodyFont: { family: "IBM Plex Mono", size: 12.5, weight: "500" },
+          padding: { top: 12, bottom: 12, left: 14, right: 16 },
+          titleMarginBottom: 10,     // afasta o título das linhas
+          bodySpacing: 8,            // respiro entre Saldo / Entradas / Gastos
           displayColors: true,
           boxWidth: 8,
           boxHeight: 8,
+          boxPadding: 6,             // afasta a bolinha do texto
           usePointStyle: true,
-          cornerRadius: 8,
-          caretSize: 5,
+          cornerRadius: 10,
+          caretSize: 6,
           callbacks: {
             title: it => {
               const i = it[0].dataIndex;
@@ -2590,7 +2593,7 @@ function renderGraficoEvolucao() {
             },
             label: c => {
               // Cada série mostra apenas o seu próprio valor
-              return `  ${c.dataset.label}: ${fmtMoeda(c.raw)}`;
+              return `${c.dataset.label}: ${fmtMoeda(c.raw)}`;
             }
           }
         }
@@ -2605,8 +2608,19 @@ function renderGraficoEvolucao() {
             padding: 8,
             maxRotation: 0,            // em pé (horizontal)
             minRotation: 0,
-            autoSkip: false,           // mostra TODOS os dias
+            autoSkip: false,
             callback: function(value, index) {
+              const total = pontos.length;
+              // No celular a tela é estreita: 31 rótulos não cabem.
+              // Espaça os números (a linha continua com todos os pontos).
+              const telaEstreita = window.innerWidth <= 640;
+              if (telaEstreita && porDia && total > 12) {
+                const passo = total > 20 ? 5 : 3;
+                if (index === 0 || index === total - 1 || index % passo === 0) {
+                  return pontos[index]?.label || "";
+                }
+                return "";
+              }
               return pontos[index]?.label || "";
             }
           }

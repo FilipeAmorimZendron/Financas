@@ -529,12 +529,17 @@ button, input, textarea, select {
   width: 100%;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 11px 13px;
+  border-radius: var(--radius-md, 12px);
+  padding: 13px 15px;
   font-size: 14px;
   color: var(--text-primary);
   outline: none;
   transition: border-color 0.16s, box-shadow 0.16s, background 0.16s;
+}
+.field input:hover,
+.field textarea:hover,
+.field select:hover {
+  border-color: var(--teal-glow, #2C4A4A);
 }
 .field input::placeholder, .field textarea::placeholder { color: var(--text-muted); }
 .field select option { background: var(--surface); color: var(--text-primary); }
@@ -4228,19 +4233,23 @@ body.sem-internet .layout { padding-top: 34px; }
    ============================================================ */
 
 .conta-box {
-  padding: 15px 18px;
+  padding: 18px 20px;
   background: var(--surface2);
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
-  transition: border-color 0.18s;
+  border-radius: var(--radius-lg, 16px);
+  transition: border-color 0.18s, transform 0.18s, box-shadow 0.18s;
 }
-.conta-box + .conta-box { margin-top: 8px; }
-.conta-box:hover { border-color: var(--teal-glow); }
+.conta-box + .conta-box { margin-top: 12px; }
+.conta-box:hover {
+  border-color: var(--teal-glow);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+}
 
 .conta-box-main {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 .conta-box-info {
@@ -9365,48 +9374,54 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   position: relative;
 }
 .dash-header-titulo { flex: 1; }
-/* O botão "Como funciona" (injetado por JS) e o período ficam numa
-   coluna à direita, o período logo abaixo do "Como funciona". */
+/* "Como funciona" fica no topo direito; o período logo abaixo, alinhados. */
 .dash-header .btn-guia-secao {
   position: absolute;
-  top: 0;
+  top: 2px;
   right: 0;
 }
 .dash-header-direita {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 10px;
-  margin-top: 40px;   /* espaço para o "Como funciona" que fica acima */
+  gap: 8px;
+  margin-top: 44px;
 }
 .dash-periodo {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  gap: 6px;
 }
 .dash-periodo-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 150px;
   background: var(--surface-2, #12233b);
   border: 1.5px solid var(--border-soft, #2C384A);
   color: var(--text, #E8EEF5);
   font-family: inherit;
   font-size: 14px;
   font-weight: 600;
-  padding: 10px 16px;
+  padding: 11px 16px;
   border-radius: 12px;
   cursor: pointer;
-  transition: border-color .15s, background .15s;
+  transition: border-color .15s, background .15s, box-shadow .15s;
 }
-.dash-periodo-btn:hover { border-color: var(--teal-400, #1EF6DD); }
-.dash-periodo-btn svg { width: 16px; height: 16px; opacity: .7; }
+.dash-periodo-btn:hover {
+  border-color: var(--teal-400, #1EF6DD);
+  box-shadow: 0 2px 10px rgba(30, 246, 221, 0.08);
+}
+.dash-periodo-btn svg { width: 15px; height: 15px; opacity: .6; flex-shrink: 0; }
 .dash-periodo-datas {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted, #7C8FA3);
   font-family: "IBM Plex Mono", monospace;
+  letter-spacing: 0.3px;
+  padding-right: 3px;
 }
 .dash-periodo-menu {
   position: absolute;
@@ -9523,4 +9538,93 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   color: var(--text-muted, #7C8FA3);
   margin-top: 3px;
   opacity: 0.75;
+}
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE — ajustes para as telas novas (dashboard, filtro,
+   gráfico, contas). O app é ótimo no desktop; aqui garantimos
+   que fique bom no celular também.
+   ═══════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  /* Header do dashboard: título e período empilhados, período ocupa a largura */
+  .dash-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .dash-header .btn-guia-secao {
+    position: static;
+    align-self: flex-start;
+    margin-bottom: 4px;
+  }
+  .dash-header-direita {
+    margin-top: 0;
+    align-items: stretch;
+    width: 100%;
+  }
+  .dash-periodo {
+    align-items: stretch;
+    width: 100%;
+  }
+  .dash-periodo-btn {
+    width: 100%;
+    min-width: 0;
+    justify-content: space-between;
+    font-size: 15px;
+    padding: 13px 16px;
+  }
+  .dash-periodo-datas {
+    align-self: flex-start;
+    font-size: 12px;
+  }
+  .dash-periodo-menu {
+    right: 0;
+    left: 0;
+    min-width: 0;
+    width: 100%;
+  }
+  .dash-periodo-opcao { padding: 13px 14px; font-size: 15px; }
+
+  /* Cards de resumo: 2 por linha em vez de amontoar */
+  .cards-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .info-card { padding: 14px 15px; }
+  .info-card .card-value { font-size: 20px; }
+  .card-highlight { grid-column: 1 / -1; }  /* saldo total ocupa a linha toda */
+
+  /* Legenda do gráfico: quebra e centraliza */
+  .grafico-legenda {
+    gap: 12px;
+    justify-content: flex-start;
+  }
+  .leg-item { font-size: 11.5px; }
+
+  /* Cards de conta: número embaixo do nome, não espremido do lado */
+  .conta-box { padding: 15px 16px; }
+  .conta-box-main { gap: 12px; }
+  .conta-box-num { text-align: right; }
+  .conta-box-valor { font-size: 16px; }
+
+  /* Form de nova conta: campos em coluna única */
+  .form-panel { padding: 18px 16px; }
+  .field-row, .form-row {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+  .field input, .field select, .field textarea {
+    font-size: 16px;   /* 16px evita o zoom automático do iOS ao focar */
+    padding: 14px 15px;
+  }
+
+  /* Tooltip do gráfico: um pouco menor para caber na tela */
+  .sino-item-tempo { font-size: 10.5px; }
+}
+
+/* Telas bem pequenas (celular estreito) */
+@media (max-width: 380px) {
+  .cards-grid { grid-template-columns: 1fr; }
+  .card-highlight { grid-column: auto; }
+  .info-card .card-value { font-size: 22px; }
 }
