@@ -1857,6 +1857,11 @@ function renderResumoDashboard() {
   const descGas = document.querySelector("#totalGastos + .card-desc");
   if (descEnt) descEnt.textContent = `Recebido ${rotulo}`;
   if (descGas) descGas.textContent = `Gasto ${rotulo}`;
+
+  // Mantém o rótulo do seletor de período sincronizado
+  if (typeof window._atualizarLabelPeriodo === "function") {
+    try { window._atualizarLabelPeriodo(); } catch (e) {}
+  }
 }
 
 /* Intervalo [ini, fim] em ISO conforme o período escolhido no dashboard.
@@ -2334,12 +2339,28 @@ function renderGraficoEvolucao() {
   // Usa a MESMA regra do card do dashboard (crédito não conta, respeita
   // data de saldo e transferências), para o gráfico não divergir do card.
   const pad2b = n => String(n).padStart(2, "0");
-  const dados = pontos.map(({limNum}) => {
-    // limNum é AAAAMMDD; converte de volta para AAAA-MM-DD
+  // Três séries por ponto: saldo total, entradas acumuladas e gastos acumulados.
+  // Entradas/gastos são o total dentro do período ATÉ aquele ponto.
+  const iniPeriodo = isoDe(dataIni);
+  const dadosSaldo = [];
+  const dadosEntradas = [];
+  const dadosGastos = [];
+  pontos.forEach(({limNum}) => {
     const s = String(limNum);
     const dataLimISO = `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;
-    return saldoTotalAteData(dataLimISO);
+    dadosSaldo.push(saldoTotalAteData(dataLimISO));
+    // Entradas e gastos DENTRO do período, do início até este ponto
+    let ent = 0, gas = 0;
+    for (const m of state.movimentos) {
+      if (!ehPago(m) || m.formaPagamento === "credito" || !m.data) continue;
+      const d = m.data.slice(0,10);
+      if (d < iniPeriodo || d > dataLimISO) continue;
+      if (m.tipo === "entrada") ent += m.valor; else gas += m.valor;
+    }
+    dadosEntradas.push(ent);
+    dadosGastos.push(gas);
   });
+  const dados = dadosSaldo;   // compatibilidade com o resto do código abaixo
 
   // Verifica se houve algum movimento DENTRO do período mostrado.
   // Se a linha ficar reta por falta de dados, avisamos — senão parece um bug.
@@ -2361,38 +2382,69 @@ function renderGraficoEvolucao() {
   const dark = document.documentElement.getAttribute("data-theme") === "dark";
   const css = getComputedStyle(document.documentElement);
   const accent = css.getPropertyValue("--accent").trim() || "#1EF6DD";
+  const corEntrada = "#22C55E";   // verde
+  const corGasto   = "#F0642E";   // laranja/vermelho, estilo o modelo
   const txt    = dark ? "#7C8FA3" : "#8296a5";
   const grid   = dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.045)";
 
-  // Gradiente vertical — o preenchimento dá corpo, a linha sozinha é seca
   const ctx = canvas.getContext("2d");
-  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height || 240);
-  grad.addColorStop(0,   hexParaRgba(accent, 0.22));
-  grad.addColorStop(0.6, hexParaRgba(accent, 0.06));
-  grad.addColorStop(1,   hexParaRgba(accent, 0));
+  // Gradiente do saldo (área principal)
+  const gradSaldo = ctx.createLinearGradient(0, 0, 0, canvas.height || 260);
+  gradSaldo.addColorStop(0,   hexParaRgba(accent, 0.22));
+  gradSaldo.addColorStop(0.6, hexParaRgba(accent, 0.06));
+  gradSaldo.addColorStop(1,   hexParaRgba(accent, 0));
 
   // Carteira zerada: mostra o convite, não uma linha reta no zero
-  const vazio = dados.every(v => v === 0);
+  const vazio = dadosSaldo.every(v => v === 0) && dadosEntradas.every(v => v === 0) && dadosGastos.every(v => v === 0);
+
+  const linhaBase = {
+    borderWidth: 2.5,
+    tension: 0.35,
+    pointRadius: 0,
+    pointHoverRadius: 5,
+    pointHoverBorderWidth: 2.5,
+    pointHoverBorderColor: dark ? "#011025" : "#ffffff",
+    clip: false
+  };
 
   chartEvolucao = new Chart(canvas, {
     type: "line",
     data: {
       labels: pontos.map(p => p.label),
-      datasets: [{
-        label: "Saldo",
-        data: dados,
-        borderColor: accent,
-        backgroundColor: grad,
-        borderWidth: 2,
-        fill: true,
-        tension: 0.35,
-        pointRadius: 0,               // pontos só no hover — linha limpa
-        pointHoverRadius: 5,
-        pointHoverBorderWidth: 2.5,
-        pointHoverBackgroundColor: accent,
-        pointHoverBorderColor: dark ? "#011025" : "#ffffff",
-        clip: false
-      }]
+      datasets: [
+        {
+          ...linhaBase,
+          label: "Saldo",
+          data: dadosSaldo,
+          borderColor: accent,
+          backgroundColor: gradSaldo,
+          fill: true,
+          pointHoverBackgroundColor: accent,
+          order: 3
+        },
+        {
+          ...linhaBase,
+          label: "Entradas",
+          data: dadosEntradas,
+          borderColor: corEntrada,
+          backgroundColor: "transparent",
+          fill: false,
+          borderWidth: 2,
+          pointHoverBackgroundColor: corEntrada,
+          order: 1
+        },
+        {
+          ...linhaBase,
+          label: "Gastos",
+          data: dadosGastos,
+          borderColor: corGasto,
+          backgroundColor: "transparent",
+          fill: false,
+          borderWidth: 2,
+          pointHoverBackgroundColor: corGasto,
+          order: 2
+        }
+      ]
     },
     options: {
       responsive: true,
@@ -2407,11 +2459,14 @@ function renderGraficoEvolucao() {
           borderColor: dark ? "#2C384A" : "#e0e6e8",
           borderWidth: 1,
           titleColor: dark ? "#E6EEF5" : "#16233a",
-          bodyColor: accent,
+          bodyColor: dark ? "#E6EEF5" : "#16233a",
           titleFont: { family: "Inter", size: 12, weight: "600" },
-          bodyFont: { family: "IBM Plex Mono", size: 14, weight: "500" },
+          bodyFont: { family: "IBM Plex Mono", size: 13, weight: "500" },
           padding: 11,
-          displayColors: false,
+          displayColors: true,
+          boxWidth: 8,
+          boxHeight: 8,
+          usePointStyle: true,
           cornerRadius: 8,
           caretSize: 5,
           callbacks: {
@@ -2419,7 +2474,7 @@ function renderGraficoEvolucao() {
               const i = it[0].dataIndex;
               return pontos[i]?.tooltip || "";
             },
-            label: c => fmtMoeda(c.raw)
+            label: c => `  ${c.dataset.label}: ${fmtMoeda(c.raw)}`
           }
         }
       },
@@ -3926,21 +3981,22 @@ function renderRevisao() {
 
     revisaoDados.duvidas.forEach((d, i) => {
       const respondida = !!d.resposta;
+      const opcoes = d.opcoes || categoriasRevisao();
       html += `<div class="rev-duvida ${respondida ? "rev-duvida-ok" : "rev-duvida-pendente"}" id="rev-duvida-${i}">
         <div class="rev-duvida-topo">
-          <span class="rev-duvida-desc">${respondida ? "" : "<span class='rev-duvida-flag'>●</span> "}${esc(d.descricao || "")}</span>
+          <span class="rev-duvida-desc">${esc(d.descricao || "")}</span>
           <span class="rev-duvida-val ${d.tipo === "entrada" ? "rev-val-entrada" : "rev-val-saida"}">
             ${d.tipo === "entrada" ? "+" : "−"}${fmtMoeda(Number(d.valor) || 0)}
           </span>
         </div>
         <div class="rev-duvida-pergunta">${esc(d.data || "")} · ${esc(d.pergunta || "Qual categoria?")}</div>
         <div class="rev-duvida-opcoes">
-          ${(d.opcoes || categoriasRevisao()).map((op, oi) => `
+          ${opcoes.map((op, oi) => `
             <button type="button" class="rev-opcao ${d.resposta === op ? "rev-opcao-ativa" : ""}"
-              onclick="responderDuvida(${i}, ${oi})">${esc(op)}</button>
+              data-duvida="${i}" data-opcao="${oi}">${esc(op)}</button>
           `).join("")}
           <button type="button" class="rev-opcao rev-opcao-ignorar ${d.resposta === "__ignorar" ? "rev-opcao-ativa" : ""}"
-            onclick="responderDuvida(${i}, -1)">Não importar</button>
+            data-duvida="${i}" data-opcao="-1">Não importar</button>
         </div>
       </div>`;
     });
@@ -3957,7 +4013,7 @@ function renderRevisao() {
       html += `<div class="rev-item">
         <span class="rev-item-data">${esc((it.data || "").slice(8, 10))}/${esc((it.data || "").slice(5, 7))}</span>
         <span class="rev-item-desc">${esc(it.descricao || "")}</span>
-        <select class="rev-item-cat" onchange="trocarCategoriaItem(${i}, this.value)">
+        <select class="rev-item-cat" data-item="${i}">
           ${(() => {
             const opcoes = categoriasRevisao().concat(it.tipo === "entrada" ? ["Entrada"] : []);
             // Se a IA devolveu uma categoria fora da lista, inclui para não perder o valor
@@ -3979,6 +4035,29 @@ function renderRevisao() {
 
   corpo.innerHTML = html;
   atualizarBotaoRevisao();
+
+  // Liga o clique das opções UMA vez, por delegação. Assim o índice vem do
+  // próprio botão (data-duvida), não de uma string interpolada — o que
+  // elimina o bug de "sempre cair no último item".
+  if (!corpo.dataset.ligado) {
+    corpo.addEventListener("click", (e) => {
+      const btn = e.target.closest(".rev-opcao");
+      if (!btn) return;
+      const iDuvida = Number(btn.dataset.duvida);
+      const iOpcao = Number(btn.dataset.opcao);
+      if (Number.isNaN(iDuvida)) return;
+      responderDuvida(iDuvida, iOpcao);
+    });
+    // Troca de categoria nos itens já resolvidos (selects)
+    corpo.addEventListener("change", (e) => {
+      const sel = e.target.closest(".rev-item-cat");
+      if (!sel) return;
+      const iItem = Number(sel.dataset.item);
+      if (Number.isNaN(iItem)) return;
+      trocarCategoriaItem(iItem, sel.value);
+    });
+    corpo.dataset.ligado = "1";
+  }
 }
 
 function responderDuvida(indice, indiceOpcao) {
@@ -4059,18 +4138,18 @@ function resolverRestoRevisao() {
 function pareceTransferenciaPropria(descricao, bancoIdOrigem) {
   const d = String(descricao || "").toLowerCase();
 
-  // Palavras que indicam movimentação entre contas
-  const temPalavraTransferencia = /transfer|ted\b|doc\b|pix\s*(enviado|recebido)?|saque|dep[óo]sito|deposito|aplica[çc][ãa]o|resgate/.test(d);
-
-  // A descrição menciona o nome de alguma outra conta cadastrada?
+  // A descrição menciona o nome de alguma OUTRA conta cadastrada?
+  // Só isso caracteriza transferência entre contas do próprio usuário.
   const contaCitada = (state.bancos || []).find(b => {
     if (b.id === bancoIdOrigem) return false;
     const nome = String(b.nome || "").toLowerCase().trim();
     return nome.length >= 3 && d.includes(nome);
   });
 
+  // Só perguntamos quando há uma conta própria citada. Um Pix ou transferência
+  // para uma PESSOA (ex: "Pix - Silvana") é gasto normal — não perguntamos,
+  // senão o usuário é bombardeado de perguntas a cada Pix que fez.
   if (contaCitada) return { motivo: "conta", conta: contaCitada };
-  if (temPalavraTransferencia) return { motivo: "palavra", conta: null };
   return null;
 }
 
@@ -8587,64 +8666,81 @@ function parseMultiplosLancamentos(texto) {
 
 
 
-/* Chips de período do gráfico de evolução — controlam também os cards do topo */
-document.getElementById("periodoEvolucao")?.addEventListener("click", e => {
-  const btn = e.target.closest(".periodo-chip");
-  if (!btn || btn.id === "btnPeriodoDatas") return;
-  _periodoDatas = null;                       // sai do modo datas
-  _periodoTipo = btn.dataset.periodo;
-  document.querySelectorAll("#periodoEvolucao .periodo-chip").forEach(c =>
-    c.classList.toggle("ativo", c === btn));
-  renderGraficoEvolucao();
-  renderResumoDashboard();   // cards do topo acompanham o período
-});
+/* Seletor de período do topo do dashboard (dropdown) —
+   controla o gráfico e os cards ao mesmo tempo. */
+(function initDashPeriodo() {
+  const btn = document.getElementById("dashPeriodoBtn");
+  const menu = document.getElementById("dashPeriodoMenu");
+  const label = document.getElementById("dashPeriodoLabel");
+  const datasEl = document.getElementById("dashPeriodoDatas");
+  if (!btn || !menu) return;
 
-/* Popover de datas customizadas do gráfico (v39) */
-(function initPeriodoDatas() {
-  const btn = document.getElementById("btnPeriodoDatas");
-  const pop = document.getElementById("periodoDatasPopover");
-  const inpDe = document.getElementById("periodoDataDe");
-  const inpAte = document.getElementById("periodoDataAte");
-  const btnAplicar = document.getElementById("periodoDatasAplicar");
-  const btnCancelar = document.getElementById("periodoDatasCancelar");
-  if (!btn || !pop) return;
-
-  const fechar = () => { pop.hidden = true; };
-  const abrir = () => {
-    // Pré-preenche com um padrão sensato se estiver vazio
-    if (!inpDe.value || !inpAte.value) {
-      const hoje = new Date();
-      const seis = new Date(hoje.getFullYear(), hoje.getMonth()-5, 1);
-      inpAte.value = hoje.toISOString().slice(0,10);
-      inpDe.value  = seis.toISOString().slice(0,10);
-    }
-    pop.hidden = false;
+  const nomes = {
+    hoje: "Hoje", ontem: "Ontem", "7dias": "Últimos 7 dias",
+    mes: "Este mês", mesanterior: "Mês anterior", tudo: "Todo o período"
   };
 
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    pop.hidden ? abrir() : fechar();
-  });
-  btnCancelar?.addEventListener("click", fechar);
+  const fechar = () => { menu.hidden = true; };
+  const alternar = () => { menu.hidden = !menu.hidden; };
 
-  btnAplicar?.addEventListener("click", () => {
-    let de = inpDe.value, ate = inpAte.value;
-    if (!de || !ate) return;
-    if (de > ate) [de, ate] = [ate, de];       // inverte se digitou trocado
-    _periodoDatas = { de, ate };
-    document.querySelectorAll("#periodoEvolucao .periodo-chip").forEach(c =>
-      c.classList.toggle("ativo", c === btn));
+  function atualizarLabel() {
+    if (_periodoDatas) {
+      const fmt = s => `${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(0,4)}`;
+      label.textContent = "Personalizado";
+      if (datasEl) datasEl.textContent = `${fmt(_periodoDatas.de)} – ${fmt(_periodoDatas.ate)}`;
+    } else {
+      label.textContent = nomes[_periodoTipo] || "Este mês";
+      // Mostra o intervalo real ao lado, como no modelo
+      if (datasEl) {
+        const { ini, fim } = intervaloPeriodoDashboard();
+        const fmt = s => `${s.slice(8,10)}/${s.slice(5,7)}`;
+        datasEl.textContent = ini === fim ? fmt(ini) : `${fmt(ini)} – ${fmt(fim)}`;
+      }
+    }
+  }
+
+  function aplicarPeriodo(tipo) {
+    _periodoDatas = null;
+    _periodoTipo = tipo;
+    menu.querySelectorAll(".dash-periodo-opcao").forEach(o =>
+      o.classList.toggle("ativo", o.dataset.periodo === tipo));
+    atualizarLabel();
     fechar();
     renderGraficoEvolucao();
-    renderResumoDashboard();   // cards acompanham o período personalizado
+    renderResumoDashboard();
+  }
+
+  btn.addEventListener("click", (e) => { e.stopPropagation(); alternar(); });
+
+  menu.querySelectorAll(".dash-periodo-opcao").forEach(op => {
+    op.addEventListener("click", () => aplicarPeriodo(op.dataset.periodo));
   });
 
-  // Fecha ao clicar fora
-  document.addEventListener("click", (e) => {
-    if (pop.hidden) return;
-    if (!pop.contains(e.target) && e.target !== btn && !btn.contains(e.target)) fechar();
+  // Datas personalizadas
+  const aplicarBtn = document.getElementById("dashDataAplicar");
+  aplicarBtn?.addEventListener("click", () => {
+    let de = document.getElementById("dashDataDe").value;
+    let ate = document.getElementById("dashDataAte").value;
+    if (!de || !ate) return;
+    if (de > ate) [de, ate] = [ate, de];
+    _periodoDatas = { de, ate };
+    menu.querySelectorAll(".dash-periodo-opcao").forEach(o => o.classList.remove("ativo"));
+    atualizarLabel();
+    fechar();
+    renderGraficoEvolucao();
+    renderResumoDashboard();
   });
+
+  document.addEventListener("click", (e) => {
+    if (menu.hidden) return;
+    if (!menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) fechar();
+  });
+
+  // Deixa o rótulo certo no primeiro load
+  atualizarLabel();
+  window._atualizarLabelPeriodo = atualizarLabel;
 })();
+
 
 
 /* ============================================================

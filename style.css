@@ -9355,3 +9355,137 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
 .btn-resolver-resto:hover {
   color: var(--text, #E8EEF5);
 }
+
+/* ===== Seletor de período do dashboard (dropdown no topo) ===== */
+.dash-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.dash-periodo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dash-periodo-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-2, #12233b);
+  border: 1.5px solid var(--border-soft, #2C384A);
+  color: var(--text, #E8EEF5);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.dash-periodo-btn:hover { border-color: var(--teal-400, #1EF6DD); }
+.dash-periodo-btn svg { width: 16px; height: 16px; opacity: .7; }
+.dash-periodo-datas {
+  font-size: 13px;
+  color: var(--text-muted, #7C8FA3);
+  font-family: "IBM Plex Mono", monospace;
+}
+.dash-periodo-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  min-width: 240px;
+  background: var(--surface, #0D1B2F);
+  border: 1px solid var(--border-soft, #2C384A);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+}
+.dash-periodo-opcao {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text, #E8EEF5);
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background .12s;
+}
+.dash-periodo-opcao:hover { background: rgba(255,255,255,0.05); }
+.dash-periodo-opcao.ativo {
+  background: var(--teal-500, #0F8A7D);
+  color: #fff;
+  font-weight: 600;
+}
+.dash-periodo-sep {
+  height: 1px;
+  background: var(--border-soft, #2C384A);
+  margin: 6px 4px;
+}
+.dash-periodo-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 10px 8px;
+}
+.dash-periodo-custom label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--text-muted, #7C8FA3);
+}
+.dash-periodo-custom input[type="date"] {
+  background: var(--surface-2, #12233b);
+  border: 1px solid var(--border-soft, #2C384A);
+  color: var(--text, #E8EEF5);
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+.dash-periodo-aplicar {
+  margin-top: 2px;
+  background: var(--teal-500, #0F8A7D);
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.dash-periodo-aplicar:hover { background: var(--teal-400, #14A797); }
+
+/* ===== Legenda das séries do gráfico ===== */
+.grafico-legenda {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--text-muted, #7C8FA3);
+  font-weight: 500;
+}
+.leg-cor {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.leg-saldo .leg-cor { background: var(--accent, #1EF6DD); }
+.leg-entrada .leg-cor { background: #22C55E; }
+.leg-gasto .leg-cor { background: #F0642E; }
