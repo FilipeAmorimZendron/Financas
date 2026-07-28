@@ -1873,34 +1873,32 @@ function intervaloPeriodoDashboard() {
   const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
 
   if (_periodoDatas) return { ini: _periodoDatas.de, fim: _periodoDatas.ate };
-  if (_periodoTipo === "hoje")  return { ini: iso(hojeZero), fim: iso(hojeZero) };
-  if (_periodoTipo === "ontem") {
-    const o = new Date(hojeZero); o.setDate(o.getDate()-1);
-    return { ini: iso(o), fim: iso(o) };
-  }
-  if (_periodoTipo === "7dias") {
-    const i = new Date(hojeZero); i.setDate(i.getDate()-6);
-    return { ini: iso(i), fim: iso(hojeZero) };
-  }
   if (_periodoTipo === "mesanterior") {
     const i = new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);
     const f = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+    return { ini: iso(i), fim: iso(f) };
+  }
+  if (_periodoTipo === "proximomes") {
+    const i = new Date(hoje.getFullYear(), hoje.getMonth()+1, 1);
+    const f = new Date(hoje.getFullYear(), hoje.getMonth()+2, 0);
     return { ini: iso(i), fim: iso(f) };
   }
   if (_periodoTipo === "tudo") {
     const datas = state.movimentos.map(m => m.data).filter(Boolean).sort();
     return { ini: datas[0] || iso(hojeZero), fim: iso(hojeZero) };
   }
-  // "mes" (padrão): do dia 1 até hoje
-  return { ini: iso(new Date(hoje.getFullYear(), hoje.getMonth(), 1)), fim: iso(hojeZero) };
+  // "mes" (padrão): o mês inteiro (dia 1 ao último dia)
+  const iniMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const fimMes = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0);
+  return { ini: iso(iniMes), fim: iso(fimMes) };
 }
 
-/* Rótulo curto do período, para os cards ("neste mês", "hoje", etc.) */
+/* Rótulo curto do período, para os cards ("neste mês", etc.) */
 function rotuloPeriodoDashboard() {
   if (_periodoDatas) return "no período";
   return {
-    hoje: "hoje", ontem: "ontem", "7dias": "nos últimos 7 dias",
-    mes: "neste mês", mesanterior: "no mês anterior", tudo: "no total"
+    mes: "neste mês", mesanterior: "no mês anterior",
+    proximomes: "no próximo mês", tudo: "no total"
   }[_periodoTipo] || "neste mês";
 }
 
@@ -2237,7 +2235,6 @@ function renderCartoesDashboard() {
 
 let _periodoTipo = "mes";   // hoje | ontem | 7dias | mes | mesanterior | tudo
 let _periodoDatas = null;   // {de:'YYYY-MM-DD', ate:'YYYY-MM-DD'} quando customizado
-let _destaqueDia = null;    // dia a destacar no gráfico (para Hoje/Ontem)
 
 function renderGraficoEvolucao() {
   if (chartEvolucao) chartEvolucao.destroy();
@@ -2250,32 +2247,19 @@ function renderGraficoEvolucao() {
 
   // Define o intervalo [dataIni, dataFim] conforme o período escolhido.
   let dataIni, dataFim;
-  _destaqueDia = null;   // limpo por padrão; só Hoje/Ontem definem
   if (_periodoDatas) {
     dataIni = new Date(_periodoDatas.de + "T00:00:00");
     dataFim = new Date(_periodoDatas.ate + "T00:00:00");
-  } else if (_periodoTipo === "hoje") {
-    // Mostra os últimos 7 dias para dar contexto visual ao saldo de hoje
-    dataFim = hojeZero;
-    dataIni = new Date(hojeZero); dataIni.setDate(dataIni.getDate() - 6);
-    _destaqueDia = isoDe(hojeZero);
-  } else if (_periodoTipo === "ontem") {
-    const ontem = new Date(hojeZero); ontem.setDate(ontem.getDate() - 1);
-    // Mostra a semana terminando ontem, destacando o dia
-    dataFim = ontem;
-    dataIni = new Date(ontem); dataIni.setDate(dataIni.getDate() - 6);
-    _destaqueDia = isoDe(ontem);
-  } else if (_periodoTipo === "7dias") {
-    dataFim = hojeZero;
-    dataIni = new Date(hojeZero); dataIni.setDate(dataIni.getDate() - 6); // hoje + 6 antes = 7 dias
   } else if (_periodoTipo === "mes") {
-    // Mês inteiro: dia 1 até o último dia, para ver todos os dias organizados.
-    // Dias futuros ficam sem barras e o saldo se mantém na linha.
+    // Mês inteiro: dia 1 até o último dia
     dataIni = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
     dataFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
   } else if (_periodoTipo === "mesanterior") {
     dataIni = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
-    dataFim = new Date(hoje.getFullYear(), hoje.getMonth(), 0); // último dia do mês anterior
+    dataFim = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+  } else if (_periodoTipo === "proximomes") {
+    dataIni = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+    dataFim = new Date(hoje.getFullYear(), hoje.getMonth() + 2, 0);
   } else {
     // Tudo: desde o primeiro movimento
     dataFim = hojeZero;
@@ -2331,11 +2315,9 @@ function renderGraficoEvolucao() {
       tit.textContent = `Evolução do saldo (${fmtBR(_periodoDatas.de)} — ${fmtBR(_periodoDatas.ate)})`;
     } else {
       const nomes = {
-        hoje: "Evolução do saldo (hoje)",
-        ontem: "Evolução do saldo (ontem)",
-        "7dias": "Evolução do saldo (últimos 7 dias)",
         mes: "Evolução do saldo (este mês)",
         mesanterior: "Evolução do saldo (mês anterior)",
+        proximomes: "Evolução do saldo (próximo mês)",
         tudo: "Evolução do saldo (todo o histórico)"
       };
       tit.textContent = nomes[_periodoTipo] || "Evolução do saldo";
@@ -2529,22 +2511,12 @@ function renderGraficoEvolucao() {
           border: { display: false },
           ticks: {
             color: txt,
-            font: { family: "Inter", size: 10 },
+            font: { family: "Inter", size: 9 },
             padding: 8,
-            maxRotation: 0,            // sempre em pé (horizontal)
+            maxRotation: 0,            // em pé (horizontal)
             minRotation: 0,
-            autoSkip: false,
+            autoSkip: false,           // mostra TODOS os dias
             callback: function(value, index) {
-              const total = pontos.length;
-              // Muitos dias: mostra o rótulo espaçado para caber na horizontal,
-              // mas garante que o primeiro e o último sempre apareçam.
-              if (porDia && total > 16) {
-                const passo = total > 24 ? 3 : 2;
-                if (index === 0 || index === total - 1 || index % passo === 0) {
-                  return pontos[index]?.label || "";
-                }
-                return "";
-              }
               return pontos[index]?.label || "";
             }
           }
@@ -8783,8 +8755,8 @@ function parseMultiplosLancamentos(texto) {
   if (!btn || !menu) return;
 
   const nomes = {
-    hoje: "Hoje", ontem: "Ontem", "7dias": "Últimos 7 dias",
-    mes: "Este mês", mesanterior: "Mês anterior", tudo: "Todo o período"
+    mes: "Este mês", mesanterior: "Mês anterior",
+    proximomes: "Próximo mês", tudo: "Todo o período"
   };
 
   const fechar = () => { menu.hidden = true; };
