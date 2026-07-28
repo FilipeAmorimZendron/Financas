@@ -3368,6 +3368,13 @@ function trocarTela(name) {
     }
   });
   sincronizarBottomNav(name);
+
+  // Ao trocar de aba, volta para o topo — a nova tela sempre aparece
+  // do começo, sem herdar a rolagem da tela anterior.
+  const areaScroll = document.querySelector(".content");
+  if (areaScroll) areaScroll.scrollTo({ top: 0, behavior: "auto" });
+  window.scrollTo({ top: 0, behavior: "auto" });
+
   // O guia da seção NÃO abre sozinho — fica disponível no botão "Como funciona"
   // no cabeçalho de cada tela (ver injetarBotoesGuia).
 
