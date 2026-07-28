@@ -9313,3 +9313,25 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   pointer-events: none;
   white-space: nowrap;
 }
+
+/* Dúvida ainda não respondida: destaque para o usuário não esquecer */
+.rev-duvida-pendente {
+  border-left: 3px solid var(--accent, #1EF6DD);
+  background: rgba(30, 246, 221, 0.03);
+}
+.rev-duvida-flag {
+  color: var(--accent, #1EF6DD);
+  font-size: 0.7rem;
+  vertical-align: middle;
+}
+.rev-duvida-ok {
+  opacity: 0.65;   /* respondidas recuam visualmente */
+}
+/* Botão de atalho para não importar as pendentes */
+.btn-resolver-resto {
+  font-size: 0.85rem;
+  color: var(--text-muted, #7C8FA3);
+}
+.btn-resolver-resto:hover {
+  color: var(--text, #E8EEF5);
+}

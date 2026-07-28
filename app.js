@@ -3926,9 +3926,9 @@ function renderRevisao() {
 
     revisaoDados.duvidas.forEach((d, i) => {
       const respondida = !!d.resposta;
-      html += `<div class="rev-duvida ${respondida ? "rev-duvida-ok" : ""}">
+      html += `<div class="rev-duvida ${respondida ? "rev-duvida-ok" : "rev-duvida-pendente"}" id="rev-duvida-${i}">
         <div class="rev-duvida-topo">
-          <span class="rev-duvida-desc">${esc(d.descricao || "")}</span>
+          <span class="rev-duvida-desc">${respondida ? "" : "<span class='rev-duvida-flag'>●</span> "}${esc(d.descricao || "")}</span>
           <span class="rev-duvida-val ${d.tipo === "entrada" ? "rev-val-entrada" : "rev-val-saida"}">
             ${d.tipo === "entrada" ? "+" : "−"}${fmtMoeda(Number(d.valor) || 0)}
           </span>
@@ -4025,13 +4025,31 @@ function atualizarBotaoRevisao() {
   const total = revisaoDados.itens.length +
                 revisaoDados.duvidas.filter(d => d.resposta && d.resposta !== "__ignorar").length;
 
+  // Atalho para resolver todas as pendentes de uma vez
+  const btnResto = document.getElementById("btnResolverResto");
+
   if (pendentes > 0) {
     btn.disabled = true;
-    btn.textContent = `Responda ${pendentes} ${pendentes === 1 ? "pergunta" : "perguntas"} acima`;
+    btn.textContent = `Faltam ${pendentes} ${pendentes === 1 ? "resposta" : "respostas"}`;
+    // Mostra o atalho "pular pendentes"
+    if (btnResto) {
+      btnResto.hidden = false;
+      btnResto.textContent = `Não importar as ${pendentes} pendente${pendentes === 1 ? "" : "s"}`;
+    }
   } else {
     btn.disabled = false;
     btn.textContent = total ? `Salvar ${total} lançamento(s)` : "Nada para salvar";
+    if (btnResto) btnResto.hidden = true;
   }
+}
+
+/* Marca todas as dúvidas ainda não respondidas como "não importar",
+   para o usuário não ficar preso se não souber responder alguma. */
+function resolverRestoRevisao() {
+  revisaoDados.duvidas.forEach(d => {
+    if (!d.resposta) d.resposta = "__ignorar";
+  });
+  renderRevisao();
 }
 
 /* Detecta se a descrição parece uma transferência entre contas do próprio usuário.
