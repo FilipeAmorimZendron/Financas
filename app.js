@@ -2342,16 +2342,47 @@ function renderGraficoEvolucao() {
     }
   }
 
-  // Saldo é ACUMULADO (linha que sobe/desce), mas entradas e gastos são
-  // o total DE CADA intervalo isolado (barras que mostram o movimento do dia).
+  // Saldo por ponto — usa a MESMA lógica simples dos cards (filtra só por
+  // data), para o gráfico enxergar os mesmos movimentos que os cards enxergam.
+  // Parte do saldo total atual e reconstrói a linha ao longo dos pontos.
+  const saldoHoje = calcularSaldoTotal();
+  const hojeStr = hojeISO();
+
+  // Soma líquida (entradas - gastos) dos movimentos entre duas datas, só por data.
+  function movimentoLiquido(deISO, ateISO) {
+    let liq = 0;
+    for (const m of state.movimentos) {
+      if (!ehPago(m) || m.formaPagamento === "credito" || !m.data) continue;
+      const d = m.data.slice(0, 10);
+      if (d < deISO || d > ateISO) continue;
+      liq += (m.tipo === "entrada" ? m.valor : -m.valor);
+    }
+    return liq;
+  }
+
   const dadosSaldo = [];
   const dadosEntradas = [];
   const dadosGastos = [];
   pontos.forEach(({limNum, iniISO, fimISO}) => {
     const s = String(limNum);
     const dataLimISO = `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;
-    dadosSaldo.push(saldoTotalAteData(dataLimISO));
-    // Entradas e gastos SÓ deste intervalo (este dia, ou este mês)
+    // Saldo no fim deste ponto = saldo de hoje menos tudo que se moveu DEPOIS.
+    // Assim a linha bate com o saldo atual e reage a cada movimento.
+    let saldoNoPonto;
+    if (dataLimISO >= hojeStr) {
+      saldoNoPonto = saldoHoje;
+    } else {
+      // desconta o que aconteceu do dia seguinte a este ponto até hoje
+      const diaSeguinte = (() => {
+        const dt = new Date(dataLimISO + "T00:00:00");
+        dt.setDate(dt.getDate() + 1);
+        return isoDe(dt);
+      })();
+      saldoNoPonto = saldoHoje - movimentoLiquido(diaSeguinte, hojeStr);
+    }
+    dadosSaldo.push(saldoNoPonto);
+
+    // Entradas e gastos SÓ deste intervalo (dia ou mês), para o tooltip
     let ent = 0, gas = 0;
     for (const m of state.movimentos) {
       if (!ehPago(m) || m.formaPagamento === "credito" || !m.data) continue;
@@ -2362,7 +2393,7 @@ function renderGraficoEvolucao() {
     dadosEntradas.push(ent);
     dadosGastos.push(gas);
   });
-  const dados = dadosSaldo;   // compatibilidade com o resto do código abaixo
+  const dados = dadosSaldo;
 
   // Verifica se houve algum movimento DENTRO do período mostrado.
   // Se a linha ficar reta por falta de dados, avisamos — senão parece um bug.
