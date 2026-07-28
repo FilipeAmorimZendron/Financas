@@ -2513,12 +2513,8 @@ function renderGraficoEvolucao() {
               return pontos[i]?.tooltip || "";
             },
             label: c => {
-              const i = c.dataIndex;
-              const linhas = [`  Saldo: ${fmtMoeda(c.raw)}`];
-              // Mostra o que entrou/saiu naquele dia, se houve movimento
-              if (dadosEntradas[i] > 0) linhas.push(`  Entrou: ${fmtMoeda(dadosEntradas[i])}`);
-              if (dadosGastos[i] > 0) linhas.push(`  Saiu: ${fmtMoeda(dadosGastos[i])}`);
-              return linhas;
+              // Cada série mostra apenas o seu próprio valor
+              return `  ${c.dataset.label}: ${fmtMoeda(c.raw)}`;
             }
           }
         }
