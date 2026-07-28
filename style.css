@@ -9297,3 +9297,19 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
 /* O atributo hidden precisa vencer o display:flex do contador,
    senão o "0" continua visível quando não há avisos. */
 .sino-contador[hidden] { display: none !important; }
+
+/* Aviso quando o período do gráfico não tem movimentações */
+.evolucao-vazio {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 30, 48, 0.85);
+  border: 1px solid var(--border-soft, #2C384A);
+  color: var(--text-muted, #7C8FA3);
+  font-size: 0.8rem;
+  padding: 6px 14px;
+  border-radius: 8px;
+  pointer-events: none;
+  white-space: nowrap;
+}

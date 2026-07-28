@@ -2293,6 +2293,20 @@ function renderGraficoEvolucao() {
     return saldoTotalAteData(dataLimISO);
   });
 
+  // Verifica se houve algum movimento DENTRO do período mostrado.
+  // Se a linha ficar reta por falta de dados, avisamos — senão parece um bug.
+  const iniISO = isoDe(dataIni);
+  const fimISO = isoDe(dataFim);
+  const temMovNoPeriodo = state.movimentos.some(m =>
+    m.data && ehPago(m) && m.data >= iniISO && m.data <= fimISO
+  ) || state.transferencias.some(t =>
+    t.data && t.data >= iniISO && t.data <= fimISO
+  );
+  const avisoVazio = document.getElementById("evolucaoVazio");
+  if (avisoVazio) {
+    avisoVazio.hidden = temMovNoPeriodo;
+  }
+
   const canvas = document.getElementById("chartEvolucao");
   if (!canvas) return;
 
