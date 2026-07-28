@@ -1838,17 +1838,65 @@ function atualizarCamposFiltro() {
    ────────────────────────────────────────────────────────── */
 
 function renderResumoDashboard() {
-  // Entradas e gastos do MÊS ATUAL — não o histórico inteiro.
+  // Entradas e gastos do PERÍODO selecionado no topo do gráfico.
   // Compras no crédito ficam de fora: elas contam quando a fatura é paga.
-  const mes = mesAtualISO();
-  const doMes = state.movimentos.filter(m =>
-    (m.data || "").slice(0, 7) === mes && m.formaPagamento !== "credito"
-  );
-  const { entradas, gastos } = calcularTotais(doMes);
+  const { ini, fim } = intervaloPeriodoDashboard();
+  const doPeriodo = state.movimentos.filter(m => {
+    const d = (m.data || "").slice(0, 10);
+    return d && d >= ini && d <= fim && m.formaPagamento !== "credito";
+  });
+  const { entradas, gastos } = calcularTotais(doPeriodo);
 
-  if(saldoTotalDashboardEl) saldoTotalDashboardEl.textContent = fmtMoeda(calcularSaldoTotal());
+  if(saldoTotalDashboardEl) saldoTotalDashboardEl.textContent = fmtMoeda(saldoTotalAteData(fim));
   if(totalEntradasEl)       totalEntradasEl.textContent       = fmtMoeda(entradas);
   if(totalGastosEl)         totalGastosEl.textContent         = fmtMoeda(gastos);
+
+  // Atualiza os textos "neste mês" conforme o período
+  const rotulo = rotuloPeriodoDashboard();
+  const descEnt = document.querySelector("#totalEntradas + .card-desc");
+  const descGas = document.querySelector("#totalGastos + .card-desc");
+  if (descEnt) descEnt.textContent = `Recebido ${rotulo}`;
+  if (descGas) descGas.textContent = `Gasto ${rotulo}`;
+}
+
+/* Intervalo [ini, fim] em ISO conforme o período escolhido no dashboard.
+   É a mesma escolha do gráfico de evolução (_periodoTipo / _periodoDatas). */
+function intervaloPeriodoDashboard() {
+  const hoje = new Date();
+  const pad2 = n => String(n).padStart(2, "0");
+  const iso = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+
+  if (_periodoDatas) return { ini: _periodoDatas.de, fim: _periodoDatas.ate };
+  if (_periodoTipo === "hoje")  return { ini: iso(hojeZero), fim: iso(hojeZero) };
+  if (_periodoTipo === "ontem") {
+    const o = new Date(hojeZero); o.setDate(o.getDate()-1);
+    return { ini: iso(o), fim: iso(o) };
+  }
+  if (_periodoTipo === "7dias") {
+    const i = new Date(hojeZero); i.setDate(i.getDate()-6);
+    return { ini: iso(i), fim: iso(hojeZero) };
+  }
+  if (_periodoTipo === "mesanterior") {
+    const i = new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);
+    const f = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+    return { ini: iso(i), fim: iso(f) };
+  }
+  if (_periodoTipo === "tudo") {
+    const datas = state.movimentos.map(m => m.data).filter(Boolean).sort();
+    return { ini: datas[0] || iso(hojeZero), fim: iso(hojeZero) };
+  }
+  // "mes" (padrão): do dia 1 até hoje
+  return { ini: iso(new Date(hoje.getFullYear(), hoje.getMonth(), 1)), fim: iso(hojeZero) };
+}
+
+/* Rótulo curto do período, para os cards ("neste mês", "hoje", etc.) */
+function rotuloPeriodoDashboard() {
+  if (_periodoDatas) return "no período";
+  return {
+    hoje: "hoje", ontem: "ontem", "7dias": "nos últimos 7 dias",
+    mes: "neste mês", mesanterior: "no mês anterior", tudo: "no total"
+  }[_periodoTipo] || "neste mês";
 }
 
 /* A fatura "a pagar" mais próxima: a primeira fatura não paga, da mais antiga
@@ -7329,6 +7377,35 @@ function planoAtual() {
   return "basico";
 }
 
+/* Diagnóstico do gráfico de evolução — rode verGrafico() no Console.
+   Mostra por que a linha pode estar reta. */
+function verGrafico() {
+  const movs = state.movimentos || [];
+  const contasIds = new Set(state.bancos.map(b => b.id));
+  const info = {
+    "total de movimentos": movs.length,
+    "movimentos pagos": movs.filter(m => (m.status||"pago")==="pago").length,
+    "contas cadastradas": state.bancos.length,
+  };
+  const datas = movs.map(m => m.data).filter(Boolean).sort();
+  info["data mais antiga"] = datas[0] || "(nenhuma)";
+  info["data mais recente"] = datas[datas.length-1] || "(nenhuma)";
+  const semData = movs.filter(m => !m.data).length;
+  const semConta = movs.filter(m => !contasIds.has(m.bancoId)).length;
+  const credito = movs.filter(m => m.formaPagamento === "credito").length;
+  info["SEM data (invisiveis no grafico)"] = semData;
+  info["com conta INEXISTENTE (invisiveis no saldo)"] = semConta;
+  info["no credito (nao afetam saldo)"] = credito;
+  console.table(info);
+  if (semConta) {
+    console.warn("Movimentos com conta que nao existe mais:");
+    console.table(movs.filter(m => !contasIds.has(m.bancoId)).map(m => ({
+      data: m.data, descricao: m.descricao, valor: m.valor, bancoId: m.bancoId
+    })));
+  }
+  return info;
+}
+
 /* Diagnóstico do plano — rode verPlano() no Console para ver o estado real.
    Útil para entender por que o acesso está (ou não está) liberado. */
 function verPlano() {
@@ -8492,7 +8569,7 @@ function parseMultiplosLancamentos(texto) {
 
 
 
-/* Chips de período do gráfico de evolução */
+/* Chips de período do gráfico de evolução — controlam também os cards do topo */
 document.getElementById("periodoEvolucao")?.addEventListener("click", e => {
   const btn = e.target.closest(".periodo-chip");
   if (!btn || btn.id === "btnPeriodoDatas") return;
@@ -8501,6 +8578,7 @@ document.getElementById("periodoEvolucao")?.addEventListener("click", e => {
   document.querySelectorAll("#periodoEvolucao .periodo-chip").forEach(c =>
     c.classList.toggle("ativo", c === btn));
   renderGraficoEvolucao();
+  renderResumoDashboard();   // cards do topo acompanham o período
 });
 
 /* Popover de datas customizadas do gráfico (v39) */
@@ -8540,6 +8618,7 @@ document.getElementById("periodoEvolucao")?.addEventListener("click", e => {
       c.classList.toggle("ativo", c === btn));
     fechar();
     renderGraficoEvolucao();
+    renderResumoDashboard();   // cards acompanham o período personalizado
   });
 
   // Fecha ao clicar fora
