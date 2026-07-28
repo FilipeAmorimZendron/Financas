@@ -2594,6 +2594,12 @@ function renderGraficoEvolucao() {
             label: c => {
               // Cada série mostra apenas o seu próprio valor
               return `${c.dataset.label}: ${fmtMoeda(c.raw)}`;
+            },
+            // Bolinha sólida com a cor da série (senão a linha tracejada
+            // deixa a bolinha "vazada" e sem cor)
+            labelColor: c => {
+              const cor = c.dataset.borderColor;
+              return { backgroundColor: cor, borderColor: cor, borderRadius: 6 };
             }
           }
         }
@@ -3429,6 +3435,34 @@ formBanco?.addEventListener("submit", async e => {
       diaFechamento: novo.dia_fechamento || null,
       diaVencimento: novo.dia_vencimento || null
     });
+
+    // Se informou uma fatura atual em aberto, cria uma conta a pagar
+    let faturaMsg = "";
+    if (temCartao) {
+      const faturaAtual = Number(document.getElementById("cartaoFaturaAtual")?.value) || 0;
+      if (faturaAtual > 0) {
+        // Vencimento: próximo dia de vencimento do cartão
+        const venc = proximoVencimentoCartao(novo.dia_vencimento);
+        const movFatura = await dbInsert("movimentos", {
+          descricao: `Fatura ${nome}`,
+          conta_id: novo.id,
+          data: venc,
+          valor: faturaAtual,
+          tipo: "gasto",
+          categoria: "Cartão de crédito",
+          status: "pendente",
+          vencimento: venc
+        });
+        state.movimentos.push({
+          id: movFatura.id, descricao: movFatura.descricao, bancoId: movFatura.conta_id,
+          data: movFatura.data, valor: Number(movFatura.valor), tipo: "gasto",
+          categoria: movFatura.categoria, status: "pendente",
+          vencimento: movFatura.vencimento, pagoEm: null
+        });
+        faturaMsg = ` Fatura de ${fmtMoeda(faturaAtual)} registrada para pagar.`;
+      }
+    }
+
     formBanco.reset();
     const boxReset = document.getElementById("cartaoBox");
     if (boxReset) boxReset.style.display = "none";
@@ -3436,7 +3470,7 @@ formBanco?.addEventListener("submit", async e => {
     if (campoData) campoData.value = hojeISO();
     _corEscolhida = null;
     atualizarAmostraCor(); renderTudo();
-    toast(`Conta "${nome}" adicionada!`,"success");
+    toast(`Conta "${nome}" adicionada!${faturaMsg}`,"success");
   } catch(err) { tratarErro(err); }
 });
 
@@ -3447,6 +3481,25 @@ formBanco?.addEventListener("submit", async e => {
 /* Descobre em qual fatura (AAAA-MM) uma compra cai, pela data e dia de fechamento.
    Compra até o dia do fechamento entra na fatura do mês corrente;
    depois do fechamento, entra na fatura do mês seguinte. */
+function proximoVencimentoCartao(diaVencimento) {
+  // Se não há dia de vencimento, usa 10 dias a partir de hoje como padrão
+  const hoje = new Date();
+  if (!diaVencimento) {
+    const d = new Date(hoje);
+    d.setDate(d.getDate() + 10);
+    return d.toISOString().slice(0, 10);
+  }
+  // Próxima ocorrência do dia de vencimento (este mês se ainda não passou, senão mês que vem)
+  let ano = hoje.getFullYear();
+  let mes = hoje.getMonth();
+  if (hoje.getDate() >= diaVencimento) mes += 1;  // já passou este mês → mês seguinte
+  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+  const dia = Math.min(diaVencimento, ultimoDia);  // respeita meses curtos
+  const d = new Date(ano, mes, dia);
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function faturaDaCompra(dataCompra, diaFechamento) {
   const [ano, mes, dia] = String(dataCompra).split("-").map(Number);
   let m = mes, a = ano;

@@ -257,78 +257,87 @@
         </div>
         <div class="form-panel">
           <div class="form-panel-title">Nova conta</div>
-          <form id="formBanco" class="form-grid form-grid-contas">
-            <div class="field">
-              <label for="nomeBanco">Nome do banco / conta</label>
-              <input type="text" id="nomeBanco" placeholder="Ex: Nubank, Itaú, Binance" required />
-            </div>
-            <div class="field">
-              <label for="tipoBanco">Tipo da conta</label>
-              <select id="tipoBanco" required>
-                <option value="">Selecione o tipo</option>
-                <option value="Banco Digital">Banco Digital</option>
-                <option value="Banco Tradicional">Banco Tradicional</option>
-                <option value="Conta Corrente">Conta Corrente</option>
-                <option value="Poupança">Poupança</option>
-                <option value="Carteira Crypto">Carteira Crypto</option>
-                <option value="Carteira Física">Carteira Física</option>
-                <option value="Investimentos">Investimentos</option>
-                <option value="Outro">Outro</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="saldoBanco">Saldo atual (R$)
-                <span class="dica-info" tabindex="0" aria-label="Ajuda sobre saldo inicial">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                  <span class="dica-balao">Coloque o saldo total do banco, contando tudo que tiver nele — inclusive caixinhas, reservas e valores guardados.</span>
-                </span>
-              </label>
-              <input type="number" id="saldoBanco" step="0.01" placeholder="0,00" required />
-            </div>
-            <div class="field">
-              <label for="saldoData">Saldo referente a
-                <span class="dica-info" tabindex="0" aria-label="Ajuda sobre a data do saldo">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                  <span class="dica-balao">De que dia é o saldo que você informou. O app conta os lançamentos a partir dessa data — o que for anterior já está embutido nesse valor. Você escolhe o ponto de partida: o saldo de hoje, ou o de um mês atrás para importar o histórico.</span>
-                </span>
-              </label>
-              <input type="date" id="saldoData" required />
-            </div>
-            <div class="field field-cor">
-              <label for="btnCor">Cor</label>
-              <button type="button" class="cor-btn" id="btnCor" onclick="abrirCorPop('corPop')" title="Escolher cor">
-                <span class="cor-btn-amostra" id="corAmostra"></span>
-                <svg class="cor-btn-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div class="cor-pop" id="corPop">
-                <div class="cor-pop-titulo">Cor da conta</div>
-                <div class="cor-grade" id="corPicker"></div>
-              </div>
-            </div>
-            <div class="field field-button">
-              <button type="submit" class="btn-primary">Adicionar conta</button>
-            </div>
-            <p class="form-nota-conta">Informe o saldo da conta e de que dia ele é. O app conta os lançamentos a partir dessa data — o que for anterior já está embutido no valor informado.</p>
+          <form id="formBanco" class="form-conta-nova">
 
-            <!-- Crédito: qualquer banco pode ter cartão de crédito -->
-            <div class="field field-cartao-toggle" id="fieldTemCartao">
-              <label class="check-linha">
-                <input type="checkbox" id="temCartao" />
-                <span>Este banco tem cartão de crédito</span>
-              </label>
+            <!-- Bloco 1: dados básicos da conta -->
+            <div class="form-conta-secao">
+              <div class="form-conta-grid">
+                <div class="field field-largo">
+                  <label for="nomeBanco">Nome do banco / conta</label>
+                  <input type="text" id="nomeBanco" placeholder="Ex: Nubank, Itaú, Binance" required />
+                </div>
+                <div class="field">
+                  <label for="tipoBanco">Tipo da conta</label>
+                  <select id="tipoBanco" required>
+                    <option value="">Selecione</option>
+                    <option value="Banco Digital">Banco Digital</option>
+                    <option value="Banco Tradicional">Banco Tradicional</option>
+                    <option value="Conta Corrente">Conta Corrente</option>
+                    <option value="Poupança">Poupança</option>
+                    <option value="Carteira Crypto">Carteira Crypto</option>
+                    <option value="Carteira Física">Carteira Física</option>
+                    <option value="Investimentos">Investimentos</option>
+                    <option value="Outro">Outro</option>
+                  </select>
+                </div>
+                <div class="field field-cor">
+                  <label for="btnCor">Cor</label>
+                  <button type="button" class="cor-btn" id="btnCor" onclick="abrirCorPop('corPop')" title="Escolher cor">
+                    <span class="cor-btn-amostra" id="corAmostra"></span>
+                    <svg class="cor-btn-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div class="cor-pop" id="corPop">
+                    <div class="cor-pop-titulo">Cor da conta</div>
+                    <div class="cor-grade" id="corPicker"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-conta-grid">
+                <div class="field">
+                  <label for="saldoBanco">Saldo atual (R$)
+                    <span class="dica-info" tabindex="0" aria-label="Ajuda sobre saldo inicial">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                      <span class="dica-balao">Coloque o saldo total do banco, contando tudo que tiver nele — inclusive caixinhas, reservas e valores guardados.</span>
+                    </span>
+                  </label>
+                  <input type="number" id="saldoBanco" step="0.01" placeholder="0,00" required />
+                </div>
+                <div class="field">
+                  <label for="saldoData">Saldo referente a
+                    <span class="dica-info" tabindex="0" aria-label="Ajuda sobre a data do saldo">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                      <span class="dica-balao">De que dia é o saldo que você informou. O app conta os lançamentos a partir dessa data — o que for anterior já está embutido nesse valor.</span>
+                    </span>
+                  </label>
+                  <input type="date" id="saldoData" required />
+                </div>
+              </div>
+              <p class="form-nota-conta">O app conta os lançamentos a partir dessa data — o que for anterior já está embutido no valor informado.</p>
             </div>
+
+            <!-- Bloco 2: cartão de crédito (opcional) -->
+            <label class="cartao-toggle" id="fieldTemCartao">
+              <input type="checkbox" id="temCartao" />
+              <span class="cartao-toggle-marca"></span>
+              <span class="cartao-toggle-texto">
+                <strong>Este banco tem cartão de crédito</strong>
+                <small>Marque para controlar limite e faturas</small>
+              </span>
+            </label>
+
             <div class="cartao-box" id="cartaoBox" style="display:none">
               <div class="cartao-box-titulo">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                 Dados do cartão
               </div>
-              <div class="cartao-box-campos">
+              <div class="form-conta-grid">
                 <div class="field">
-                  <label for="cartaoLimite">Limite (R$)</label>
+                  <label for="cartaoLimite">Limite do cartão (R$)</label>
                   <input type="number" id="cartaoLimite" step="0.01" placeholder="0,00" />
                 </div>
                 <div class="field">
-                  <label for="cartaoFechamento">Fechamento
+                  <label for="cartaoFechamento">Dia do fechamento
                     <span class="dica-info" tabindex="0" aria-label="Ajuda sobre fechamento">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                       <span class="dica-balao">Dia em que a fatura fecha. Compras depois desse dia entram na fatura do mês seguinte.</span>
@@ -337,11 +346,31 @@
                   <input type="number" id="cartaoFechamento" min="1" max="31" placeholder="Ex: 20" />
                 </div>
                 <div class="field">
-                  <label for="cartaoVencimento">Vencimento</label>
+                  <label for="cartaoVencimento">Dia do vencimento</label>
                   <input type="number" id="cartaoVencimento" min="1" max="31" placeholder="Ex: 28" />
                 </div>
               </div>
+
+              <!-- Fatura atual em aberto -->
+              <div class="cartao-fatura-atual">
+                <div class="field">
+                  <label for="cartaoFaturaAtual">Fatura atual em aberto (R$)
+                    <span class="dica-info" tabindex="0" aria-label="Ajuda sobre fatura atual">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                      <span class="dica-balao">Se você já tem uma fatura para pagar neste cartão, informe o valor. O app cria uma conta a pagar com o vencimento do cartão. Deixe em branco se não tiver fatura em aberto.</span>
+                    </span>
+                  </label>
+                  <input type="number" id="cartaoFaturaAtual" step="0.01" placeholder="0,00 (opcional)" />
+                  <small class="field-hint">Opcional — cria uma conta a pagar com essa fatura.</small>
+                </div>
+              </div>
             </div>
+
+            <!-- Botão de ação -->
+            <button type="submit" class="btn-adicionar-conta">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Adicionar conta
+            </button>
           </form>
         </div>
         <div class="panel">

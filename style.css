@@ -9392,7 +9392,15 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
+  gap: 3px;
+}
+.dash-periodo-datas {
+  font-size: 10.5px;
+  color: var(--text-muted, #7C8FA3);
+  font-family: "IBM Plex Mono", monospace;
+  letter-spacing: 0.2px;
+  padding-right: 3px;
+  opacity: 0.8;
 }
 .dash-periodo-btn {
   display: flex;
@@ -9416,13 +9424,6 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   box-shadow: 0 2px 10px rgba(30, 246, 221, 0.08);
 }
 .dash-periodo-btn svg { width: 15px; height: 15px; opacity: .6; flex-shrink: 0; }
-.dash-periodo-datas {
-  font-size: 12px;
-  color: var(--text-muted, #7C8FA3);
-  font-family: "IBM Plex Mono", monospace;
-  letter-spacing: 0.3px;
-  padding-right: 3px;
-}
 .dash-periodo-menu {
   position: absolute;
   top: 44px;
@@ -9627,4 +9628,146 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   .cards-grid { grid-template-columns: 1fr; }
   .card-highlight { grid-column: auto; }
   .info-card .card-value { font-size: 22px; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   FORMULÁRIO DE NOVA CONTA — reformulado
+   ═══════════════════════════════════════════════════════ */
+.form-conta-nova {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.form-conta-secao {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.form-conta-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr auto;
+  gap: 16px;
+  align-items: end;
+}
+/* Segunda linha (saldo + data) tem 2 colunas */
+.form-conta-secao .form-conta-grid:nth-child(2) {
+  grid-template-columns: 1fr 1fr;
+}
+.field-largo { min-width: 0; }
+.form-nota-conta {
+  font-size: 12.5px;
+  color: var(--text-muted, #7C8FA3);
+  margin: 0;
+  line-height: 1.5;
+}
+.field-hint {
+  font-size: 11.5px;
+  color: var(--text-muted, #7C8FA3);
+  margin-top: 5px;
+  display: block;
+}
+
+/* Toggle do cartão de crédito — vira um cartão clicável bonito */
+.cartao-toggle {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--surface, #0D1B2F);
+  border: 1.5px solid var(--border-soft, #2C384A);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: border-color .16s, background .16s;
+}
+.cartao-toggle:hover { border-color: var(--teal-glow, #2C4A4A); }
+.cartao-toggle input { display: none; }
+.cartao-toggle-marca {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 2px solid var(--border-soft, #2C384A);
+  flex-shrink: 0;
+  position: relative;
+  transition: all .16s;
+}
+.cartao-toggle input:checked + .cartao-toggle-marca {
+  background: var(--accent, #1EF6DD);
+  border-color: var(--accent, #1EF6DD);
+}
+.cartao-toggle input:checked + .cartao-toggle-marca::after {
+  content: "";
+  position: absolute;
+  left: 6px; top: 2px;
+  width: 6px; height: 11px;
+  border: solid #04231f;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+}
+.cartao-toggle-texto { display: flex; flex-direction: column; gap: 2px; }
+.cartao-toggle-texto strong { font-size: 14px; color: var(--text, #E8EEF5); font-weight: 600; }
+.cartao-toggle-texto small { font-size: 12px; color: var(--text-muted, #7C8FA3); }
+
+/* Caixa dos dados do cartão */
+.cartao-box {
+  background: linear-gradient(160deg, rgba(30,246,221,0.04), rgba(30,246,221,0.01));
+  border: 1px solid var(--border-soft, #2C384A);
+  border-radius: 14px;
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.cartao-box-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent, #1EF6DD);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.cartao-fatura-atual {
+  border-top: 1px dashed var(--border-soft, #2C384A);
+  padding-top: 16px;
+}
+.cartao-fatura-atual .field { max-width: 340px; }
+
+/* Botão Adicionar conta — destacado e bonito */
+.btn-adicionar-conta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, var(--teal-500, #0F8A7D), var(--teal-400, #14A797));
+  border: none;
+  border-radius: 13px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s, filter .15s;
+  box-shadow: 0 4px 16px rgba(15, 138, 125, 0.3);
+}
+.btn-adicionar-conta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(15, 138, 125, 0.42);
+  filter: brightness(1.06);
+}
+.btn-adicionar-conta:active { transform: translateY(0); }
+.btn-adicionar-conta svg { width: 18px; height: 18px; }
+
+/* Mobile: formulário em coluna */
+@media (max-width: 640px) {
+  .form-conta-grid,
+  .form-conta-secao .form-conta-grid:nth-child(2) {
+    grid-template-columns: 1fr !important;
+    gap: 13px;
+  }
+  .field-cor { align-items: flex-start; }
+  .cartao-fatura-atual .field { max-width: none; }
+  .cartao-toggle { padding: 14px 15px; }
 }
