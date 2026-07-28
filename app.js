@@ -2400,49 +2400,24 @@ function renderGraficoEvolucao() {
   const vazio = dadosSaldo.every(v => v === 0) && dadosEntradas.every(v => v === 0) && dadosGastos.every(v => v === 0);
 
   chartEvolucao = new Chart(canvas, {
-    type: "bar",
+    type: "line",
     data: {
       labels: pontos.map(p => p.label),
       datasets: [
         {
-          type: "line",
           label: "Saldo",
           data: dadosSaldo,
           borderColor: accent,
           backgroundColor: gradSaldo,
           borderWidth: 2.5,
-          tension: 0.35,
+          tension: 0.3,
           fill: true,
           pointRadius: 0,
           pointHoverRadius: 5,
           pointHoverBorderWidth: 2.5,
           pointHoverBackgroundColor: accent,
           pointHoverBorderColor: dark ? "#011025" : "#ffffff",
-          yAxisID: "ySaldo",
-          order: 0,
           clip: false
-        },
-        {
-          type: "bar",
-          label: "Entradas",
-          data: dadosEntradas,
-          backgroundColor: hexParaRgba(corEntrada, 0.85),
-          hoverBackgroundColor: corEntrada,
-          borderRadius: 4,
-          maxBarThickness: 18,
-          yAxisID: "yMov",
-          order: 2
-        },
-        {
-          type: "bar",
-          label: "Gastos",
-          data: dadosGastos,
-          backgroundColor: hexParaRgba(corGasto, 0.85),
-          hoverBackgroundColor: corGasto,
-          borderRadius: 4,
-          maxBarThickness: 18,
-          yAxisID: "yMov",
-          order: 1
         }
       ]
     },
@@ -2474,7 +2449,14 @@ function renderGraficoEvolucao() {
               const i = it[0].dataIndex;
               return pontos[i]?.tooltip || "";
             },
-            label: c => `  ${c.dataset.label}: ${fmtMoeda(c.raw)}`
+            label: c => {
+              const i = c.dataIndex;
+              const linhas = [`  Saldo: ${fmtMoeda(c.raw)}`];
+              // Mostra o que entrou/saiu naquele dia, se houve movimento
+              if (dadosEntradas[i] > 0) linhas.push(`  Entrou: ${fmtMoeda(dadosEntradas[i])}`);
+              if (dadosGastos[i] > 0) linhas.push(`  Saiu: ${fmtMoeda(dadosGastos[i])}`);
+              return linhas;
+            }
           }
         }
       },
@@ -2491,9 +2473,7 @@ function renderGraficoEvolucao() {
             maxTicksLimit: porDia ? 8 : 12
           }
         },
-        ySaldo: {
-          // Eixo do saldo (linha) — à esquerda
-          position: "left",
+        y: {
           suggestedMin: vazio ? 0 : undefined,
           suggestedMax: vazio ? 100 : undefined,
           grid: { color: grid, drawTicks: false },
@@ -2502,20 +2482,6 @@ function renderGraficoEvolucao() {
             color: txt,
             font: { family: "IBM Plex Mono", size: 10.5 },
             padding: 10,
-            maxTicksLimit: 5,
-            callback: v => fmtCompacto(v)
-          }
-        },
-        yMov: {
-          // Eixo das barras (entradas/gastos do dia) — à direita, escala própria
-          position: "right",
-          beginAtZero: true,
-          grid: { display: false },
-          border: { display: false },
-          ticks: {
-            color: txt,
-            font: { family: "IBM Plex Mono", size: 10 },
-            padding: 6,
             maxTicksLimit: 5,
             callback: v => fmtCompacto(v)
           }
