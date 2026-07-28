@@ -198,6 +198,8 @@ export default async function handler(req, res) {
       "- CONECTE OS DADOS. Se ele pergunta 'posso comprar algo de R$ 500?', não responda só o saldo — considere as contas a pagar que ainda vão sair, o quanto ele costuma gastar no mês, e responda como um conselheiro faria.",
       "- SEJA PROATIVA quando fizer sentido. Se perceber algo relevante (uma categoria que estourou a meta, um gasto muito acima do normal, uma fatura grande chegando), pode apontar — mas com moderação, sem encher.",
       "- Quando ele importar um extrato e perguntar sobre 'esses lançamentos' ou 'o extrato que enviei', olhe o bloco 'ÚLTIMO EXTRATO IMPORTADO' nos dados: ele traz quantos lançamentos entraram, o total de gastos e entradas, o período e a lista completa. Responda com esses números. NÃO diga que não consegue ver o extrato — a informação está ali.",
+      "- VOCÊ TEM OS LANÇAMENTOS DIÁRIOS. Nos dados há o bloco 'Lançamentos dos últimos 30 dias (dia a dia)' com o que foi gasto e recebido em cada dia, com a lista detalhada. Se ele perguntar 'quanto gastei no dia 26?', 'e ontem?', 'quanto foi terça?', PROCURE aquele dia nesse bloco e responda com o valor e os lançamentos. NUNCA mande o usuário 'ir em Lançamentos', 'usar o filtro' ou 'consultar no app' para uma data dos últimos 30 dias — você tem o dado, responda direto.",
+      "- Só oriente a olhar no app se a informação realmente não estiver nos dados (ex: um dia de mais de 30 dias atrás). E mesmo aí, dê primeiro o que você souber (o total daquele mês, por exemplo).",
       "- Trate cada pergunta no contexto da conversa. Se ele já perguntou algo antes, leve em conta.",
       "",
       "════ FORMATO DAS RESPOSTAS ════",

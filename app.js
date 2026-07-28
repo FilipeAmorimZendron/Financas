@@ -9293,6 +9293,45 @@ function montarResumoFinanceiro() {
   }
   linhas.push("");
 
+  // ─── Lançamentos por DIA (últimos 30 dias) ───
+  // Permite à IA responder "quanto gastei no dia 26", "e ontem?", etc.
+  const limite30 = somarDias(hoje, -30);
+  const movsRecentes = state.movimentos
+    .filter(m => ehPago(m) && (m.data || "").slice(0,10) >= limite30 && (m.data || "").slice(0,10) <= hoje)
+    .sort((a,b) => (b.data || "").localeCompare(a.data || ""));
+  if (movsRecentes.length) {
+    // Agrupa por dia
+    const porDia = {};
+    movsRecentes.forEach(m => {
+      const d = m.data.slice(0,10);
+      (porDia[d] = porDia[d] || []).push(m);
+    });
+    linhas.push("Lançamentos dos últimos 30 dias (dia a dia — use para responder sobre datas específicas):");
+    // Se há muitos lançamentos, detalha só os dias mais recentes para não
+    // pesar demais; os dias mais antigos ficam só com o total do dia.
+    const detalharAte = movsRecentes.length > 120 ? 40 : Infinity;
+    let jaDetalhados = 0;
+    Object.keys(porDia).sort((a,b) => b.localeCompare(a)).forEach(dia => {
+      const doDia = porDia[dia];
+      const gastoDia = doDia.filter(m => m.tipo === "gasto").reduce((s,m) => s + m.valor, 0);
+      const entradaDia = doDia.filter(m => m.tipo === "entrada").reduce((s,m) => s + m.valor, 0);
+      let resumoDia = `  ${formatarDataBR(dia)}:`;
+      if (gastoDia > 0) resumoDia += ` gastou ${fmtMoeda(gastoDia)}`;
+      if (entradaDia > 0) resumoDia += `${gastoDia > 0 ? "," : ""} recebeu ${fmtMoeda(entradaDia)}`;
+      if (gastoDia === 0 && entradaDia === 0) resumoDia += " sem movimentação";
+      linhas.push(resumoDia);
+      // Detalha cada lançamento do dia (até o teto)
+      if (jaDetalhados < detalharAte) {
+        doDia.forEach(m => {
+          const sinal = m.tipo === "entrada" ? "+" : "-";
+          linhas.push(`      ${sinal}${fmtMoeda(m.valor)} ${m.descricao} (${m.categoria || "Outros"})`);
+          jaDetalhados++;
+        });
+      }
+    });
+    linhas.push("");
+  }
+
   // ─── Histórico dos últimos 3 meses ───
   const historico = [];
   for (let i = 1; i <= 3; i++) {
