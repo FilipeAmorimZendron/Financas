@@ -9254,6 +9254,8 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   padding: 15px 18px;
   margin-bottom: 26px;
 }
+/* O atributo hidden deve sempre esconder, mesmo com display:flex acima */
+.planos-motivo[hidden] { display: none !important; }
 .planos-motivo-icone {
   display: grid;
   place-items: center;
