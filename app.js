@@ -2148,8 +2148,9 @@ function renderCartoesDashboard() {
   </div>`;
 }
 
-let _periodoEvolucao = 6;   // meses; 0 = tudo
+let _periodoTipo = "mes";   // hoje | ontem | 7dias | mes | mesanterior | tudo
 let _periodoDatas = null;   // {de:'YYYY-MM-DD', ate:'YYYY-MM-DD'} quando customizado
+let _destaqueDia = null;    // dia a destacar no gráfico (para Hoje/Ontem)
 
 function renderGraficoEvolucao() {
   if (chartEvolucao) chartEvolucao.destroy();
@@ -2158,27 +2159,43 @@ function renderGraficoEvolucao() {
   const hoje = new Date();
   const pad2 = n => String(n).padStart(2, "0");
   const isoDe = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
 
-  // Define o intervalo [dataIni, dataFim] em datas reais e escolhe a granularidade.
+  // Define o intervalo [dataIni, dataFim] conforme o período escolhido.
   let dataIni, dataFim;
+  _destaqueDia = null;   // limpo por padrão; só Hoje/Ontem definem
   if (_periodoDatas) {
     dataIni = new Date(_periodoDatas.de + "T00:00:00");
     dataFim = new Date(_periodoDatas.ate + "T00:00:00");
-  } else if (_periodoEvolucao === 1) {
-    dataFim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-    dataIni = new Date(hoje.getFullYear(), hoje.getMonth()-1, hoje.getDate());
-  } else if (_periodoEvolucao === 0) {
+  } else if (_periodoTipo === "hoje") {
+    // Mostra os últimos 7 dias para dar contexto visual ao saldo de hoje
+    dataFim = hojeZero;
+    dataIni = new Date(hojeZero); dataIni.setDate(dataIni.getDate() - 6);
+    _destaqueDia = isoDe(hojeZero);
+  } else if (_periodoTipo === "ontem") {
+    const ontem = new Date(hojeZero); ontem.setDate(ontem.getDate() - 1);
+    // Mostra a semana terminando ontem, destacando o dia
+    dataFim = ontem;
+    dataIni = new Date(ontem); dataIni.setDate(dataIni.getDate() - 6);
+    _destaqueDia = isoDe(ontem);
+  } else if (_periodoTipo === "7dias") {
+    dataFim = hojeZero;
+    dataIni = new Date(hojeZero); dataIni.setDate(dataIni.getDate() - 6); // hoje + 6 antes = 7 dias
+  } else if (_periodoTipo === "mes") {
+    dataIni = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    dataFim = hojeZero;
+  } else if (_periodoTipo === "mesanterior") {
+    dataIni = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+    dataFim = new Date(hoje.getFullYear(), hoje.getMonth(), 0); // último dia do mês anterior
+  } else {
     // Tudo: desde o primeiro movimento
-    dataFim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    dataFim = hojeZero;
     if (state.movimentos.length) {
       const datas = state.movimentos.map(m => m.data).filter(Boolean).sort();
       dataIni = datas[0] ? new Date(datas[0] + "T00:00:00") : new Date(hoje.getFullYear(), hoje.getMonth()-5, 1);
     } else {
       dataIni = new Date(hoje.getFullYear(), hoje.getMonth()-5, 1);
     }
-  } else {
-    dataFim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-    dataIni = new Date(hoje.getFullYear(), hoje.getMonth()-(_periodoEvolucao-1), 1);
   }
 
   // Granularidade diária quando o intervalo é curto (≤ ~62 dias), senão mensal.
@@ -2219,11 +2236,15 @@ function renderGraficoEvolucao() {
       const fmtBR = s => `${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(0,4)}`;
       tit.textContent = `Evolução do saldo (${fmtBR(_periodoDatas.de)} — ${fmtBR(_periodoDatas.ate)})`;
     } else {
-      tit.textContent = _periodoEvolucao === 0
-        ? "Evolução do saldo (todo o histórico)"
-        : _periodoEvolucao === 1
-          ? "Evolução do saldo (último mês, por dia)"
-          : `Evolução do saldo (últimos ${_periodoEvolucao} meses)`;
+      const nomes = {
+        hoje: "Evolução do saldo (hoje)",
+        ontem: "Evolução do saldo (ontem)",
+        "7dias": "Evolução do saldo (últimos 7 dias)",
+        mes: "Evolução do saldo (este mês)",
+        mesanterior: "Evolução do saldo (mês anterior)",
+        tudo: "Evolução do saldo (todo o histórico)"
+      };
+      tit.textContent = nomes[_periodoTipo] || "Evolução do saldo";
     }
   }
 
@@ -2231,7 +2252,7 @@ function renderGraficoEvolucao() {
   const dados = pontos.map(({limNum}) => {
     const base = state.bancos.reduce((a,b)=>a+b.saldoInicial, 0);
     const mov  = state.movimentos
-      .filter(m => ehPago(m) && Number(m.data.slice(0,10).replace(/-/g,"")) <= limNum)
+      .filter(m => ehPago(m) && m.data && Number(String(m.data).slice(0,10).replace(/-/g,"")) <= limNum)
       .reduce((a,m) => m.tipo==="entrada" ? a+m.valor : a-m.valor, 0);
     return base + mov;
   });
@@ -8426,7 +8447,7 @@ document.getElementById("periodoEvolucao")?.addEventListener("click", e => {
   const btn = e.target.closest(".periodo-chip");
   if (!btn || btn.id === "btnPeriodoDatas") return;
   _periodoDatas = null;                       // sai do modo datas
-  _periodoEvolucao = Number(btn.dataset.meses);
+  _periodoTipo = btn.dataset.periodo;
   document.querySelectorAll("#periodoEvolucao .periodo-chip").forEach(c =>
     c.classList.toggle("ativo", c === btn));
   renderGraficoEvolucao();
