@@ -9487,5 +9487,14 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   display: inline-block;
 }
 .leg-saldo .leg-cor { background: var(--accent, #1EF6DD); }
-.leg-entrada .leg-cor { background: #22C55E; }
-.leg-gasto .leg-cor { background: #F0642E; }
+.leg-entrada .leg-cor,
+.leg-gasto .leg-cor {
+  /* Tracinho tracejado, espelhando as linhas do gráfico */
+  width: 16px;
+  height: 0;
+  border-radius: 0;
+  border-top: 2px dashed;
+  background: transparent;
+}
+.leg-entrada .leg-cor { border-color: #22C55E; }
+.leg-gasto .leg-cor { border-color: #F0642E; }

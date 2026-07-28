@@ -2440,12 +2440,12 @@ function renderGraficoEvolucao() {
           data: dadosSaldo,
           borderColor: accent,
           backgroundColor: gradSaldo,
-          borderWidth: 2.5,
-          tension: 0.3,
+          borderWidth: 3,
+          tension: 0.4,
           fill: true,
           pointRadius: 0,
-          pointHoverRadius: 5,
-          pointHoverBorderWidth: 2.5,
+          pointHoverRadius: 6,
+          pointHoverBorderWidth: 3,
           pointHoverBackgroundColor: accent,
           pointHoverBorderColor: dark ? "#011025" : "#ffffff",
           yAxisID: "ySaldo",
@@ -2458,10 +2458,12 @@ function renderGraficoEvolucao() {
           borderColor: corEntrada,
           backgroundColor: "transparent",
           borderWidth: 2,
-          tension: 0.3,
+          borderDash: [6, 4],          // tracejada, como no modelo
+          tension: 0.4,
           fill: false,
           pointRadius: 0,
-          pointHoverRadius: 4,
+          pointHoverRadius: 5,
+          pointHoverBorderWidth: 2,
           pointHoverBackgroundColor: corEntrada,
           pointHoverBorderColor: dark ? "#011025" : "#ffffff",
           yAxisID: "yMov",
@@ -2473,10 +2475,12 @@ function renderGraficoEvolucao() {
           borderColor: corGasto,
           backgroundColor: "transparent",
           borderWidth: 2,
-          tension: 0.3,
+          borderDash: [6, 4],          // tracejada
+          tension: 0.4,
           fill: false,
           pointRadius: 0,
-          pointHoverRadius: 4,
+          pointHoverRadius: 5,
+          pointHoverBorderWidth: 2,
           pointHoverBackgroundColor: corGasto,
           pointHoverBorderColor: dark ? "#011025" : "#ffffff",
           yAxisID: "yMov",
@@ -2558,7 +2562,27 @@ function renderGraficoEvolucao() {
           grid: { display: false }
         }
       }
-    }
+    },
+    plugins: [{
+      // Linha vertical fina no ponto sob o cursor, como no modelo bonito
+      id: "linhaVertical",
+      afterDraw: (chart) => {
+        const ativos = chart.tooltip?.getActiveElements?.();
+        if (!ativos || !ativos.length) return;
+        const x = ativos[0].element.x;
+        const ctx = chart.ctx;
+        const topo = chart.chartArea.top;
+        const base = chart.chartArea.bottom;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x, topo);
+        ctx.lineTo(x, base);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = dark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.15)";
+        ctx.stroke();
+        ctx.restore();
+      }
+    }]
   });
 }
 
