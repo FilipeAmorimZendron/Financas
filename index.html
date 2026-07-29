@@ -940,7 +940,14 @@
                 <div class="inv-campos inv-campos-oque">
                   <div class="field">
                     <label for="invTipo">Tipo</label>
-                    <select id="invTipo" required>
+                    <div class="tipo-dd" id="tipoDropdown">
+                      <button type="button" class="tipo-dd-botao" id="tipoDdBotao" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="tipo-dd-atual" id="tipoDdAtual">Selecione</span>
+                        <svg class="tipo-dd-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                      </button>
+                      <div class="tipo-dd-menu" id="tipoDdMenu" role="listbox"></div>
+                    </div>
+                    <select id="invTipo" required class="tipo-dd-select-oculto">
                       <option value="">Selecione</option>
                       <optgroup label="Renda fixa — % do CDI">
                         <option value="CDB">CDB</option>

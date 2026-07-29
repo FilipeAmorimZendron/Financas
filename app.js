@@ -6135,6 +6135,8 @@ formInvestimento?.addEventListener("submit", async e => {
     });
     state.investimentos.push(mapInvestimento(novo));
     formInvestimento.reset();
+    // O dropdown customizado do tipo volta ao "Selecione"
+    document.getElementById("invTipo")?.dispatchEvent(new Event("change", { bubbles: true }));
     document.getElementById("invCriptoDica").innerHTML = "";
     document.getElementById("invValor")?.removeAttribute("data-editado-manual");
     fieldInvTipoOutro?.classList.add("hidden-filter");
@@ -9087,6 +9089,91 @@ document.getElementById("invTipo")?.addEventListener("change", () => {
   alternarCamposCripto();
   popularSelectCripto();
 });
+
+/* ─── Dropdown customizado do TIPO de investimento ───────────
+   O <select id="invTipo"> fica escondido (mantém required/reset e todos
+   os listeners existentes). Aqui montamos um menu bonito por cima que,
+   ao escolher, seta o valor do select e dispara o "change" dele. */
+function iconeTipoInv(valor) {
+  // Um ícone simples por família (renda fixa, variável, cripto, etc.)
+  const cfg = (typeof configTipo === "function") ? configTipo(valor) : { cat: "rv", modo: "taxa" };
+  if (valor === "Cripto") return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.5 8.5h4a2 2 0 0 1 0 4h-4m0 0h4.3a2 2 0 0 1 0 4H9.5m0-8v10"/></svg>`;
+  if (valor === "Imóvel") return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 21V10l8-6 8 6v11M9 21v-6h6v6"/></svg>`;
+  if (valor === "Ouro") return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 6 6 .5-4.5 4 1.5 6-6-3.5L6 18.5 7.5 12.5 3 8.5 9 8z"/></svg>`;
+  if (cfg.cat === "rf") return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>`;
+  if (cfg.cat === "rv") return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>`;
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>`;
+}
+
+function montarTipoDropdown() {
+  const select = document.getElementById("invTipo");
+  const menu = document.getElementById("tipoDdMenu");
+  const botao = document.getElementById("tipoDdBotao");
+  const atual = document.getElementById("tipoDdAtual");
+  const dd = document.getElementById("tipoDropdown");
+  if (!select || !menu || !botao || !dd) return;
+
+  // Monta o menu a partir dos optgroups/options do select (fonte única)
+  let html = "";
+  Array.from(select.children).forEach(node => {
+    if (node.tagName === "OPTGROUP") {
+      html += `<div class="tipo-dd-grupo">${esc(node.label)}</div>`;
+      Array.from(node.children).forEach(opt => {
+        if (!opt.value) return;
+        html += `<button type="button" class="tipo-dd-opcao" role="option" data-valor="${esc(opt.value)}">
+          <span class="tipo-dd-opcao-ico">${iconeTipoInv(opt.value)}</span>
+          <span>${esc(opt.textContent)}</span>
+        </button>`;
+      });
+    } else if (node.tagName === "OPTION" && node.value) {
+      // Opção solta (ex: "Outro")
+      html += `<button type="button" class="tipo-dd-opcao" role="option" data-valor="${esc(node.value)}">
+        <span class="tipo-dd-opcao-ico">${iconeTipoInv(node.value)}</span>
+        <span>${esc(node.textContent)}</span>
+      </button>`;
+    }
+  });
+  menu.innerHTML = html;
+
+  const fechar = () => { dd.classList.remove("aberto"); botao.setAttribute("aria-expanded", "false"); };
+  const abrir = () => { dd.classList.add("aberto"); botao.setAttribute("aria-expanded", "true"); };
+
+  botao.addEventListener("click", (e) => {
+    e.stopPropagation();
+    dd.classList.contains("aberto") ? fechar() : abrir();
+  });
+
+  menu.querySelectorAll(".tipo-dd-opcao").forEach(opt => {
+    opt.addEventListener("click", () => {
+      const valor = opt.dataset.valor;
+      select.value = valor;
+      atual.textContent = opt.querySelector("span:last-child").textContent;
+      atual.classList.remove("tipo-dd-placeholder");
+      menu.querySelectorAll(".tipo-dd-opcao").forEach(o => o.classList.toggle("ativa", o === opt));
+      // Dispara o change do select para o resto do app reagir
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      fechar();
+    });
+  });
+
+  // Fecha ao clicar fora
+  document.addEventListener("click", (e) => {
+    if (!dd.contains(e.target)) fechar();
+  });
+
+  // Sincroniza o rótulo quando o select muda por fora (ex: reset do form)
+  select.addEventListener("change", () => {
+    const txt = select.options[select.selectedIndex]?.textContent || "Selecione";
+    atual.textContent = txt;
+    atual.classList.toggle("tipo-dd-placeholder", !select.value);
+    menu.querySelectorAll(".tipo-dd-opcao").forEach(o =>
+      o.classList.toggle("ativa", o.dataset.valor === select.value));
+  });
+
+  // Estado inicial
+  atual.classList.toggle("tipo-dd-placeholder", !select.value);
+}
+montarTipoDropdown();
 document.getElementById("invCripto")?.addEventListener("change", calcularValorCripto);
 document.getElementById("invCriptoQtd")?.addEventListener("input", calcularValorCripto);
 
