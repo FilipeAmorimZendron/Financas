@@ -9629,13 +9629,25 @@ function acharContaIA(nome, universo) {
   if (porId) return porId;
 
   const n = normIA(bruto);
+
+  // Igual, ou o texto começa com o nome da conta: casamento seguro.
   const exato = lista.filter(b => normIA(b.nome) === n);
   if (exato.length === 1) return exato[0];
   const comeca = lista.filter(b => normIA(b.nome).startsWith(n));
   if (comeca.length === 1) return comeca[0];
-  const contem = lista.filter(b =>
-    normIA(b.nome).includes(n) || (n.length >= 3 && n.includes(normIA(b.nome)))
-  );
+
+  // Conteúdo: SÓ aceitamos quando o nome da conta aparece como palavra(s)
+  // inteira(s) dentro do texto — nunca como pedaço solto. Sem isso,
+  // "mercado pago" (o lugar do gasto) casava com a conta "Mercado Pago"
+  // e o dinheiro saía da conta errada.
+  const contemPalavra = (frase, alvo) => {
+    const re = new RegExp("(^|\\s)" + alvo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(\\s|$)");
+    return re.test(frase);
+  };
+  const contem = lista.filter(b => {
+    const nb = normIA(b.nome);
+    return contemPalavra(n, nb) || contemPalavra(nb, n);
+  });
   if (contem.length === 1) return contem[0];
   return null;
 }
@@ -9773,6 +9785,17 @@ const ACOES_IA = {
 
       const conta = acharContaIA(d.conta, universo);
       p.contaId = conta ? conta.id : (universo.length === 1 ? universo[0].id : "");
+
+      // Defesa contra o "Mercado Pago": se a conta que a IA mandou é quase
+      // igual à descrição do gasto, é sinal de que ela confundiu o LUGAR do
+      // gasto com a CONTA (gastei no "mercado" ≠ conta "Mercado Pago").
+      // Nesse caso descartamos a conta e deixamos o app perguntar.
+      if (conta && p.descricao) {
+        const nc = normIA(conta.nome), nd = normIA(p.descricao);
+        if (nc === nd || nc.includes(nd) || nd.includes(nc)) {
+          p.contaId = universo.length === 1 ? universo[0].id : "";
+        }
+      }
       p.categoria = p.tipo === "entrada" ? "Entrada" : (acharCategoriaIA(d.categoria) || "");
 
       // ─── O que realmente precisa ser perguntado ───
