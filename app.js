@@ -9790,7 +9790,10 @@ const ACOES_IA = {
       // igual à descrição do gasto, é sinal de que ela confundiu o LUGAR do
       // gasto com a CONTA (gastei no "mercado" ≠ conta "Mercado Pago").
       // Nesse caso descartamos a conta e deixamos o app perguntar.
-      if (conta && p.descricao) {
+      // MAS: se a conta veio de um TOQUE do usuário nos botões (_contaConfirmada),
+      // ela é definitiva — o usuário apontou, não há o que desconfiar. Sem essa
+      // exceção, a pergunta entraria em loop (a descrição continua igual).
+      if (conta && p.descricao && !d._contaConfirmada) {
         const nc = normIA(conta.nome), nd = normIA(p.descricao);
         if (nc === nd || nc.includes(nd) || nd.includes(nc)) {
           p.contaId = universo.length === 1 ? universo[0].id : "";
@@ -10289,17 +10292,28 @@ async function executarAcaoIA(acao) {
   }
   if (prep.erro) return "NÃO FOI POSSÍVEL. " + prep.erro;
 
-  // Uma pergunta de cada vez, em botões, até não faltar mais nada
+  // Uma pergunta de cada vez, em botões, até não faltar mais nada.
+  // jaPerguntados é a trava anti-loop: se um campo já respondido volta a
+  // ser pedido, algo está errado — paramos em vez de repetir a pergunta.
   let voltas = 0;
-  while (prep.perguntas && prep.perguntas.length && voltas < 4) {
+  const jaPerguntados = [];
+  while (prep.perguntas && prep.perguntas.length && voltas < 5) {
     voltas++;
     const pergunta = prep.perguntas[0];
+    if (jaPerguntados.includes(pergunta.campo)) {
+      console.error("Ação da IA repetiria a pergunta:", pergunta.campo);
+      return "NÃO FOI POSSÍVEL concluir: o app não resolveu os dados. Peça desculpas em uma frase e sugira que ele registre pela tela do app desta vez.";
+    }
+    jaPerguntados.push(pergunta.campo);
     const escolhido = await perguntarOpcoesIA(pergunta);
     if (escolhido === null) {
       return "O usuário desistiu quando você perguntou. Nada foi salvo. Responda com uma frase curta dizendo que não salvou e que é só pedir de novo quando quiser.";
     }
     const novos = {};
     novos[pergunta.campo] = escolhido;
+    // A escolha veio de um toque do usuário: se foi a conta, ela é
+    // definitiva e a defesa anti-confusão não deve mais mexer nela.
+    if (pergunta.campo === "conta") novos._contaConfirmada = true;
     brutos = Object.assign({}, brutos, novos);
     try {
       prep = def.preparar(brutos);
