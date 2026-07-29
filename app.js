@@ -9591,6 +9591,753 @@ function montarResumoFinanceiro() {
 initSino();
 
 /* ═══════════════════════════════════════════════════════════
+   AÇÕES DA IA — o assistente FAZ, não só ensina
+
+   Registro único: cada ação diz o que a IA precisa informar
+   (parametros), como o app entende o que ela mandou (preparar)
+   e como grava de verdade (executar).
+
+   Para ensinar uma função nova ao assistente, basta acrescentar
+   uma entrada aqui — o resto (enviar para a IA, pedir o que
+   faltou, gravar, confirmar) já funciona sozinho.
+
+   Quem grava é sempre o app, nunca o servidor: assim reaproveita
+   as mesmas regras dos formulários (saldo, limite do cartão,
+   recorrência, cache de saldos).
+   ═══════════════════════════════════════════════════════════ */
+
+/* Compara textos digitados de qualquer jeito: sem acento, sem caixa */
+function normIA(s) {
+  return String(s == null ? "" : s)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().trim();
+}
+
+/* Acha a conta pelo nome que a IA mandou (ou pelo id, quando a
+   escolha veio da telinha de confirmação). Devolve null quando não
+   achou OU quando ficou ambíguo — nos dois casos a gente pergunta. */
+function acharContaIA(nome, universo) {
+  const lista = universo || state.bancos || [];
+  const bruto = String(nome == null ? "" : nome).trim();
+  if (!bruto || !lista.length) return null;
+
+  const porId = lista.find(b => String(b.id) === bruto);
+  if (porId) return porId;
+
+  const n = normIA(bruto);
+  const exato = lista.filter(b => normIA(b.nome) === n);
+  if (exato.length === 1) return exato[0];
+  const comeca = lista.filter(b => normIA(b.nome).startsWith(n));
+  if (comeca.length === 1) return comeca[0];
+  const contem = lista.filter(b =>
+    normIA(b.nome).includes(n) || (n.length >= 3 && n.includes(normIA(b.nome)))
+  );
+  if (contem.length === 1) return contem[0];
+  return null;
+}
+
+/* Acha a categoria pelo nome, aceitando abreviação ("aliment") */
+function acharCategoriaIA(nome) {
+  const todas = todasCategorias();
+  const n = normIA(nome);
+  if (!n) return null;
+  return todas.find(c => normIA(c) === n)
+      || todas.find(c => normIA(c).startsWith(n))
+      || todas.find(c => normIA(c).includes(n))
+      || null;
+}
+
+/* Entende a data que a IA mandou: ISO, 05/08, "ontem", "amanhã".
+   Sem nada reconhecível, assume hoje. */
+function resolverDataIA(txt) {
+  const hoje = hojeISO();
+  const t = normIA(txt);
+  if (!t || t === "hoje") return hoje;
+  if (t === "ontem") return somarDias(hoje, -1);
+  if (t === "anteontem") return somarDias(hoje, -2);
+  if (t === "amanha") return somarDias(hoje, 1);
+  if (t === "depois de amanha") return somarDias(hoje, 2);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+
+  const br = t.match(/^(\d{1,2})[\/\.\-](\d{1,2})(?:[\/\.\-](\d{2,4}))?$/);
+  if (br) {
+    const dia = Number(br[1]), mes = Number(br[2]);
+    if (dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12) {
+      let ano = br[3] ? Number(br[3]) : Number(hoje.slice(0, 4));
+      if (ano < 100) ano += 2000;
+      return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+    }
+  }
+  return hoje;
+}
+
+/* Número vindo da IA ou do campo da telinha ("1.234,56" ou 1234.56) */
+function valorIA(v) {
+  if (typeof v === "number") return Number.isFinite(v) && v > 0 ? v : null;
+  let s = String(v == null ? "" : v).replace(/[^\d,.\-]/g, "").trim();
+  if (!s) return null;
+  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  const n = Number(s);
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
+}
+
+/* Lista de contas no formato dos <select> da telinha */
+function opcoesContasIA(lista) {
+  return (lista || state.bancos || []).map(b => ({
+    v: b.id,
+    t: `${b.nome} · ${fmtMoeda(calcularSaldoBanco(b.id))}`
+  }));
+}
+
+/* ─── O registro ───────────────────────────────────────────── */
+const ACOES_IA = {
+
+  criar_lancamento: {
+    descricao:
+      "Registra um gasto ou uma entrada na conta do usuário. Use sempre que ele pedir para adicionar, lançar, registrar ou anotar um gasto, uma compra, um pagamento feito, ou um dinheiro que entrou. Também serve para agendar uma conta a pagar futura.",
+    parametros: {
+      type: "object",
+      properties: {
+        tipo: { type: "string", enum: ["gasto", "entrada"], description: "gasto para saídas de dinheiro, entrada para receitas" },
+        valor: { type: "number", description: "Valor em reais, sempre positivo" },
+        descricao: { type: "string", description: "O que foi, em poucas palavras: Mercado, Uber, Salário. Deixe vazio se o usuário não disse o que era." },
+        conta: { type: "string", description: "Nome da conta ou banco, como está cadastrado. Deixe vazio se ele não disse." },
+        categoria: { type: "string", description: "Categoria do gasto. Deixe vazio para o app escolher sozinho." },
+        data: { type: "string", description: "AAAA-MM-DD, ou hoje / ontem / amanhã. Padrão: hoje." },
+        forma: { type: "string", enum: ["debito", "credito", "pix", "dinheiro"], description: "Forma de pagamento. Padrão: debito. Use credito só se ele disser que foi no cartão de crédito." },
+        situacao: { type: "string", enum: ["pago", "agendar"], description: "pago = já aconteceu. agendar = conta futura, ainda não paga. Padrão: pago." },
+        parcelas: { type: "number", description: "Número de parcelas, só para compra no cartão de crédito. Padrão: 1." }
+      },
+      required: ["tipo", "valor"]
+    },
+
+    preparar(d) {
+      const contas = state.bancos || [];
+      if (!contas.length) {
+        return { erro: "O usuário ainda não cadastrou nenhuma conta, então não dá para lançar nada. Explique que ele precisa cadastrar o banco dele primeiro, na tela Adicionar Banco." };
+      }
+
+      const p = {};
+      p.tipo = normIA(d.tipo) === "entrada" ? "entrada" : "gasto";
+      p.valor = valorIA(d.valor);
+      p.descricao = String(d.descricao == null ? "" : d.descricao).trim().slice(0, 120);
+      p.data = resolverDataIA(d.data);
+      p.parcelas = Math.min(24, Math.max(1, Math.round(Number(d.parcelas) || 1)));
+
+      const formas = ["debito", "credito", "pix", "dinheiro"];
+      p.forma = formas.includes(normIA(d.forma)) ? normIA(d.forma) : "debito";
+      const sit = normIA(d.situacao);
+      p.situacao = (sit === "agendar" || sit === "pendente" || sit === "agendado") ? "agendar" : "pago";
+
+      // Entrada nunca é compra no crédito
+      if (p.tipo === "entrada" && p.forma === "credito") p.forma = "debito";
+
+      // No crédito, só cartões entram na escolha
+      const universo = p.forma === "credito" ? contas.filter(b => b.temCartao) : contas;
+      if (p.forma === "credito" && !universo.length) {
+        return { erro: "Não há nenhum cartão de crédito cadastrado. Explique que ele precisa marcar 'Este banco tem cartão de crédito' ao editar o banco, informando limite, fechamento e vencimento." };
+      }
+
+      const conta = acharContaIA(d.conta, universo);
+      p.contaId = conta ? conta.id : (universo.length === 1 ? universo[0].id : "");
+      p.categoria = p.tipo === "entrada" ? "Entrada" : (acharCategoriaIA(d.categoria) || "");
+
+      const ehEntrada = p.tipo === "entrada";
+      const agendado = p.situacao === "agendar";
+      const titulo = ehEntrada
+        ? (agendado ? "Entrada a receber" : "Nova entrada")
+        : (agendado ? "Nova conta a pagar" : "Novo gasto");
+
+      const campos = [
+        { campo: "descricao", rotulo: ehEntrada ? "De onde veio" : "O que foi", tipo: "texto",
+          valor: p.descricao, obrigatorio: true, dica: ehEntrada ? "Ex: Salário" : "Ex: Mercado" },
+        { campo: "valor", rotulo: "Valor", tipo: "numero", valor: p.valor || "", obrigatorio: true },
+        { campo: "conta", rotulo: p.forma === "credito" ? "Cartão" : "Conta", tipo: "select",
+          opcoes: opcoesContasIA(universo), valor: p.contaId, obrigatorio: true },
+        { campo: "data", rotulo: agendado ? "Vencimento" : "Data", tipo: "data", valor: p.data, obrigatorio: true }
+      ];
+      if (!ehEntrada) {
+        campos.push({
+          campo: "categoria", rotulo: "Categoria", tipo: "select",
+          opcoes: [{ v: "", t: "Escolher automaticamente" }].concat(
+            todasCategorias().map(c => ({ v: c, t: c }))
+          ),
+          valor: p.categoria, obrigatorio: false
+        });
+      }
+
+      return {
+        titulo,
+        botao: agendado ? "Agendar" : (ehEntrada ? "Salvar entrada" : "Salvar gasto"),
+        dados: p,
+        campos,
+        faltando: campos.filter(c => c.obrigatorio && !c.valor).map(c => c.campo)
+      };
+    },
+
+    async executar(p) {
+      const conta = (state.bancos || []).find(b => b.id === p.contaId);
+      if (!conta) return { ok: false, mensagem: "Não encontrei essa conta." };
+
+      const pendente = p.situacao === "agendar";
+      const ehCredito = p.forma === "credito";
+
+      let categoria = p.categoria;
+      if (p.tipo === "entrada") categoria = "Entrada";
+      else if (!categoria) categoria = await categorizarComIA(p.descricao);
+
+      // As mesmas travas do formulário: limite do cartão e saldo da conta
+      if (ehCredito) {
+        const disp = limiteDisponivel(p.contaId);
+        if (disp != null && p.valor > disp) {
+          return { ok: false, mensagem: `Limite insuficiente no ${conta.nome}: disponível ${fmtMoeda(disp)} e a compra é de ${fmtMoeda(p.valor)}.` };
+        }
+      } else if (!pendente && p.tipo === "gasto") {
+        const saldo = calcularSaldoBanco(p.contaId);
+        if (p.valor > saldo + 0.005) {
+          return { ok: false, mensagem: `Saldo insuficiente em ${conta.nome}: o saldo é ${fmtMoeda(saldo)} e o gasto é de ${fmtMoeda(p.valor)}. Ele pode transferir de outra conta antes, ou agendar esse gasto em vez de marcá-lo como pago.` };
+        }
+      }
+
+      if (ehCredito && p.tipo === "gasto" && !pendente) {
+        await lancarCompraCredito(
+          { descricao: p.descricao, valor: p.valor, categoria },
+          p.contaId, p.data, p.parcelas
+        );
+      } else {
+        const novo = await dbInsert("movimentos", {
+          descricao: p.descricao, conta_id: p.contaId, data: p.data,
+          valor: p.valor, tipo: p.tipo, categoria,
+          status: pendente ? "pendente" : "pago",
+          vencimento: pendente ? p.data : null,
+          pago_em: pendente ? null : p.data,
+          forma_pagamento: p.forma
+        });
+        state.movimentos.push({
+          id: novo.id, descricao: novo.descricao, bancoId: novo.conta_id, data: novo.data,
+          valor: Number(novo.valor), tipo: novo.tipo, categoria: novo.categoria,
+          status: novo.status, vencimento: novo.vencimento, pagoEm: novo.pago_em,
+          formaPagamento: novo.forma_pagamento || p.forma
+        });
+      }
+
+      renderTudo();
+
+      const rotulo = p.tipo === "entrada"
+        ? (pendente ? "Entrada agendada" : "Entrada registrada")
+        : (pendente ? "Conta a pagar agendada" : "Gasto registrado");
+      const recibo = [
+        { rotulo: p.tipo === "entrada" ? "Entrada" : "Gasto", valor: p.descricao },
+        { rotulo: "Valor", valor: fmtMoeda(p.valor) },
+        { rotulo: p.forma === "credito" ? "Cartão" : "Conta", valor: conta.nome },
+        { rotulo: "Categoria", valor: categoria },
+        { rotulo: pendente ? "Vence em" : "Data", valor: formatarDataBR(p.data) }
+      ];
+      if (ehCredito && p.parcelas > 1) recibo.push({ rotulo: "Parcelas", valor: `${p.parcelas}x` });
+
+      return {
+        ok: true,
+        titulo: rotulo,
+        recibo,
+        mensagem: `${rotulo}: ${p.descricao}, ${fmtMoeda(p.valor)}, conta ${conta.nome}, categoria ${categoria}, data ${formatarDataBR(p.data)}. ` +
+                  `Saldo dessa conta agora: ${fmtMoeda(calcularSaldoBanco(p.contaId))}.`
+      };
+    }
+  },
+
+  marcar_como_pago: {
+    descricao:
+      "Dá baixa numa conta que estava agendada: marca o lançamento pendente como pago (ou o recebimento como recebido). Use quando o usuário disser que pagou ou recebeu algo que já estava agendado no app.",
+    parametros: {
+      type: "object",
+      properties: {
+        descricao: { type: "string", description: "Nome ou parte do nome da conta paga, ex: luz, aluguel, Netflix" },
+        valor: { type: "number", description: "Valor, se ele disser. Ajuda a achar o lançamento certo quando há vários parecidos." }
+      },
+      required: ["descricao"]
+    },
+
+    preparar(d) {
+      const pendentes = (state.movimentos || []).filter(m => (m.status || "pago") === "pendente");
+      if (!pendentes.length) {
+        return { erro: "Não há nenhuma conta agendada em aberto no app. Explique que só dá para dar baixa no que foi agendado antes, e que um gasto já feito ele pode simplesmente registrar." };
+      }
+
+      // Escolha vinda da telinha
+      const escolhido = d.id ? pendentes.find(m => String(m.id) === String(d.id)) : null;
+      if (escolhido) {
+        return {
+          titulo: escolhido.tipo === "entrada" ? "Confirmar recebimento" : "Dar baixa",
+          botao: "Confirmar",
+          dados: { id: escolhido.id },
+          campos: [{
+            campo: "id", rotulo: "Lançamento", tipo: "select",
+            opcoes: pendentes.map(m => ({ v: m.id, t: `${m.descricao} · ${fmtMoeda(m.valor)}` })),
+            valor: escolhido.id, obrigatorio: true
+          }],
+          faltando: []
+        };
+      }
+
+      const alvo = normIA(d.descricao);
+      let cand = pendentes;
+      if (alvo) {
+        cand = pendentes.filter(m => {
+          const n = normIA(m.descricao);
+          return n.includes(alvo) || (alvo.length >= 3 && alvo.includes(n));
+        });
+      }
+
+      const v = valorIA(d.valor);
+      if (v && cand.length > 1) {
+        const porValor = cand.filter(m => Math.abs(Number(m.valor) - v) < 0.005);
+        if (porValor.length) cand = porValor;
+      }
+
+      if (!cand.length) {
+        const rec = (state.recorrencias || []).find(r => alvo && normIA(r.descricao).includes(alvo));
+        if (rec) {
+          return { erro: `"${rec.descricao}" é um gasto fixo (recorrência), não uma conta agendada avulsa. Explique que a baixa dele é feita na tela Gastos Fixos, no botão Pagar da ocorrência do mês — é lá porque o valor costuma mudar de um mês para o outro.` };
+        }
+        const abertas = pendentes.slice(0, 8).map(m => `${m.descricao} (${fmtMoeda(m.valor)}, vence ${formatarDataBR(m.vencimento || m.data)})`).join("; ");
+        return { erro: `Não achei nenhuma conta agendada com esse nome. As que estão em aberto são: ${abertas}. Mostre essa lista para ele escolher.` };
+      }
+
+      const unico = cand.length === 1 ? cand[0] : null;
+      return {
+        titulo: unico && unico.tipo === "entrada" ? "Confirmar recebimento" : "Dar baixa",
+        botao: "Confirmar",
+        dados: { id: unico ? unico.id : "" },
+        campos: [{
+          campo: "id", rotulo: "Qual delas?", tipo: "select",
+          opcoes: cand.map(m => ({ v: m.id, t: `${m.descricao} · ${fmtMoeda(m.valor)} · vence ${formatarDataBR(m.vencimento || m.data)}` })),
+          valor: unico ? unico.id : "", obrigatorio: true
+        }],
+        faltando: unico ? [] : ["id"]
+      };
+    },
+
+    async executar(p) {
+      const m = (state.movimentos || []).find(x => String(x.id) === String(p.id));
+      if (!m) return { ok: false, mensagem: "Esse lançamento não está mais na lista." };
+      if ((m.status || "pago") !== "pendente") {
+        return { ok: false, mensagem: `"${m.descricao}" já estava marcado como pago.` };
+      }
+
+      const hoje = hojeISO();
+      await dbUpdate("movimentos", m.id, { status: "pago", pago_em: hoje, data: hoje });
+      m.status = "pago";
+      m.pagoEm = hoje;
+      m.data = hoje;            // regime de caixa: entra no dia do pagamento
+      renderTudo();
+
+      const conta = (state.bancos || []).find(b => b.id === m.bancoId);
+      const ehEntrada = m.tipo === "entrada";
+      return {
+        ok: true,
+        titulo: ehEntrada ? "Recebimento confirmado" : "Pagamento registrado",
+        recibo: [
+          { rotulo: ehEntrada ? "Recebido" : "Pago", valor: m.descricao },
+          { rotulo: "Valor", valor: fmtMoeda(m.valor) },
+          { rotulo: "Conta", valor: conta ? conta.nome : "—" },
+          { rotulo: "Data", valor: formatarDataBR(hoje) }
+        ],
+        mensagem: `${ehEntrada ? "Recebimento" : "Pagamento"} de ${m.descricao} no valor de ${fmtMoeda(m.valor)} confirmado hoje` +
+                  (conta ? ` na conta ${conta.nome}` : "") +
+                  `. Saldo dessa conta agora: ${fmtMoeda(calcularSaldoBanco(m.bancoId))}.`
+      };
+    }
+  },
+
+  criar_transferencia: {
+    descricao:
+      "Move dinheiro entre duas contas do próprio usuário. Use quando ele disser para passar, transferir ou mandar dinheiro de uma conta dele para outra. Não serve para Pix a outra pessoa — isso é um gasto.",
+    parametros: {
+      type: "object",
+      properties: {
+        origem: { type: "string", description: "Conta de onde o dinheiro sai" },
+        destino: { type: "string", description: "Conta para onde o dinheiro vai" },
+        valor: { type: "number", description: "Valor em reais" },
+        data: { type: "string", description: "AAAA-MM-DD, ou hoje / ontem. Padrão: hoje." },
+        descricao: { type: "string", description: "Observação curta, opcional" }
+      },
+      required: ["valor"]
+    },
+
+    preparar(d) {
+      const contas = state.bancos || [];
+      if (contas.length < 2) {
+        return { erro: "O usuário tem menos de duas contas cadastradas, então não há como transferir. Explique que transferência é entre duas contas dele, e que ele pode cadastrar a outra em Adicionar Banco." };
+      }
+
+      const origem = acharContaIA(d.origem, contas);
+      const destino = acharContaIA(d.destino, contas);
+      const p = {
+        origemId: origem ? origem.id : "",
+        destinoId: destino ? destino.id : "",
+        valor: valorIA(d.valor),
+        data: resolverDataIA(d.data),
+        descricao: String(d.descricao == null ? "" : d.descricao).trim().slice(0, 120)
+      };
+
+      const campos = [
+        { campo: "origem", rotulo: "Sai de", tipo: "select", opcoes: opcoesContasIA(contas), valor: p.origemId, obrigatorio: true },
+        { campo: "destino", rotulo: "Vai para", tipo: "select", opcoes: opcoesContasIA(contas), valor: p.destinoId, obrigatorio: true },
+        { campo: "valor", rotulo: "Valor", tipo: "numero", valor: p.valor || "", obrigatorio: true },
+        { campo: "data", rotulo: "Data", tipo: "data", valor: p.data, obrigatorio: true }
+      ];
+
+      return {
+        titulo: "Transferência entre contas",
+        botao: "Transferir",
+        dados: p,
+        campos,
+        faltando: campos.filter(c => c.obrigatorio && !c.valor).map(c => c.campo)
+      };
+    },
+
+    async executar(p) {
+      const origem = (state.bancos || []).find(b => b.id === p.origemId);
+      const destino = (state.bancos || []).find(b => b.id === p.destinoId);
+      if (!origem || !destino) return { ok: false, mensagem: "Não encontrei uma das contas." };
+      if (origem.id === destino.id) {
+        return { ok: false, mensagem: "A conta de origem e a de destino são a mesma. Pergunte a ele qual é a conta de destino." };
+      }
+
+      const saldo = calcularSaldoBanco(origem.id);
+      if (p.valor > saldo + 0.005) {
+        return { ok: false, mensagem: `Saldo insuficiente em ${origem.nome}: tem ${fmtMoeda(saldo)} e a transferência é de ${fmtMoeda(p.valor)}.` };
+      }
+
+      const novo = await dbInsert("transferencias", {
+        conta_origem: origem.id, conta_destino: destino.id,
+        valor: p.valor, data: p.data, descricao: p.descricao
+      });
+      state.transferencias.push({
+        id: novo.id, origem: novo.conta_origem, destino: novo.conta_destino,
+        valor: Number(novo.valor), data: novo.data, descricao: novo.descricao || ""
+      });
+      renderTudo();
+
+      return {
+        ok: true,
+        titulo: "Transferência feita",
+        recibo: [
+          { rotulo: "Valor", valor: fmtMoeda(p.valor) },
+          { rotulo: "Sai de", valor: `${origem.nome} · ${fmtMoeda(calcularSaldoBanco(origem.id))}` },
+          { rotulo: "Vai para", valor: `${destino.nome} · ${fmtMoeda(calcularSaldoBanco(destino.id))}` },
+          { rotulo: "Data", valor: formatarDataBR(p.data) }
+        ],
+        mensagem: `Transferência de ${fmtMoeda(p.valor)} de ${origem.nome} para ${destino.nome} em ${formatarDataBR(p.data)}. ` +
+                  `${origem.nome} ficou com ${fmtMoeda(calcularSaldoBanco(origem.id))} e ${destino.nome} com ${fmtMoeda(calcularSaldoBanco(destino.id))}. O saldo total não muda.`
+      };
+    }
+  },
+
+  definir_limite: {
+    descricao:
+      "Cria ou ajusta o limite de gasto mensal de uma categoria (as Metas do app). Use quando o usuário disser que quer gastar no máximo tanto com alguma coisa, ou pedir para mudar um limite que já existe.",
+    parametros: {
+      type: "object",
+      properties: {
+        categoria: { type: "string", description: "Categoria do limite, ex: Alimentação" },
+        limite: { type: "number", description: "Valor máximo por mês, em reais" }
+      },
+      required: ["limite"]
+    },
+
+    preparar(d) {
+      const p = {
+        categoria: acharCategoriaIA(d.categoria) || "",
+        limite: valorIA(d.limite)
+      };
+      const campos = [
+        { campo: "categoria", rotulo: "Categoria", tipo: "select",
+          opcoes: todasCategorias().map(c => ({ v: c, t: c })), valor: p.categoria, obrigatorio: true },
+        { campo: "limite", rotulo: "Máximo por mês", tipo: "numero", valor: p.limite || "", obrigatorio: true }
+      ];
+      const jaTem = p.categoria && (state.metas || []).some(m => m.categoria === p.categoria);
+      return {
+        titulo: jaTem ? "Ajustar limite" : "Novo limite mensal",
+        botao: jaTem ? "Ajustar" : "Criar limite",
+        dados: p,
+        campos,
+        faltando: campos.filter(c => c.obrigatorio && !c.valor).map(c => c.campo)
+      };
+    },
+
+    async executar(p) {
+      const idx = (state.metas || []).findIndex(m => m.categoria === p.categoria);
+      let acao;
+      if (idx >= 0) {
+        const att = await dbUpdate("metas", state.metas[idx].id, { limite: p.limite });
+        state.metas[idx].limite = Number(att.limite);
+        acao = "ajustado";
+      } else {
+        const maximo = limitesAtuais().metas;
+        if ((state.metas || []).length >= maximo) {
+          return { ok: false, mensagem: `O plano dele permite no máximo ${maximo} limites e ele já usou todos. Explique que nos planos pagos não há esse teto.` };
+        }
+        const novo = await dbInsert("metas", { categoria: p.categoria, limite: p.limite });
+        state.metas.push({ id: novo.id, categoria: novo.categoria, limite: Number(novo.limite) });
+        acao = "criado";
+      }
+      renderTudo();
+
+      // Quanto já foi gasto nessa categoria no mês corrente
+      const mes = hojeISO().slice(0, 7);
+      const gasto = (state.movimentos || [])
+        .filter(m => m.tipo === "gasto" && m.categoria === p.categoria && (m.data || "").slice(0, 7) === mes && (m.status || "pago") === "pago")
+        .reduce((s, m) => s + Number(m.valor || 0), 0);
+
+      return {
+        ok: true,
+        titulo: acao === "criado" ? "Limite criado" : "Limite ajustado",
+        recibo: [
+          { rotulo: "Categoria", valor: p.categoria },
+          { rotulo: "Máximo por mês", valor: fmtMoeda(p.limite) },
+          { rotulo: "Já gasto no mês", valor: fmtMoeda(gasto) }
+        ],
+        mensagem: `Limite de ${p.categoria} ${acao} em ${fmtMoeda(p.limite)} por mês. Neste mês ele já gastou ${fmtMoeda(gasto)} nessa categoria, ou seja, ${gasto > p.limite ? "já passou do limite" : `ainda cabem ${fmtMoeda(p.limite - gasto)}`}.`
+      };
+    }
+  }
+
+};
+
+/* O que mandamos para a IA como ferramentas disponíveis */
+function esquemaAcoesIA() {
+  return Object.keys(ACOES_IA).map(nome => ({
+    nome: nome,
+    descricao: ACOES_IA[nome].descricao,
+    parametros: ACOES_IA[nome].parametros
+  }));
+}
+
+/* ─── A telinha de confirmação ──────────────────────────────
+   Só aparece quando falta alguma informação. Mostra tudo que
+   vai ser salvo (não só o que faltou), para ele conferir e
+   corrigir antes. Resolve com os valores escolhidos, ou null
+   se ele cancelar. */
+function pedirConfirmacaoIA(prep) {
+  return new Promise(resolve => {
+    const lista = document.getElementById("iaChatMensagens");
+    if (!lista) { resolve(null); return; }
+
+    const msg = document.createElement("div");
+    msg.className = "ia-msg ia-msg-ia ia-acao-msg";
+
+    const card = document.createElement("div");
+    card.className = "ia-acao";
+
+    const topo = document.createElement("div");
+    topo.className = "ia-acao-topo";
+    topo.innerHTML =
+      '<span class="ia-acao-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>' +
+      '<span class="ia-acao-titulo">' + esc(prep.titulo || "Confirme os dados") + '</span>';
+    card.appendChild(topo);
+
+    const corpo = document.createElement("div");
+    corpo.className = "ia-acao-campos";
+    const controles = {};
+
+    (prep.campos || []).forEach(c => {
+      const linha = document.createElement("label");
+      linha.className = "ia-acao-campo";
+      if ((prep.faltando || []).includes(c.campo)) linha.classList.add("ia-acao-falta");
+
+      const rot = document.createElement("span");
+      rot.className = "ia-acao-rotulo";
+      rot.textContent = c.rotulo;
+      linha.appendChild(rot);
+
+      let el;
+      if (c.tipo === "select") {
+        el = document.createElement("select");
+        (c.opcoes || []).forEach(o => {
+          const op = document.createElement("option");
+          op.value = o.v;
+          op.textContent = o.t;
+          el.appendChild(op);
+        });
+        el.value = c.valor == null ? "" : c.valor;
+      } else {
+        el = document.createElement("input");
+        el.type = c.tipo === "numero" ? "number" : (c.tipo === "data" ? "date" : "text");
+        if (c.tipo === "numero") { el.step = "0.01"; el.min = "0"; el.inputMode = "decimal"; }
+        if (c.dica) el.placeholder = c.dica;
+        el.value = c.valor == null ? "" : c.valor;
+      }
+      el.className = "ia-acao-controle";
+      linha.appendChild(el);
+      controles[c.campo] = el;
+      corpo.appendChild(linha);
+    });
+
+    card.appendChild(corpo);
+
+    const aviso = document.createElement("p");
+    aviso.className = "ia-acao-aviso";
+    aviso.hidden = true;
+    card.appendChild(aviso);
+
+    const botoes = document.createElement("div");
+    botoes.className = "ia-acao-botoes";
+    const btnCancelar = document.createElement("button");
+    btnCancelar.type = "button";
+    btnCancelar.className = "ia-acao-btn";
+    btnCancelar.textContent = "Cancelar";
+    const btnSalvar = document.createElement("button");
+    btnSalvar.type = "button";
+    btnSalvar.className = "ia-acao-btn ia-acao-btn-primario";
+    btnSalvar.textContent = prep.botao || "Salvar";
+    botoes.appendChild(btnCancelar);
+    botoes.appendChild(btnSalvar);
+    card.appendChild(botoes);
+
+    msg.appendChild(card);
+    lista.appendChild(msg);
+    lista.scrollTop = lista.scrollHeight;
+
+    // Foca o primeiro campo que estava faltando
+    const primeiro = (prep.faltando || [])[0];
+    if (primeiro && controles[primeiro]) {
+      setTimeout(() => { try { controles[primeiro].focus(); } catch (e) {} }, 60);
+    }
+
+    let respondido = false;
+    const encerrar = (valores, textoFinal) => {
+      if (respondido) return;
+      respondido = true;
+      Object.keys(controles).forEach(k => { controles[k].disabled = true; });
+      botoes.remove();
+      aviso.hidden = true;
+      const fim = document.createElement("p");
+      fim.className = "ia-acao-fim";
+      fim.textContent = textoFinal;
+      card.appendChild(fim);
+      lista.scrollTop = lista.scrollHeight;
+      resolve(valores);
+    };
+
+    btnCancelar.addEventListener("click", () => encerrar(null, "Cancelado."));
+
+    btnSalvar.addEventListener("click", () => {
+      const vazios = (prep.campos || [])
+        .filter(c => c.obrigatorio && !String(controles[c.campo].value || "").trim())
+        .map(c => c.rotulo);
+      if (vazios.length) {
+        aviso.hidden = false;
+        aviso.textContent = vazios.length === 1
+          ? `Falta preencher: ${vazios[0]}.`
+          : `Faltam preencher: ${vazios.join(", ")}.`;
+        (prep.campos || []).forEach(c => {
+          const linha = controles[c.campo].parentElement;
+          if (c.obrigatorio && !String(controles[c.campo].value || "").trim()) linha.classList.add("ia-acao-falta");
+          else linha.classList.remove("ia-acao-falta");
+        });
+        return;
+      }
+      const valores = {};
+      Object.keys(controles).forEach(k => { valores[k] = controles[k].value; });
+      encerrar(valores, "Confirmado.");
+    });
+  });
+}
+
+/* O comprovante que aparece no chat depois que a ação foi feita */
+function mostrarReciboIA(resultado) {
+  const lista = document.getElementById("iaChatMensagens");
+  if (!lista || !resultado || !resultado.recibo) return;
+
+  const msg = document.createElement("div");
+  msg.className = "ia-msg ia-msg-ia ia-acao-msg";
+
+  const card = document.createElement("div");
+  card.className = "ia-acao ia-acao-feito";
+
+  const topo = document.createElement("div");
+  topo.className = "ia-acao-topo";
+  topo.innerHTML =
+    '<span class="ia-acao-icone ia-acao-icone-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>' +
+    '<span class="ia-acao-titulo">' + esc(resultado.titulo || "Pronto") + '</span>';
+  card.appendChild(topo);
+
+  const corpo = document.createElement("div");
+  corpo.className = "ia-acao-recibo";
+  resultado.recibo.forEach(item => {
+    const linha = document.createElement("div");
+    linha.className = "ia-acao-recibo-linha";
+    const r = document.createElement("span");
+    r.className = "ia-acao-recibo-rot";
+    r.textContent = item.rotulo;
+    const v = document.createElement("span");
+    v.className = "ia-acao-recibo-val";
+    v.textContent = item.valor;
+    linha.appendChild(r);
+    linha.appendChild(v);
+    corpo.appendChild(linha);
+  });
+  card.appendChild(corpo);
+
+  msg.appendChild(card);
+  lista.appendChild(msg);
+  lista.scrollTop = lista.scrollHeight;
+}
+
+/* Executa o que a IA pediu e devolve, em texto, o que aconteceu —
+   é esse texto que volta para ela escrever a confirmação. */
+async function executarAcaoIA(acao) {
+  const def = ACOES_IA[acao && acao.nome];
+  if (!def) {
+    return "Essa ação não existe no app. Explique ao usuário que você ainda não consegue fazer isso por ele e diga o caminho na tela.";
+  }
+
+  let brutos = acao.dados || {};
+  let prep;
+  try {
+    prep = def.preparar(brutos);
+  } catch (e) {
+    console.error("Falha ao preparar ação da IA:", e);
+    return "Não consegui montar essa ação. Peça desculpas e sugira que ele faça pela tela.";
+  }
+  if (prep.erro) return "NÃO FOI POSSÍVEL. " + prep.erro;
+
+  // Faltou alguma informação: pergunta na telinha, no máximo duas vezes
+  let voltas = 0;
+  while (prep.faltando && prep.faltando.length && voltas < 2) {
+    voltas++;
+    const escolhido = await pedirConfirmacaoIA(prep);
+    if (!escolhido) {
+      return "O usuário cancelou na tela de confirmação. Nada foi salvo. Responda com uma frase curta dizendo que não salvou e que é só pedir de novo quando quiser.";
+    }
+    brutos = Object.assign({}, brutos, escolhido);
+    try {
+      prep = def.preparar(brutos);
+    } catch (e) {
+      return "Não consegui validar os dados preenchidos. Peça desculpas e sugira fazer pela tela.";
+    }
+    if (prep.erro) return "NÃO FOI POSSÍVEL. " + prep.erro;
+  }
+  if (prep.faltando && prep.faltando.length) {
+    return "Ainda faltam informações e não deu para salvar. Pergunte a ele o que faltou, em uma frase curta.";
+  }
+
+  try {
+    const r = await def.executar(prep.dados);
+    if (r && r.ok) {
+      mostrarReciboIA(r);
+      return "FEITO COM SUCESSO. " + r.mensagem;
+    }
+    return "NÃO FOI POSSÍVEL. " + ((r && r.mensagem) || "Erro desconhecido.");
+  } catch (e) {
+    console.error("Falha ao executar ação da IA:", e);
+    if (typeof tratarErro === "function") tratarErro(e);
+    return "NÃO FOI POSSÍVEL. Deu erro ao salvar no servidor. Peça a ele para tentar de novo em instantes.";
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
    CHAT DE IA — Assistente FAZ (versão limpa)
    ═══════════════════════════════════════════════════════════ */
 (function () {
@@ -9712,54 +10459,105 @@ initSino();
     }, 190);
   }
 
-  // Envia a pergunta para a IA
+  // Envia a pergunta para a IA.
+  // Se ela pedir para FAZER algo, quem executa é o app (ACOES_IA) — e o
+  // resultado volta para ela, que então confirma com os números certos.
+  // Cada volta dessas faz parte da MESMA pergunta e não consome outra.
   async function perguntar(pergunta) {
     addMsg(pergunta, "usuario");
-    const carregando = criarIndicadorDigitando();
+    let carregando = criarIndicadorDigitando();
+    const tirarCarregando = function () {
+      if (carregando) { carregando.remove(); carregando = null; }
+    };
+
     try {
-      let resumo = "";
-      try { resumo = montarResumoFinanceiro(); } catch (e) { resumo = ""; }
       const token = localStorage.getItem("fp_token") || "";
       // Envia o histórico ANTES de adicionar a pergunta atual (ela vai separada)
       const historicoEnvio = historicoConversa.slice();
-      const resp = await fetch("/api/chat-ia", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ pergunta: pergunta, resumoFinanceiro: resumo, token: token, historico: historicoEnvio })
-      });
       // Registra a pergunta no histórico
       historicoConversa.push({ role: "user", content: pergunta });
-      const dados = await resp.json();
-      if (carregando) carregando.remove();
 
-      if (!resp.ok) {
-        // Limite atingido
-        if (dados.erro === "limite") {
-          const div = addMsg(dados.motivo || "Você atingiu o limite de perguntas.", "ia");
-          // Não tira o usuário do chat: oferece o caminho, ele decide
-          if (dados.plano === "premium" && div) {
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "ia-btn-planos";
-            btn.textContent = "Ver planos";
-            btn.onclick = function () {
-              minimizar();
-              irParaPlanos("Limite de perguntas", "No Master você tem 100 perguntas por mês.");
-            };
-            div.appendChild(btn);
+      const extras = [];       // o vai e vem das ações desta pergunta
+      let resposta = "";
+      let voltas = 0;
+
+      while (voltas < 4) {
+        voltas++;
+
+        // Refaz a fotografia a cada volta: depois de uma ação os números
+        // mudaram, e é com os novos que ela vai confirmar.
+        let resumo = "";
+        try { resumo = montarResumoFinanceiro(); } catch (e) { resumo = ""; }
+
+        const corpo = {
+          pergunta: pergunta,
+          resumoFinanceiro: resumo,
+          token: token,
+          historico: historicoEnvio
+        };
+        if (typeof esquemaAcoesIA === "function") corpo.acoes = esquemaAcoesIA();
+        if (extras.length) { corpo.continuacao = true; corpo.extras = extras; }
+
+        const resp = await fetch("/api/chat-ia", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(corpo)
+        });
+        const dados = await resp.json();
+
+        if (!resp.ok) {
+          tirarCarregando();
+          // Limite atingido
+          if (dados.erro === "limite") {
+            const div = addMsg(dados.motivo || "Você atingiu o limite de perguntas.", "ia");
+            // Não tira o usuário do chat: oferece o caminho, ele decide
+            if (dados.plano === "premium" && div) {
+              const btn = document.createElement("button");
+              btn.type = "button";
+              btn.className = "ia-btn-planos";
+              btn.textContent = "Ver planos";
+              btn.onclick = function () {
+                minimizar();
+                irParaPlanos("Limite de perguntas", "No Master você tem 100 perguntas por mês.");
+              };
+              div.appendChild(btn);
+            }
+            return;
           }
+          // Precisa de upgrade (básico)
+          if (dados.erro === "upgrade") {
+            addMsg(dados.motivo || "Recurso disponível nos planos pagos.", "ia");
+            return;
+          }
+          addMsg(dados.erro || "Desculpe, não consegui responder agora. Tente de novo.", "ia");
           return;
         }
-        // Precisa de upgrade (básico)
-        if (dados.erro === "upgrade") {
-          addMsg(dados.motivo || "Recurso disponível nos planos pagos.", "ia");
-          return;
+
+        // Atualiza o contador de usos
+        if (dados.usos) {
+          atualizarContadorIA(dados.usos.usados, dados.usos.limite);
         }
-        addMsg(dados.erro || "Desculpe, não consegui responder agora. Tente de novo.", "ia");
-        return;
+
+        // A IA pediu para fazer algo: o app faz e volta com o resultado
+        if (dados.acao && typeof executarAcaoIA === "function") {
+          tirarCarregando();
+          if (dados.resposta) addMsg(dados.resposta, "ia");
+          const resultado = await executarAcaoIA(dados.acao);
+          extras.push({ role: "assistant", content: dados.conteudoIA });
+          extras.push({
+            role: "user",
+            content: [{ type: "tool_result", tool_use_id: dados.acao.id, content: resultado }]
+          });
+          carregando = criarIndicadorDigitando();
+          continue;
+        }
+
+        resposta = dados.resposta || "Não consegui gerar uma resposta.";
+        break;
       }
 
-      const resposta = dados.resposta || "Não consegui gerar uma resposta.";
+      tirarCarregando();
+      if (!resposta) resposta = "Prontinho. Se quiser, posso conferir como ficou o seu saldo.";
       addMsg(resposta, "ia");
 
       // Se o chat estiver minimizado/fechado, notifica no sino que a
@@ -9783,12 +10581,8 @@ initSino();
         historicoConversa.splice(0, historicoConversa.length - 12);
       }
 
-      // Atualiza o contador de usos
-      if (dados.usos) {
-        atualizarContadorIA(dados.usos.usados, dados.usos.limite);
-      }
     } catch (e) {
-      if (carregando) carregando.remove();
+      tirarCarregando();
       addMsg("Erro de conexão. Verifique sua internet e tente de novo.", "ia");
     }
   }

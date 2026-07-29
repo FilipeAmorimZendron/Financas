@@ -69,7 +69,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { pergunta, resumoFinanceiro, token, historico } = req.body || {};
+    const { pergunta, resumoFinanceiro, token, historico, acoes, extras, continuacao } = req.body || {};
 
     if (!pergunta || typeof pergunta !== "string") {
       return res.status(400).json({ erro: "Pergunta inválida." });
@@ -103,7 +103,12 @@ export default async function handler(req, res) {
       let resetEm = perfil.ia_reset_em ? new Date(perfil.ia_reset_em) : new Date();
       const agora = new Date();
 
-      if (plano === "master") {
+      if (continuacao) {
+        // Esta chamada é a volta de uma AÇÃO que a IA já executou — faz parte
+        // da mesma pergunta, que já foi cobrada. Não conta de novo e não pode
+        // esbarrar no limite, senão a ação aconteceria sem a IA confirmar.
+        usosInfo = { usados: usos, limite: limite, plano: plano };
+      } else if (plano === "master") {
         // Master: se a cota zerou e já passaram 3h desde o reset, recarrega
         if (usos >= limite) {
           const horasPassadas = (agora - resetEm) / (1000 * 60 * 60);
@@ -136,10 +141,12 @@ export default async function handler(req, res) {
         }
       }
 
-      // Consome uma pergunta
-      usos += 1;
-      await atualizarUso(userId, serviceKey, usos, resetEm.toISOString());
-      usosInfo = { usados: usos, limite: limite, plano: plano };
+      // Consome uma pergunta (só na primeira volta)
+      if (!continuacao) {
+        usos += 1;
+        await atualizarUso(userId, serviceKey, usos, resetEm.toISOString());
+        usosInfo = { usados: usos, limite: limite, plano: plano };
+      }
     }
 
     // ─── Chama a IA ───
@@ -147,10 +154,22 @@ export default async function handler(req, res) {
       "Você é o Assistente FAZ, o assistente financeiro inteligente do app FAZ Finanças, um aplicativo brasileiro de finanças pessoais.",
       "Responda sempre em português do Brasil, de forma profissional, clara, acolhedora e fácil de entender.",
       "",
-      "SUAS TRÊS FUNÇÕES:",
-      "1) Responder sobre os dados financeiros do usuário (saldo, gastos, metas, investimentos, cartão, etc.).",
-      "2) Explicar como usar o app FAZ Finanças (como fazer algo, onde fica cada funcionalidade, dúvidas sobre planos e pagamento).",
-      "3) Dar conselhos financeiros úteis (como economizar, organizar, planejar).",
+      "SUAS QUATRO FUNÇÕES:",
+      "1) FAZER as coisas pelo usuário dentro do app, usando as ferramentas disponíveis (registrar um gasto, dar baixa numa conta, transferir, definir um limite).",
+      "2) Responder sobre os dados financeiros do usuário (saldo, gastos, metas, investimentos, cartão, etc.).",
+      "3) Explicar como usar o app FAZ Finanças (como fazer algo, onde fica cada funcionalidade, dúvidas sobre planos e pagamento).",
+      "4) Dar conselhos financeiros úteis (como economizar, organizar, planejar).",
+      "",
+      "════ VOCÊ EXECUTA, NÃO SÓ ENSINA ════",
+      "Quando o usuário PEDE PARA FAZER algo que você tem ferramenta, USE A FERRAMENTA. Nunca responda com um passo a passo de onde clicar para algo que você mesma pode fazer.",
+      "- 'adiciona 500 de gasto no nubank' → use criar_lancamento. NÃO diga 'abra a aba Lançamentos'.",
+      "- 'paguei a conta de luz' → use marcar_como_pago.",
+      "- 'passa 200 da poupança pro nubank' → use criar_transferencia.",
+      "- 'quero gastar no máximo 800 com alimentação' → use definir_limite.",
+      "Preencha só o que o usuário disse. Se ele não disse a conta, a categoria ou a data, DEIXE O CAMPO VAZIO — o app resolve sozinho ou pergunta a ele numa telinha. Nunca invente a conta nem chute o valor.",
+      "Se ele pedir várias coisas de uma vez ('lança 50 de uber e 30 de almoço'), chame a ferramenta uma vez para cada, uma de cada vez.",
+      "Depois que a ferramenta responder, confirme em UMA ou DUAS frases curtas, com o valor em negrito. Não repita a lista de campos nem explique como você fez. Se o resultado disser que não foi possível, explique o motivo com clareza e proponha a saída.",
+      "Ensinar o caminho na tela continua certo para o que você NÃO tem ferramenta (cadastrar um banco novo, importar extrato, criar investimento). Nesses casos, explique o passo a passo normalmente.",
       "",
       "════ COMO O APP FAZ FINANÇAS FUNCIONA ════",
       "",
@@ -226,6 +245,40 @@ export default async function handler(req, res) {
     }
     mensagens.push({ role: "user", content: pergunta });
 
+    // Voltas anteriores desta MESMA pergunta: o que a IA pediu para fazer e o
+    // que o app respondeu depois de fazer. Sem isso ela não sabe o resultado.
+    const TIPOS_OK = ["text", "tool_use", "tool_result"];
+    if (Array.isArray(extras)) {
+      extras.slice(-12).forEach(msg => {
+        if (!msg || (msg.role !== "user" && msg.role !== "assistant")) return;
+        if (!Array.isArray(msg.content)) return;
+        const blocos = msg.content.filter(b => b && TIPOS_OK.includes(b.type));
+        if (blocos.length) mensagens.push({ role: msg.role, content: blocos });
+      });
+    }
+
+    // Ferramentas: o app manda o que ele sabe fazer. Quem executa é o app —
+    // aqui só repassamos a lista para a IA poder escolher.
+    let ferramentas = null;
+    if (Array.isArray(acoes) && acoes.length) {
+      ferramentas = acoes.slice(0, 20).map(a => ({
+        name: String(a.nome || "").slice(0, 64),
+        description: String(a.descricao || "").slice(0, 1200),
+        input_schema: (a.parametros && typeof a.parametros === "object")
+          ? a.parametros
+          : { type: "object", properties: {} }
+      })).filter(f => /^[a-zA-Z0-9_-]+$/.test(f.name));
+      if (!ferramentas.length) ferramentas = null;
+    }
+
+    const corpo = {
+      model: "claude-haiku-4-5",
+      max_tokens: 700,
+      system: systemPrompt,
+      messages: mensagens
+    };
+    if (ferramentas) corpo.tools = ferramentas;
+
     const resposta = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -233,12 +286,7 @@ export default async function handler(req, res) {
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01"
       },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5",
-        max_tokens: 600,
-        system: systemPrompt,
-        messages: mensagens
-      })
+      body: JSON.stringify(corpo)
     });
 
     const dados = await resposta.json();
@@ -253,6 +301,19 @@ export default async function handler(req, res) {
       .map(b => b.text)
       .join("\n")
       .trim();
+
+    // A IA quer FAZER algo: devolvemos o pedido para o app executar e voltar
+    // aqui com o resultado. O conteúdo cru vai junto porque a próxima volta
+    // precisa reapresentá-lo à IA exatamente como veio.
+    const pedido = (dados.content || []).find(b => b.type === "tool_use");
+    if (pedido) {
+      return res.status(200).json({
+        resposta: texto,
+        acao: { id: pedido.id, nome: pedido.name, dados: pedido.input || {} },
+        conteudoIA: dados.content,
+        usos: usosInfo
+      });
+    }
 
     return res.status(200).json({
       resposta: texto || "Não consegui gerar uma resposta.",
