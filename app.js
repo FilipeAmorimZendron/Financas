@@ -9763,21 +9763,26 @@ const ACOES_IA = {
       p.valor = valorIA(d.valor);
       p.descricao = String(d.descricao == null ? "" : d.descricao).trim().slice(0, 120);
       p.data = resolverDataIA(d.data);
-      p.parcelas = Math.min(24, Math.max(1, Math.round(Number(d.parcelas) || 1)));
 
       if (!p.valor) {
-        return { erro: "Não veio o valor. Pergunte a ele quanto foi, numa frase curta, e não invente nada." };
+        return { erro: "Não veio o valor, e você NUNCA deve inventar um. Pergunte a ele quanto foi, numa frase curta. Se ele disse só o que comprou (ex: 'uber'), pergunte quanto custou antes de registrar." };
       }
 
-      const formas = ["debito", "credito", "pix", "dinheiro"];
-      p.forma = formas.includes(normIA(d.forma)) ? normIA(d.forma) : "debito";
+      // A forma de pagamento: se a IA/usuário informou uma válida, respeitamos.
+      // Senão, fica "" (indefinida) — e para GASTO viramos uma pergunta em
+      // botões. Entrada não tem forma de pagamento, então assume débito.
+      const formasValidas = ["debito", "credito", "pix", "dinheiro"];
+      const formaDita = formasValidas.includes(normIA(d.forma)) ? normIA(d.forma) : "";
+      p.forma = formaDita;
+      if (p.tipo === "entrada") p.forma = "debito";
+
       const sit = normIA(d.situacao);
       p.situacao = (sit === "agendar" || sit === "pendente" || sit === "agendado") ? "agendar" : "pago";
 
-      // Entrada nunca é compra no crédito
-      if (p.tipo === "entrada" && p.forma === "credito") p.forma = "debito";
+      // Parcelas só existem no crédito. "avista" = 1; número = parcelado.
+      p.parcelas = Math.min(12, Math.max(1, Math.round(Number(d.parcelas) || 1)));
 
-      // No crédito, só cartões entram na escolha
+      // No crédito, só cartões entram na escolha de conta
       const universo = p.forma === "credito" ? contas.filter(b => b.temCartao) : contas;
       if (p.forma === "credito" && !universo.length) {
         return { erro: "Não há nenhum cartão de crédito cadastrado. Explique que ele precisa marcar 'Este banco tem cartão de crédito' ao editar o banco, informando limite, fechamento e vencimento." };
@@ -9801,10 +9806,62 @@ const ACOES_IA = {
       }
       p.categoria = p.tipo === "entrada" ? "Entrada" : (acharCategoriaIA(d.categoria) || "");
 
-      // ─── O que realmente precisa ser perguntado ───
+      // Entrada sem descrição vira um "Entrada" genérico que ninguém entende
+      // depois. Não há opção fechada para "de onde veio", então isso não é
+      // botão: devolvemos para a IA perguntar em texto. Rede de segurança
+      // para quando a IA esquece de perguntar antes.
+      if (p.tipo === "entrada" && !p.descricao) {
+        return { erro: `Esta entrada de ${fmtMoeda(p.valor)} está sem origem, e um lançamento "Entrada" sem nome fica impossível de entender depois. Pergunte a ele de onde veio esse dinheiro (salário, venda, freela, presente...) e chame a ferramenta de novo com isso na descrição. NÃO invente a origem.` };
+      }
+
+      // ─── O que perguntar, em botões, uma coisa de cada vez ───
+      // A ordem importa: categoria → forma → à vista/parcelado → parcelas →
+      // conta. Assim, escolher "crédito" já abre a próxima pergunta certa.
       const perguntas = [];
 
-      // De onde saiu (ou onde entrou) não dá para chutar: erraria o saldo.
+      // 1. Categoria (só gasto, e só se não deu para deduzir da descrição)
+      if (p.tipo === "gasto" && !p.categoria && !p.descricao) {
+        perguntas.push({
+          campo: "categoria",
+          texto: "Qual a categoria desse gasto?",
+          opcoes: opcoesCategoriasIA()
+        });
+      }
+
+      // 2. Forma de pagamento (só gasto; entrada não tem). Pergunta sempre
+      //    que ele não disser.
+      const temCartaoCadastrado = contas.some(b => b.temCartao);
+      if (p.tipo === "gasto" && !p.forma) {
+        const opcoesForma = [
+          { v: "debito", t: "Débito" },
+          { v: "pix", t: "Pix" },
+          { v: "dinheiro", t: "Dinheiro" }
+        ];
+        // Crédito só faz sentido se houver cartão cadastrado
+        if (temCartaoCadastrado) opcoesForma.splice(1, 0, { v: "credito", t: "Crédito" });
+        perguntas.push({ campo: "forma", texto: "Como você pagou?", opcoes: opcoesForma });
+      }
+
+      // 3. Crédito: à vista ou parcelado? (só se ele não disse as parcelas)
+      if (p.tipo === "gasto" && p.forma === "credito" && !d._parcelamentoConfirmado && !Number(d.parcelas)) {
+        perguntas.push({
+          campo: "_avista",
+          texto: "No crédito, foi à vista ou parcelado?",
+          opcoes: [
+            { v: "avista", t: "À vista" },
+            { v: "parcelado", t: "Parcelado" }
+          ]
+        });
+      }
+
+      // 4. Parcelado: quantas vezes? (botões 2x a 12x)
+      if (p.tipo === "gasto" && p.forma === "credito" && normIA(d._avista) === "parcelado" && p.parcelas < 2) {
+        const botoes = [];
+        for (let i = 2; i <= 12; i++) botoes.push({ v: String(i), t: i + "x" });
+        perguntas.push({ campo: "parcelas", texto: "Em quantas vezes?", opcoes: botoes });
+      }
+
+      // 5. Conta / cartão (não dá para chutar: erraria o saldo)
       if (!p.contaId) {
         perguntas.push({
           campo: "conta",
@@ -9813,24 +9870,6 @@ const ACOES_IA = {
             : (p.tipo === "entrada" ? "Em qual conta esse dinheiro entrou?" : "De qual conta saiu esse gasto?"),
           opcoes: opcoesContasIA(universo)
         });
-      }
-
-      // Categoria: só pergunta quando não há NADA de onde deduzir.
-      // Se ele escreveu o que foi ("mercado"), o app categoriza sozinho.
-      if (p.tipo === "gasto" && !p.categoria && !p.descricao) {
-        perguntas.push({
-          campo: "categoria",
-          texto: "Esse gasto entra em qual categoria?",
-          opcoes: opcoesCategoriasIA()
-        });
-      }
-
-      // Entrada sem descrição vira um "Entrada" genérico que ninguém entende
-      // depois. Não há opção fechada para "de onde veio", então isso não é
-      // botão: devolvemos para a IA perguntar em texto. Rede de segurança
-      // para quando a IA esquece de perguntar antes.
-      if (p.tipo === "entrada" && !p.descricao) {
-        return { erro: `Esta entrada de ${fmtMoeda(p.valor)} está sem origem, e um lançamento "Entrada" sem nome fica impossível de entender depois. Pergunte a ele de onde veio esse dinheiro (salário, venda, freela, presente...) e chame a ferramenta de novo com isso na descrição. NÃO invente a origem.` };
       }
 
       return { dados: p, perguntas: perguntas };
@@ -10322,6 +10361,13 @@ async function executarAcaoIA(acao) {
     // A escolha veio de um toque do usuário: se foi a conta, ela é
     // definitiva e a defesa anti-confusão não deve mais mexer nela.
     if (pergunta.campo === "conta") novos._contaConfirmada = true;
+    // "À vista" encerra o assunto parcelamento (1x). "Parcelado" ainda vai
+    // pedir o número de vezes na próxima pergunta.
+    if (pergunta.campo === "_avista") {
+      novos._parcelamentoConfirmado = true;
+      if (normIA(escolhido) === "avista") novos.parcelas = 1;
+    }
+    if (pergunta.campo === "parcelas") novos._parcelamentoConfirmado = true;
     brutos = Object.assign({}, brutos, novos);
     try {
       prep = def.preparar(brutos);
