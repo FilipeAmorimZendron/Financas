@@ -10313,6 +10313,141 @@ const ACOES_IA = {
                   `. Falta juntar ${fmtMoeda(falta)}.` + dica
       };
     }
+  },
+
+  criar_recorrencia: {
+    descricao:
+      "Cria um GASTO FIXO (recorrência): uma conta que se repete sozinha todo período — aluguel, Netflix, academia, salário, mensalidade. O app passa a lançar o vencimento automaticamente a cada mês (ou dia/ano). Use quando o usuário disser que algo é fixo, mensal, todo mês, toda semana, uma assinatura, ou que se repete. NÃO use criar_lancamento para isso: aquele cria um lançamento único; este cria a regra que se repete.",
+    parametros: {
+      type: "object",
+      properties: {
+        descricao: { type: "string", description: "O que é: Aluguel, Netflix, Academia, Salário. Se ele não disse, pergunte antes." },
+        valor: { type: "number", description: "Valor de cada ocorrência, em reais. Se ele não disse, pergunte antes." },
+        tipo: { type: "string", enum: ["gasto", "entrada"], description: "gasto para contas a pagar que se repetem; entrada para receitas fixas como salário. Padrão: gasto." },
+        frequencia: { type: "string", enum: ["mensal", "anual", "diaria"], description: "De quanto em quanto tempo repete. Padrão: mensal (o mais comum)." },
+        dia: { type: "number", description: "Dia do mês do vencimento (1 a 31), se ele disser ('todo dia 10'). Se não disser, o app usa hoje." },
+        categoria: { type: "string", description: "Categoria do gasto. Deixe vazio para o app deduzir da descrição." }
+      },
+      required: ["descricao", "valor"]
+    },
+
+    preparar(d) {
+      const contas = state.bancos || [];
+      if (!contas.length) {
+        return { erro: "O usuário não tem conta cadastrada, então não dá para criar um gasto fixo. Explique que ele precisa cadastrar o banco primeiro, em Adicionar Banco." };
+      }
+      if (typeof podeUsar === "function" && !podeUsar("recorrencias")) {
+        return { erro: "Gastos fixos são um recurso dos planos pagos e o usuário está no plano gratuito. Explique que cadastrando uma vez o app cuida dos vencimentos, e que isso está no Premium e no Master." };
+      }
+
+      const p = {};
+      p.descricao = String(d.descricao == null ? "" : d.descricao).trim().slice(0, 120);
+      p.valor = valorIA(d.valor);
+      p.tipo = normIA(d.tipo) === "entrada" ? "entrada" : "gasto";
+      const freqs = ["mensal", "anual", "diaria"];
+      p.frequencia = freqs.includes(normIA(d.frequencia)) ? normIA(d.frequencia) : "mensal";
+      p.categoria = p.tipo === "entrada" ? "Entrada" : (acharCategoriaIA(d.categoria) || "");
+
+      if (!p.descricao) {
+        return { erro: "Não veio o que é o gasto fixo. Pergunte o que se repete (ex: aluguel, Netflix) antes de criar." };
+      }
+      if (!p.valor) {
+        return { erro: "Não veio o valor do gasto fixo. Pergunte quanto é cada cobrança, e não invente." };
+      }
+
+      // Dia do vencimento: o que ele disse, senão hoje. Primeiro vencimento é
+      // a próxima ocorrência desse dia (este mês se ainda não passou, senão o
+      // que vier). Para diária/anual, começa hoje.
+      const hoje = hojeISO();
+      let inicio = hoje;
+      const dia = Math.round(Number(d.dia));
+      if (p.frequencia === "mensal" && dia >= 1 && dia <= 31) {
+        const [ano, mes] = hoje.split("-");
+        const diaHoje = Number(hoje.slice(8, 10));
+        const clamp = (a, m, dd) => {
+          const ultimo = new Date(a, m, 0).getDate(); // último dia do mês m (1-based)
+          return `${a}-${String(m).padStart(2, "0")}-${String(Math.min(dd, ultimo)).padStart(2, "0")}`;
+        };
+        if (dia >= diaHoje) inicio = clamp(Number(ano), Number(mes), dia);
+        else {
+          let m = Number(mes) + 1, a = Number(ano);
+          if (m > 12) { m = 1; a++; }
+          inicio = clamp(a, m, dia);
+        }
+      }
+      p.inicio = inicio;
+
+      // Conta: resolve o que a IA mandou; se só há uma, usa ela. Senão pergunta.
+      const conta = acharContaIA(d.conta, contas);
+      p.contaId = conta ? conta.id : (contas.length === 1 ? contas[0].id : "");
+      if (conta && p.descricao && !d._contaConfirmada) {
+        const nc = normIA(conta.nome), nd = normIA(p.descricao);
+        if (nc === nd || nc.includes(nd) || nd.includes(nc)) {
+          p.contaId = contas.length === 1 ? contas[0].id : "";
+        }
+      }
+
+      const perguntas = [];
+      if (!p.contaId) {
+        perguntas.push({
+          campo: "conta",
+          texto: p.tipo === "entrada" ? "Em qual conta cai essa entrada fixa?" : "De qual conta sai esse gasto fixo?",
+          opcoes: opcoesContasIA(contas)
+        });
+      }
+      // Categoria só se for gasto e não deu para deduzir da descrição
+      if (p.tipo === "gasto" && !p.categoria && !p.descricao) {
+        perguntas.push({
+          campo: "categoria",
+          texto: "Qual a categoria desse gasto fixo?",
+          opcoes: opcoesCategoriasIA(),
+          permiteOutra: true,
+          rotuloOutra: "Outra..."
+        });
+      }
+
+      return { dados: p, perguntas: perguntas };
+    },
+
+    async executar(p) {
+      const conta = (state.bancos || []).find(b => b.id === p.contaId);
+      if (!conta) return { ok: false, mensagem: "Não encontrei essa conta." };
+
+      let categoria = p.categoria;
+      if (p.tipo === "entrada") categoria = "Entrada";
+      else if (!categoria) categoria = await categorizarComIA(p.descricao);
+
+      const novo = await dbInsert("recorrencias", {
+        descricao: p.descricao, valor: p.valor, tipo: p.tipo, categoria,
+        conta_id: p.contaId,
+        dia: Number(p.inicio.slice(8, 10)),
+        frequencia: p.frequencia, intervalo: 1, intervalo_unidade: "mes",
+        inicio: p.inicio, fim: null, ativa: true
+      });
+      state.recorrencias.push({
+        id: novo.id, descricao: novo.descricao, valor: Number(novo.valor), tipo: novo.tipo,
+        categoria: novo.categoria, contaId: novo.conta_id, dia: novo.dia,
+        frequencia: novo.frequencia, intervalo: novo.intervalo,
+        intervaloUnidade: novo.intervalo_unidade, inicio: novo.inicio, fim: novo.fim,
+        ativa: novo.ativa !== false
+      });
+      renderTudo();
+
+      const cadaQuanto = p.frequencia === "mensal" ? "todo mês" : (p.frequencia === "anual" ? "todo ano" : "todo dia");
+      return {
+        ok: true,
+        titulo: p.tipo === "entrada" ? "Entrada fixa criada" : "Gasto fixo criado",
+        recibo: [
+          { rotulo: p.tipo === "entrada" ? "Entrada fixa" : "Gasto fixo", valor: p.descricao },
+          { rotulo: "Valor", valor: fmtMoeda(p.valor) },
+          { rotulo: "Repete", valor: cadaQuanto },
+          { rotulo: "Conta", valor: conta.nome },
+          { rotulo: "Categoria", valor: categoria },
+          { rotulo: "1º vencimento", valor: formatarDataBR(p.inicio) }
+        ],
+        mensagem: `Gasto fixo "${p.descricao}" de ${fmtMoeda(p.valor)} criado, repetindo ${cadaQuanto} na conta ${conta.nome}, categoria ${categoria}. O primeiro vencimento é ${formatarDataBR(p.inicio)} e os próximos aparecem sozinhos em Gastos Fixos.`
+      };
+    }
   }
 
 };
