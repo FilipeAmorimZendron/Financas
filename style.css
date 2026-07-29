@@ -603,7 +603,7 @@ button, input, textarea, select {
   position: absolute;
   top: calc(100% + 6px);
   left: 0; right: 0;
-  z-index: 50;
+  z-index: 200;
   max-height: 340px;
   overflow-y: auto;
   background: var(--surface);
@@ -4595,7 +4595,8 @@ body.sem-internet .layout { padding-top: 34px; }
 
 /* O popover de cor era cortado pelo painel seguinte.
    Elevando o painel que o contém, ele passa a ficar por cima. */
-.form-panel:has(.cor-pop.aberto) {
+.form-panel:has(.cor-pop.aberto),
+.form-panel:has(.tipo-dd.aberto) {
   position: relative;
   z-index: 100;
 }

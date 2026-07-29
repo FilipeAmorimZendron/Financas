@@ -9135,8 +9135,17 @@ function montarTipoDropdown() {
   });
   menu.innerHTML = html;
 
-  const fechar = () => { dd.classList.remove("aberto"); botao.setAttribute("aria-expanded", "false"); };
-  const abrir = () => { dd.classList.add("aberto"); botao.setAttribute("aria-expanded", "true"); };
+  const painel = dd.closest(".form-panel");
+  const fechar = () => {
+    dd.classList.remove("aberto");
+    botao.setAttribute("aria-expanded", "false");
+    painel?.classList.remove("tem-pop-aberto");
+  };
+  const abrir = () => {
+    dd.classList.add("aberto");
+    botao.setAttribute("aria-expanded", "true");
+    painel?.classList.add("tem-pop-aberto"); // eleva o painel (fallback sem :has)
+  };
 
   botao.addEventListener("click", (e) => {
     e.stopPropagation();
