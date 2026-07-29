@@ -10448,9 +10448,118 @@ const ACOES_IA = {
         mensagem: `Gasto fixo "${p.descricao}" de ${fmtMoeda(p.valor)} criado, repetindo ${cadaQuanto} na conta ${conta.nome}, categoria ${categoria}. O primeiro vencimento é ${formatarDataBR(p.inicio)} e os próximos aparecem sozinhos em Gastos Fixos.`
       };
     }
+  },
+
+  criar_banco: {
+    descricao:
+      "Cadastra uma nova conta / banco / carteira para o usuário (Nubank, Itaú, carteira física, conta de investimentos, etc.), com o saldo atual dela. Use quando ele pedir para criar, adicionar ou cadastrar um banco, uma conta ou uma carteira. O saldo informado deve ser o TOTAL que ele tem nessa conta hoje.",
+    parametros: {
+      type: "object",
+      properties: {
+        nome: { type: "string", description: "Nome da conta como ele quer ver: Nubank, Itaú, Carteira, PicPay. Se ele não disse, pergunte antes." },
+        saldo: { type: "number", description: "Quanto ele tem nessa conta HOJE, no total. Pode ser 0 se a conta está zerada. Se ele não disse nada sobre saldo, pergunte (aceite zero)." },
+        tipo: { type: "string", description: "Tipo da conta, um destes exatos: 'Banco Digital', 'Banco Tradicional', 'Conta Corrente', 'Poupança', 'Carteira Crypto', 'Carteira Física', 'Investimentos', 'Outro'. Deixe vazio para o app deduzir do nome." }
+      },
+      required: ["nome", "saldo"]
+    },
+
+    preparar(d) {
+      if (typeof limitesAtuais === "function") {
+        const maximo = limitesAtuais().contas;
+        if (maximo !== Infinity && maximo !== true && (state.bancos || []).length >= maximo) {
+          return { erro: `O plano dele permite no máximo ${maximo} contas e ele já usou todas. Explique que nos planos pagos não há esse limite.` };
+        }
+      }
+
+      const p = {};
+      p.nome = String(d.nome == null ? "" : d.nome).trim().slice(0, 40);
+      // saldo pode ser 0 legitimamente, então tratamos "não informado" à parte
+      const temSaldo = d.saldo !== undefined && d.saldo !== null && d.saldo !== "";
+      p.saldo = temSaldo ? (Number(valorIA(d.saldo)) || (Number(d.saldo) === 0 ? 0 : null)) : null;
+      if (temSaldo && Number(d.saldo) === 0) p.saldo = 0;
+
+      if (!p.nome) {
+        return { erro: "Não veio o nome da conta. Pergunte qual banco ou carteira ele quer cadastrar." };
+      }
+      if (p.saldo === null) {
+        return { erro: `Não veio o saldo. Pergunte quanto ele tem hoje em ${p.nome} (pode ser zero se estiver zerada), e não invente um valor.` };
+      }
+
+      // Já existe uma conta com esse nome?
+      if ((state.bancos || []).some(b => normIA(b.nome) === normIA(p.nome))) {
+        return { erro: `Ele já tem uma conta chamada "${p.nome}". Se quer duas com o mesmo banco, sugira um apelido (ex: "${p.nome} Salário"). Não crie duplicada.` };
+      }
+
+      // Tipo: usa o que a IA mandou (se for válido) ou deduz do nome
+      const tiposValidos = ["Banco Digital", "Banco Tradicional", "Conta Corrente", "Poupança", "Carteira Crypto", "Carteira Física", "Investimentos", "Outro"];
+      const tipoDito = tiposValidos.find(t => normIA(t) === normIA(d.tipo));
+      p.tipo = tipoDito || tipoContaIA(p.nome);
+
+      // Se não deu para deduzir com confiança, pergunta em botões
+      const perguntas = [];
+      if (!p.tipo) {
+        perguntas.push({
+          campo: "tipo",
+          texto: `Que tipo de conta é "${p.nome}"?`,
+          opcoes: [
+            { v: "Banco Digital", t: "Banco digital" },
+            { v: "Banco Tradicional", t: "Banco tradicional" },
+            { v: "Carteira Física", t: "Carteira (dinheiro)" },
+            { v: "Carteira Crypto", t: "Cripto" },
+            { v: "Investimentos", t: "Investimentos" },
+            { v: "Outro", t: "Outro" }
+          ]
+        });
+      }
+
+      return { dados: p, perguntas: perguntas };
+    },
+
+    async executar(p) {
+      const novo = await dbInsert("contas", {
+        nome: p.nome,
+        tipo: p.tipo || "Outro",
+        saldo_inicial: p.saldo,
+        saldo_data: hojeISO(),
+        cor: null,          // null = cor automática derivada do nome
+        tem_cartao: false   // cartão de crédito o usuário liga depois, na tela
+      });
+      state.bancos.push({
+        id: novo.id, nome: novo.nome, tipo: novo.tipo,
+        saldoInicial: Number(novo.saldo_inicial), saldoData: novo.saldo_data || null,
+        cor: novo.cor || null, temCartao: false,
+        limite: null, diaFechamento: null, diaVencimento: null
+      });
+      renderTudo();
+
+      return {
+        ok: true,
+        titulo: "Conta criada",
+        recibo: [
+          { rotulo: "Conta", valor: p.nome },
+          { rotulo: "Tipo", valor: p.tipo || "Outro" },
+          { rotulo: "Saldo atual", valor: fmtMoeda(p.saldo) }
+        ],
+        mensagem: `Conta "${p.nome}" (${p.tipo || "Outro"}) criada com saldo de ${fmtMoeda(p.saldo)}. ` +
+                  `Agora ele pode lançar gastos e entradas nela. Se essa conta tiver cartão de crédito, ele pode ativar isso editando o banco na tela Adicionar Banco (informando limite, fechamento e vencimento) — isso o app ainda não faz pelo chat.`
+      };
+    }
   }
 
 };
+
+/* Deduz o tipo da conta pelo nome. Devolve "" quando não tem certeza,
+   para o app perguntar em botões. */
+function tipoContaIA(nome) {
+  const n = normIA(nome);
+  if (/nubank|inter\b|c6|picpay|pic pay|mercado pago|neon|next|will|iti|pagbank|banco pan|original|digio/.test(n)) return "Banco Digital";
+  if (/ita[uú]|bradesco|santander|banco do brasil|\bbb\b|caixa|safra|sicoob|sicredi|banrisul/.test(n)) return "Banco Tradicional";
+  if (/poupanca|poupança/.test(n)) return "Poupança";
+  if (/carteira|dinheiro|especie|espécie|cash|fisic/.test(n)) return "Carteira Física";
+  if (/binance|coinbase|metamask|cripto|crypto|bitcoin|btc|ethereum|carteira cripto/.test(n)) return "Carteira Crypto";
+  if (/xp\b|rico|clear|nuinvest|investiment|corretora|ativa|toro|avenue/.test(n)) return "Investimentos";
+  return "";
+}
 
 /* Deduz o ícone do objetivo pelo nome (o app tem um conjunto fixo) */
 function iconeObjetivoIA(nome) {
