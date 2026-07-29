@@ -5765,6 +5765,16 @@ function atualizarGanhoEstimado() {
   }
 }
 
+/* Cor de fallback para o ícone do investimento quando não há instituição:
+   uma cor por categoria (renda fixa, variável, cripto). */
+function corPorCategoriaInv(inv) {
+  if (inv.criptoId) return "#F7931A";          // laranja cripto
+  const cfg = configTipo(inv.tipo);
+  const cat = cfg.cat || "rv";
+  if (cat === "rf") return "#3B82F6";          // azul renda fixa
+  return "#8B7FE8";                             // roxo renda variável
+}
+
 function renderInvestimentos() {
   if (!listaInvestimentosEl) return;
 
@@ -5825,54 +5835,71 @@ function renderInvestimentos() {
     const c = ehCripto ? criptoPorId(inv.criptoId) : null;
     const preco = ehCripto ? _precosCripto[inv.criptoId] : null;
 
-    // Valor: cripto pelo preço de mercado; demais pelo valor atual informado
     const valorHoje = valorAtualInvestimento(inv);
     const variou = Math.abs(valorHoje - inv.valor) > 0.005;
     const lucro = valorHoje - inv.valor;
 
-    // Rendimento (renda fixa)
     const taxaAno = taxaAnualEfetiva(inv);
-    const rendAno = inv.valor * (taxaAno/100);
-    const rendDia = ehCripto ? 0 : rendimentoDiarioRF(inv);
     const b = inv.contaId ? state.bancos.find(x => x.id === inv.contaId) : null;
     const nome = inv.nome || inv.tipo;
+
+    // Cor do ícone: a do banco/instituição escolhida; se não houver, uma cor
+    // por categoria (renda fixa, variável, cripto), para dar identidade visual.
+    const corBanco = b ? corDaConta(b) : corPorCategoriaInv(inv);
 
     const icone = ehCripto
       ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.5 8.5h4a2 2 0 0 1 0 4h-4m0 0h4.3a2 2 0 0 1 0 4H9.5m0-8v10m1.5-11v1.5m0 8v1.5"/></svg>`
       : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>`;
 
     // Linha de meta (subtítulo)
-    let meta = `<span class="badge">${esc(inv.tipo)}</span>`;
+    let meta = `<span class="inv-badge">${esc(inv.tipo)}</span>`;
     if (ehCripto && c) {
-      meta += `<span class="mov-sep">·</span><span>${inv.criptoQtd} ${c.sigla}</span>`;
+      meta += `<span class="inv-meta-sep">·</span><span>${fmtNum(inv.criptoQtd)} ${c.sigla}</span>`;
       if (preco) meta += badgeVariacao(preco.variacao24h);
     } else if (inv.taxa > 0) {
-      meta += `<span class="mov-sep">·</span><span>${fmtNum(inv.taxa)}% ${inv.taxaPeriodo === "mes" ? "a.m." : "a.a."}</span>`;
+      meta += `<span class="inv-meta-sep">·</span><span>${fmtNum(inv.taxa)}% ${inv.taxaPeriodo === "mes" ? "a.m." : "a.a."}</span>`;
     }
-    if (b) meta += `<span class="mov-sep">·</span><span>${esc(b.nome)}</span>`;
+    if (b) meta += `<span class="inv-meta-sep">·</span><span>${esc(b.nome)}</span>`;
 
-    // Segunda linha do valor:
-    //  - cripto: lucro/prejuízo de mercado
-    //  - renda fixa com taxa: quanto rende POR DIA (líquido de IR)
-    //  - renda variável com dividendos: ganho anual estimado
+    // Segunda linha do valor
     let subvalor = "";
     if (ehCripto && variou) {
       const cls = lucro >= 0 ? "inv-lucro" : "inv-prejuizo";
       subvalor = `<div class="inv-item-rend ${cls}">${lucro >= 0 ? "+" : "−"}${fmtMoeda(Math.abs(lucro))}</div>`;
     } else if (!ehCripto && taxaAno > 0) {
       const porDia = rendimentoDiarioRF(inv);
-      if (porDia > 0) subvalor = `<div class="inv-item-rend">+${fmtMoeda(porDia)}/dia</div>`;
+      if (porDia > 0) subvalor = `<div class="inv-item-rend inv-lucro">+${fmtMoeda(porDia)}/dia</div>`;
     } else if (!ehCripto && inv.rendaPassiva > 0) {
       const ganhoAno = valorHoje * (inv.rendaPassiva / 100);
-      if (ganhoAno > 0) subvalor = `<div class="inv-item-rend">~${fmtMoeda(ganhoAno / 12)}/mês</div>`;
+      if (ganhoAno > 0) subvalor = `<div class="inv-item-rend inv-lucro">~${fmtMoeda(ganhoAno / 12)}/mês</div>`;
     }
 
+    // Barra de rendimento: mostra visualmente o quanto rendeu/variou.
+    //  - cripto/RV: lucro (verde) ou prejuízo (vermelho) proporcional ao aporte
+    //  - renda fixa: quanto o rendimento anual estimado representa (verde)
+    let pctBarra = 0, corBarra = "var(--green)";
+    if (variou) {
+      pctBarra = Math.min(100, Math.abs(lucro) / (inv.valor || 1) * 100);
+      corBarra = lucro >= 0 ? "var(--green)" : "var(--red, #e24b4a)";
+    } else if (taxaAno > 0) {
+      // rendimento anual como fração (visual): mostra a "força" do rendimento
+      pctBarra = Math.min(100, taxaAno); // ex: 11% a.a. → barra em 11%
+      corBarra = "var(--green)";
+    } else if (inv.rendaPassiva > 0) {
+      pctBarra = Math.min(100, inv.rendaPassiva * 5); // dividendos, escala visual
+      corBarra = "var(--accent)";
+    }
+    const barra = pctBarra > 0
+      ? `<div class="inv-item-barra"><span style="width:${pctBarra.toFixed(1)}%;background:${corBarra}"></span></div>`
+      : "";
+
     return `<div class="inv-item ${ehCripto ? "inv-cripto" : ""}">
-      <div class="inv-item-icone">${icone}</div>
+      <div class="inv-item-icone" style="background:${corBanco}1f;border-color:${corBanco}55;color:${corBanco}">${icone}</div>
 
       <div class="inv-item-info">
         <div class="inv-item-nome">${esc(nome)}</div>
         <div class="inv-item-meta">${meta}</div>
+        ${barra}
       </div>
 
       <div class="inv-item-valores">
@@ -5911,15 +5938,17 @@ function renderResumoInstituicoes() {
   state.investimentos.forEach(i => {
     const chave = i.contaId || "__sem__";
     if (!grupos[chave]) grupos[chave] = { total: 0, rendimento: 0, qtd: 0 };
-    grupos[chave].total += valorHoje(i);
+    grupos[chave].total += valorAtualInvestimento(i);
     grupos[chave].qtd += 1;
-    // Rendimento: projeção para renda fixa (usa a taxa anual efetiva, que já
-    // interpreta CDI/IPCA corretamente), renda passiva para variável
-    if (ehRendaFixa(i.tipo)) {
+    // Rendimento anual estimado: renda fixa pela taxa, renda variável por dividendos
+    if (!i.criptoId) {
       const taxaAno = taxaAnualEfetiva(i);
-      grupos[chave].rendimento += i.valor * (taxaAno / 100);
-    } else if (i.rendaPassiva > 0) {
-      grupos[chave].rendimento += valorHoje(i) * (i.rendaPassiva / 100);
+      if (taxaAno > 0) {
+        const ir = ehIsentoIR(i) ? 0 : aliquotaIR(i.dataInicio);
+        grupos[chave].rendimento += valorAtualInvestimento(i) * (taxaAno / 100) * (1 - ir);
+      } else if (i.rendaPassiva > 0) {
+        grupos[chave].rendimento += valorAtualInvestimento(i) * (i.rendaPassiva / 100);
+      }
     }
   });
 
