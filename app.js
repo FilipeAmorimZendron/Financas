@@ -9730,6 +9730,34 @@ function opcoesCategoriasIA() {
     .map(c => ({ v: c, t: c, cor: (typeof corDaCategoria === "function" ? corDaCategoria(c) : null) }));
 }
 
+/* Cria uma categoria personalizada com o nome que o usuário digitou nos
+   botões (opção "Outra..."). Se já existir com esse nome, reaproveita.
+   Devolve o nome final da categoria (o que fica no lançamento). */
+async function criarCategoriaIA(nome) {
+  const limpo = String(nome == null ? "" : nome).trim().slice(0, 40);
+  if (!limpo) return null;
+
+  // Já existe (ignora acento/caixa)? Usa a existente, não duplica.
+  const existente = todasCategorias().find(c => normIA(c) === normIA(limpo));
+  if (existente) return existente;
+  if (normIA(limpo) === "entrada") return "Entrada";
+
+  try {
+    const cores = (typeof CORES_CATEGORIA !== "undefined") ? CORES_CATEGORIA : ["#7F77DD"];
+    const cor = cores[(state.categorias || []).length % cores.length];
+    const nova = await dbInsert("categorias", { user_id: state.user.id, nome: limpo, cor });
+    state.categorias.push({ id: nova.id, nome: nova.nome, cor: nova.cor || cor });
+    state.categorias.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    if (typeof atualizarSelectsCategoria === "function") atualizarSelectsCategoria();
+    return nova.nome;
+  } catch (e) {
+    console.error("Falha ao criar categoria pela IA:", e);
+    // Se falhou por já existir, ainda assim devolve o nome
+    if (String(e && e.message || "").includes("duplicate")) return limpo;
+    return null;
+  }
+}
+
 /* ─── O registro ───────────────────────────────────────────── */
 const ACOES_IA = {
 
@@ -9819,12 +9847,16 @@ const ACOES_IA = {
       // conta. Assim, escolher "crédito" já abre a próxima pergunta certa.
       const perguntas = [];
 
-      // 1. Categoria (só gasto, e só se não deu para deduzir da descrição)
+      // 1. Categoria (só gasto, e só se não deu para deduzir da descrição).
+      //    permiteOutra: o usuário pode digitar uma categoria própria se
+      //    nenhum botão servir — ela é criada de vez.
       if (p.tipo === "gasto" && !p.categoria && !p.descricao) {
         perguntas.push({
           campo: "categoria",
           texto: "Qual a categoria desse gasto?",
-          opcoes: opcoesCategoriasIA()
+          opcoes: opcoesCategoriasIA(),
+          permiteOutra: true,
+          rotuloOutra: "Outra..."
         });
       }
 
@@ -10269,6 +10301,45 @@ function perguntarOpcoesIA(pergunta) {
       caixa.appendChild(btn);
     });
 
+    // "Outra..." — só nas perguntas que aceitam algo fora da lista (categoria).
+    // Abre um campinho para o usuário digitar; o valor digitado sai com a
+    // marca "outra:" para a ação saber que precisa criar.
+    if (pergunta.permiteOutra) {
+      const btnOutra = document.createElement("button");
+      btnOutra.type = "button";
+      btnOutra.className = "ia-opcao ia-opcao-outra";
+      btnOutra.textContent = pergunta.rotuloOutra || "Outra...";
+      btnOutra.addEventListener("click", function () {
+        // Troca os botões por um campo de texto + confirmar
+        caixa.innerHTML = "";
+        const linha = document.createElement("div");
+        linha.className = "ia-outra-linha";
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "ia-outra-input";
+        input.placeholder = "Digite a categoria";
+        input.maxLength = 40;
+        const okBtn = document.createElement("button");
+        okBtn.type = "button";
+        okBtn.className = "ia-opcao ia-opcao-confirmar";
+        okBtn.textContent = "Criar";
+        const confirmar = function () {
+          const txt = (input.value || "").trim();
+          if (!txt) { input.focus(); return; }
+          encerrar("outra:" + txt, txt);
+        };
+        okBtn.addEventListener("click", confirmar);
+        input.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") { e.preventDefault(); confirmar(); }
+        });
+        linha.appendChild(input);
+        linha.appendChild(okBtn);
+        caixa.appendChild(linha);
+        setTimeout(function () { try { input.focus(); } catch (e) {} }, 40);
+      });
+      caixa.appendChild(btnOutra);
+    }
+
     const desistir = document.createElement("button");
     desistir.type = "button";
     desistir.className = "ia-opcao ia-opcao-desistir";
@@ -10352,10 +10423,22 @@ async function executarAcaoIA(acao) {
       return "NÃO FOI POSSÍVEL concluir: o app não resolveu os dados. Peça desculpas em uma frase e sugira que ele registre pela tela do app desta vez.";
     }
     jaPerguntados.push(pergunta.campo);
-    const escolhido = await perguntarOpcoesIA(pergunta);
+    let escolhido = await perguntarOpcoesIA(pergunta);
     if (escolhido === null) {
       return "O usuário desistiu quando você perguntou. Nada foi salvo. Responda com uma frase curta dizendo que não salvou e que é só pedir de novo quando quiser.";
     }
+
+    // Categoria digitada pelo usuário (opção "Outra..."): cria de vez e usa
+    // o nome dela. Vem marcada com "outra:" para não confundir com um botão.
+    if (pergunta.campo === "categoria" && typeof escolhido === "string" && escolhido.indexOf("outra:") === 0) {
+      const nomeDigitado = escolhido.slice(6);
+      const criada = await criarCategoriaIA(nomeDigitado);
+      if (!criada) {
+        return "NÃO FOI POSSÍVEL criar essa categoria agora. Peça desculpas em uma frase e sugira tentar de novo.";
+      }
+      escolhido = criada;
+    }
+
     const novos = {};
     novos[pergunta.campo] = escolhido;
     // A escolha veio de um toque do usuário: se foi a conta, ela é

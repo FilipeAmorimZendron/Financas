@@ -9859,6 +9859,54 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   color: var(--text-secondary);
 }
 
+/* "Outra..." — leva a um campo de texto para o usuário criar a categoria */
+.ia-opcao-outra {
+  border-style: dashed;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.ia-opcao-outra:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+/* O campinho de "escrever outra categoria" */
+.ia-outra-linha {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+.ia-outra-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  outline: none;
+}
+.ia-outra-input::placeholder { color: var(--text-muted); }
+.ia-opcao-confirmar {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--teal-500), var(--teal-400));
+  color: #fff;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.ia-opcao-confirmar:hover {
+  background: linear-gradient(135deg, var(--teal-400), var(--teal-400));
+  color: #fff;
+}
+[data-theme="dark"] .ia-opcao-confirmar,
+[data-theme="dark"] .ia-opcao-confirmar:hover { color: #04121F; }
+
+@media (max-width: 640px) {
+  .ia-outra-input { font-size: 16px; }  /* evita o zoom do iOS */
+}
+
 /* Depois do toque, sobra só a resposta */
 .ia-pergunta-escolha {
   margin: 0;
