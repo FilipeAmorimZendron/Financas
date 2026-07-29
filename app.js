@@ -578,10 +578,11 @@ async function sbLogout() {
   }
   localStorage.removeItem("fp_token");
   localStorage.removeItem("fp_user");
-  // Limpa avisos/eventos do sino — são do usuário que estava logado,
-  // não devem aparecer para quem logar depois no mesmo navegador.
+  // Limpa avisos/eventos do sino e o chat — são do usuário que estava
+  // logado, não devem aparecer para quem logar depois no mesmo navegador.
   localStorage.removeItem("fp_eventos");
   localStorage.removeItem("fp_avisos_lidos");
+  localStorage.removeItem("fp_chat");
 }
 
 function getAuthHeader() {
@@ -1581,6 +1582,100 @@ function calcularAvisos() {
     });
   });
 
+  // 4c. Gasto muito alto num dia (bem acima do normal)
+  // Compara o total gasto hoje com a média diária dos últimos 30 dias.
+  (function () {
+    const gastosHoje = state.movimentos.filter(m =>
+      m.tipo === "gasto" && ehPago(m) && (m.data || "").slice(0, 10) === hoje
+    );
+    const totalHoje = gastosHoje.reduce((s, m) => s + (Number(m.valor) || 0), 0);
+    if (totalHoje <= 0) return;
+
+    const ha30 = somarDias(hoje, -30);
+    const gastos30 = state.movimentos.filter(m =>
+      m.tipo === "gasto" && ehPago(m) && (m.data || "") >= ha30 && (m.data || "") < hoje
+    );
+    const total30 = gastos30.reduce((s, m) => s + (Number(m.valor) || 0), 0);
+    const mediaDia = total30 / 30;
+
+    // Só avisa se há histórico e hoje passou de 3x a média (e de R$ 200)
+    if (mediaDia > 0 && totalHoje >= mediaDia * 3 && totalHoje >= 200) {
+      avisos.push({
+        tipo: "gastoalto",
+        titulo: "Gasto alto hoje",
+        texto: `Você já gastou ${fmtMoeda(totalHoje)} hoje — bem acima da sua média de ${fmtMoeda(mediaDia)} por dia.`,
+        prioridade: 2,
+        acao: "trocarTela('lancamentos')"
+      });
+    }
+  })();
+
+  // 4d. Resumo semanal de gastos (aparece às segundas-feiras)
+  (function () {
+    const d = new Date(hoje + "T00:00:00");
+    if (d.getDay() !== 1) return; // 1 = segunda
+    const ha7 = somarDias(hoje, -7);
+    const gastosSemana = state.movimentos.filter(m =>
+      m.tipo === "gasto" && ehPago(m) && (m.data || "") >= ha7 && (m.data || "") < hoje
+    );
+    if (!gastosSemana.length) return;
+    const total = gastosSemana.reduce((s, m) => s + (Number(m.valor) || 0), 0);
+    // Categoria onde mais gastou na semana
+    const porCat = {};
+    gastosSemana.forEach(m => { const c = m.categoria || "Outros"; porCat[c] = (porCat[c] || 0) + (Number(m.valor) || 0); });
+    const top = Object.keys(porCat).sort((a, b) => porCat[b] - porCat[a])[0];
+    avisos.push({
+      tipo: "resumo",
+      titulo: "Resumo da semana",
+      texto: `Na última semana você gastou ${fmtMoeda(total)}${top ? `, mais em ${top}` : ""}.`,
+      prioridade: 3,
+      acao: "trocarTela('planilha')"
+    });
+  })();
+
+  // 4e. Fatura do cartão fechou (dia seguinte ao fechamento)
+  state.bancos.filter(b => b.temCartao && b.diaFechamento).forEach(cartao => {
+    const diaHoje = Number(hoje.slice(8, 10));
+    const diaAvisar = (Number(cartao.diaFechamento) % 31) + 1;
+    if (diaHoje !== diaAvisar) return;
+    const total = state.movimentos
+      .filter(m => m.cartaoId === cartao.id && m.faturaMes === hoje.slice(0, 7))
+      .reduce((s, m) => s + (Number(m.valor) || 0), 0);
+    if (total > 0) {
+      avisos.push({
+        tipo: "cartao",
+        titulo: "Fatura fechou",
+        texto: `A fatura do ${cartao.nome} fechou em ${fmtMoeda(total)}. Fique de olho no vencimento.`,
+        prioridade: 2
+      });
+    }
+  });
+
+  // 4f. Objetivo perto da meta (80% ou mais) ou já alcançado
+  (state.objetivos || []).forEach(obj => {
+    const alvo = Number(obj.valorAlvo) || 0;
+    const atual = Number(obj.valorAtual) || 0;
+    if (alvo <= 0) return;
+    const pct = (atual / alvo) * 100;
+    if (pct >= 100) {
+      avisos.push({
+        tipo: "sucesso",
+        titulo: "Objetivo alcançado! 🎉",
+        texto: `Você juntou tudo para "${obj.nome}" (${fmtMoeda(alvo)}). Parabéns!`,
+        prioridade: 2,
+        acao: "trocarTela('investimentos')"
+      });
+    } else if (pct >= 80) {
+      avisos.push({
+        tipo: "objetivo",
+        titulo: "Quase lá!",
+        texto: `Seu objetivo "${obj.nome}" está em ${Math.floor(pct)}% — faltam ${fmtMoeda(alvo - atual)}.`,
+        prioridade: 3,
+        acao: "trocarTela('investimentos')"
+      });
+    }
+  });
+
   // 5. Eventos recentes (importou extrato, IA respondeu, etc.)
   lerEventos().forEach(ev => {
     avisos.push({
@@ -1608,9 +1703,17 @@ function iconeAviso(tipo) {
     cartao:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>`,
     extrato:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>`,
     ia:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/><circle cx="8.5" cy="14.5" r="1"/><circle cx="15.5" cy="14.5" r="1"/></svg>`,
-    sucesso:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
+    sucesso:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+    gastoalto: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 6l-9.5 9.5-5-5L1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+    resumo:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+    objetivo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`
   };
   return icones[tipo] || icones.vencendo;
+}
+
+/* Ícone de exclamação para avisos importantes (prioridade 1) */
+function iconeImportante() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
 }
 
 /* Renderiza o sino: contador + lista no painel */
@@ -1660,9 +1763,12 @@ function renderSino() {
     const novo = a.sempreVisivel || !lidos.has(chaveAviso(a));
     // Avisos com ação viram botão; os demais são só informativos
     const clicavel = a.acao ? ` sino-item-clicavel" onclick="${a.acao}` : "";
+    // Prioridade 1 = importante: ganha borda/cor de destaque e exclamação
+    const importante = a.prioridade === 1;
+    const iconeHtml = importante ? iconeImportante() : iconeAviso(a.tipo);
     return `
-    <div class="sino-item sino-item-${a.tipo} ${novo ? "sino-item-novo" : ""}${clicavel}">
-      <div class="sino-item-icone">${iconeAviso(a.tipo)}</div>
+    <div class="sino-item sino-item-${a.tipo} ${importante ? "sino-item-importante" : ""} ${novo ? "sino-item-novo" : ""}${clicavel}">
+      <div class="sino-item-icone">${iconeHtml}</div>
       <div class="sino-item-texto">
         <strong>${a.titulo}</strong>
         <span>${esc(a.texto)}</span>
@@ -10830,6 +10936,62 @@ async function executarAcaoIA(acao) {
   // Memória da conversa, para a IA lembrar do que já foi dito
   const historicoConversa = [];
 
+  // ─── Persistência do chat ───────────────────────────────
+  // As mensagens ficam salvas por usuário para sobreviverem ao recarregar
+  // a tela. Isoladas por dono (localStorage é do navegador, não da conta),
+  // e limpas no logout. Guardamos as mensagens simples (usuário/ia) já
+  // renderizadas; cartões de ação/recibo não são reconstruídos (eles
+  // representam algo já feito), só o texto.
+  const CHAVE_CHAT = "fp_chat";
+
+  function donoAtual() {
+    try { return (state.user && state.user.id) ? state.user.id : null; } catch (e) { return null; }
+  }
+
+  function salvarChat(mensagensVisiveis) {
+    const dono = donoAtual();
+    if (!dono) return;
+    try {
+      localStorage.setItem(CHAVE_CHAT, JSON.stringify({
+        dono,
+        iniciada: conversaIniciada,
+        msgs: mensagensVisiveis.slice(-40),          // teto de 40 mensagens
+        historico: historicoConversa.slice(-12)
+      }));
+    } catch (e) { /* storage cheio: ignora, não é crítico */ }
+  }
+
+  function lerChatSalvo() {
+    const dono = donoAtual();
+    if (!dono) return null;
+    try {
+      const raw = localStorage.getItem(CHAVE_CHAT);
+      if (!raw) return null;
+      const dados = JSON.parse(raw);
+      // Só devolve se for do dono atual (não vaza entre contas no mesmo navegador)
+      if (!dados || dados.dono !== dono) return null;
+      return dados;
+    } catch (e) { return null; }
+  }
+
+  // Coleta as mensagens simples que estão na tela para salvar
+  function coletarMensagens() {
+    const lista = document.getElementById("iaChatMensagens");
+    if (!lista) return [];
+    const out = [];
+    lista.querySelectorAll(".ia-msg").forEach(el => {
+      if (el.classList.contains("ia-digitando")) return;
+      // Cartões de ação/recibo/pergunta não são texto puro: pulamos.
+      if (el.classList.contains("ia-acao-msg") || el.classList.contains("ia-pergunta-msg")) return;
+      const quem = el.classList.contains("ia-msg-usuario") ? "usuario" : "ia";
+      // Para o usuário guardamos o texto; para a IA guardamos o texto bruto
+      // que reconstruímos via formatarRespostaIA na restauração.
+      const texto = el.getAttribute("data-bruto");
+      if (texto != null) out.push({ quem, texto });
+    });
+    return out;
+  }
+
   // Pega o primeiro nome do usuário (perfil, ou parte do email como fallback)
   function primeiroNome() {
     try {
@@ -10889,11 +11051,13 @@ async function executarAcaoIA(acao) {
   }
 
   // Adiciona uma mensagem no chat
-  function addMsg(texto, quem) {
+  function addMsg(texto, quem, naoSalvar) {
     const lista = document.getElementById("iaChatMensagens");
     if (!lista) return null;
     const div = document.createElement("div");
     div.className = "ia-msg ia-msg-" + quem;
+    // Guarda o texto original para poder salvar e restaurar a conversa
+    div.setAttribute("data-bruto", texto);
     if (quem === "ia") {
       div.innerHTML = formatarRespostaIA(texto);
     } else {
@@ -10901,6 +11065,8 @@ async function executarAcaoIA(acao) {
     }
     lista.appendChild(div);
     lista.scrollTop = lista.scrollHeight;
+    // Salva o estado da conversa (a menos que seja uma restauração)
+    if (!naoSalvar) { try { salvarChat(coletarMensagens()); } catch (e) {} }
     return div;
   }
 
@@ -10916,19 +11082,41 @@ async function executarAcaoIA(acao) {
     return div;
   }
 
-  // Abre o chat (mostra a saudação na primeira vez)
+  // Restaura a conversa salva (mensagens + memória). Devolve true se havia
+  // algo para restaurar.
+  function restaurarChat() {
+    const salvo = lerChatSalvo();
+    if (!salvo || !Array.isArray(salvo.msgs) || !salvo.msgs.length) return false;
+    const lista = document.getElementById("iaChatMensagens");
+    if (!lista) return false;
+    lista.innerHTML = "";
+    salvo.msgs.forEach(m => addMsg(m.texto, m.quem, true));  // true = não re-salva
+    // Recompõe a memória que a IA usa para ter contexto
+    if (Array.isArray(salvo.historico)) {
+      historicoConversa.length = 0;
+      salvo.historico.forEach(h => historicoConversa.push(h));
+    }
+    conversaIniciada = true;
+    return true;
+  }
+
+  // Abre o chat (restaura a conversa, ou mostra a saudação na primeira vez)
   function abrir() {
     const chat = document.getElementById("iaChat");
     const campo = document.getElementById("iaChatCampo");
     if (!chat) return;
     chat.hidden = false;
     if (!conversaIniciada) {
-      const nome = primeiroNome();
-      const saudacao = nome
-        ? "Olá, " + nome + "! 👋 Que bom te ver por aqui. Sou o Assistente FAZ e estou aqui para te ajudar a entender seus gastos, economizar e organizar suas finanças. 💰\n\nComo posso te ajudar hoje?"
-        : "Olá! 👋 Que bom te ver por aqui. Sou o Assistente FAZ e estou aqui para te ajudar a entender seus gastos, economizar e organizar suas finanças. 💰\n\nComo posso te ajudar hoje?";
-      addMsg(saudacao, "ia");
-      conversaIniciada = true;
+      // Tenta retomar de onde parou (sobrevive ao recarregar a tela)
+      const retomou = restaurarChat();
+      if (!retomou) {
+        const nome = primeiroNome();
+        const saudacao = nome
+          ? "Olá, " + nome + "! 👋 Que bom te ver por aqui. Sou o Assistente FAZ e estou aqui para te ajudar a entender seus gastos, economizar e organizar suas finanças. 💰\n\nComo posso te ajudar hoje?"
+          : "Olá! 👋 Que bom te ver por aqui. Sou o Assistente FAZ e estou aqui para te ajudar a entender seus gastos, economizar e organizar suas finanças. 💰\n\nComo posso te ajudar hoje?";
+        addMsg(saudacao, "ia");
+        conversaIniciada = true;
+      }
     }
     setTimeout(function () { if (campo) campo.focus(); }, 100);
   }
@@ -11077,6 +11265,8 @@ async function executarAcaoIA(acao) {
       if (historicoConversa.length > 12) {
         historicoConversa.splice(0, historicoConversa.length - 12);
       }
+      // Salva a conversa já com a memória atualizada
+      try { salvarChat(coletarMensagens()); } catch (e) {}
 
     } catch (e) {
       tirarCarregando();

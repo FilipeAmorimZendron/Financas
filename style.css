@@ -7670,6 +7670,33 @@ body.scroll-travado {
   background: var(--amber-dim);
   color: var(--amber);
 }
+.sino-item-gastoalto .sino-item-icone {
+  background: var(--amber-dim);
+  color: var(--amber);
+}
+.sino-item-objetivo .sino-item-icone,
+.sino-item-resumo .sino-item-icone {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.sino-item-sucesso .sino-item-icone {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+/* Aviso IMPORTANTE (prioridade 1): borda vermelha, fundo tênue e a
+   exclamação em destaque. É o que salta aos olhos quando algo é sério. */
+.sino-item-importante {
+  border-left: 3px solid var(--red, #e24b4a);
+  background: rgba(226, 75, 74, 0.055);
+}
+.sino-item-importante .sino-item-icone {
+  background: var(--red, #e24b4a);
+  color: #fff;
+}
+.sino-item-importante .sino-item-texto strong {
+  color: var(--red, #e24b4a);
+}
 .sino-item-texto {
   display: flex;
   flex-direction: column;
