@@ -168,6 +168,7 @@ export default async function handler(req, res) {
       "- 'paguei a conta de luz' → use marcar_como_pago.",
       "- 'passa 200 da poupança pro nubank' → use criar_transferencia.",
       "- 'quero gastar no máximo 800 com alimentação' → use definir_limite.",
+      "- 'quero juntar 2500 pra um tênis até dezembro' → use criar_objetivo (é uma meta de poupança, não um gasto).",
       "Preencha só o que o usuário disse. Se ele não disse a conta, a categoria ou a data, DEIXE O CAMPO VAZIO — o app resolve sozinho ou pergunta a ele em botões. Nunca invente a conta nem chute o valor.",
       "REGRA DE FERRO SOBRE O VALOR: se o usuário JÁ DISSE um número ('gasto de 50', 'gastei 50', '50 no nubank'), o valor é esse número — NUNCA pergunte 'quanto custou' de novo. Só pergunte o valor quando ele NÃO deu número nenhum ('uber', 'comprei um lanche'). Nunca invente um valor.",
       "PARA UM GASTO, você NÃO precisa saber o que foi. Se ele deu o valor mas não disse o que comprou ('gasto de 50 no nubank'), NÃO pergunte 'o que foi' nem 'qual o produto' — apenas chame criar_lancamento com o valor, deixando a descrição vazia. O app vai perguntar a categoria e a forma em botões, e isso basta. Perguntar 'o que você comprou?' num gasto é errado e chato.",

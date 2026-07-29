@@ -10225,9 +10225,110 @@ const ACOES_IA = {
         mensagem: `Limite de ${p.categoria} ${acao} em ${fmtMoeda(p.limite)} por mês. Neste mês ele já gastou ${fmtMoeda(gasto)} nessa categoria, ou seja, ${gasto > p.limite ? "já passou do limite" : `ainda cabem ${fmtMoeda(p.limite - gasto)}`}.`
       };
     }
+  },
+
+  criar_objetivo: {
+    descricao:
+      "Cria um objetivo de poupança / meta de guardar dinheiro (ex: juntar para um tênis, uma viagem, uma reserva de emergência). Use quando o usuário disser que quer juntar/economizar/guardar um valor para comprar ou alcançar algo, geralmente com um prazo. NÃO confunda com definir_limite, que é teto de gasto mensal por categoria.",
+    parametros: {
+      type: "object",
+      properties: {
+        nome: { type: "string", description: "O que ele quer alcançar: Tênis, Viagem ao Chile, Reserva de emergência. Se ele não disse, pergunte antes de chamar a ferramenta." },
+        valor: { type: "number", description: "Quanto custa / quanto quer juntar, em reais. Se ele não disse, pergunte antes de chamar." },
+        prazo_data: { type: "string", description: "Data alvo em AAAA-MM-DD, se ele deu uma data ou algo como 'até final do próximo mês', 'até dezembro'. Deixe vazio se não houver prazo." },
+        ja_guardado: { type: "number", description: "Quanto ele JÁ tem guardado para isso, se mencionar. Padrão: 0." }
+      },
+      required: ["nome", "valor"]
+    },
+
+    preparar(d) {
+      const p = {};
+      p.nome = String(d.nome == null ? "" : d.nome).trim().slice(0, 60);
+      p.valor = valorIA(d.valor);
+      p.jaGuardado = valorIA(d.ja_guardado) || 0;
+      p.prazoData = "";
+      if (d.prazo_data) {
+        const dt = resolverDataIA(d.prazo_data);
+        // resolverDataIA devolve hoje quando não entende; para prazo, só
+        // aceitamos uma data futura de verdade.
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dt) && dt > hojeISO()) p.prazoData = dt;
+      }
+
+      if (!p.nome) {
+        return { erro: "Não veio o que ele quer juntar. Pergunte qual é o objetivo (ex: um tênis, uma viagem) antes de criar." };
+      }
+      if (!p.valor) {
+        return { erro: "Não veio o valor do objetivo. Pergunte quanto ele quer juntar, e não invente." };
+      }
+      if (p.jaGuardado > p.valor) p.jaGuardado = p.valor;
+
+      // Ícone deduzido do nome (o app tem um conjunto fixo)
+      p.icone = iconeObjetivoIA(p.nome);
+      return { dados: p, perguntas: [] };
+    },
+
+    async executar(p) {
+      const novo = await dbInsert("objetivos", {
+        nome: p.nome,
+        icone: p.icone,
+        valor_alvo: p.valor,
+        valor_atual: p.jaGuardado,
+        prazo_tipo: p.prazoData ? "data" : "livre",
+        prazo_data: p.prazoData || null,
+        prazo_dias: null
+      });
+      state.objetivos.push(
+        typeof mapObjetivo === "function"
+          ? mapObjetivo(novo)
+          : { id: novo.id, nome: novo.nome, icone: novo.icone, valorAlvo: Number(novo.valor_alvo), valorAtual: Number(novo.valor_atual), prazoTipo: novo.prazo_tipo, prazoData: novo.prazo_data, prazoDias: novo.prazo_dias }
+      );
+      renderTudo();
+
+      const falta = Math.max(0, p.valor - p.jaGuardado);
+      const recibo = [
+        { rotulo: "Objetivo", valor: p.nome },
+        { rotulo: "Meta", valor: fmtMoeda(p.valor) }
+      ];
+      if (p.jaGuardado > 0) recibo.push({ rotulo: "Já guardado", valor: fmtMoeda(p.jaGuardado) });
+      recibo.push({ rotulo: "Falta juntar", valor: fmtMoeda(falta) });
+      if (p.prazoData) recibo.push({ rotulo: "Prazo", valor: formatarDataBR(p.prazoData) });
+
+      // Se há prazo, calcula quanto guardar por mês para chegar lá
+      let dica = "";
+      if (p.prazoData && falta > 0) {
+        const hoje = new Date(hojeISO() + "T00:00:00");
+        const alvo = new Date(p.prazoData + "T00:00:00");
+        const meses = Math.max(1, Math.round((alvo - hoje) / (1000 * 60 * 60 * 24 * 30)));
+        const porMes = falta / meses;
+        dica = ` Para chegar lá no prazo, ele precisa guardar cerca de ${fmtMoeda(porMes)} por mês.`;
+      }
+
+      return {
+        ok: true,
+        titulo: "Objetivo criado",
+        recibo,
+        mensagem: `Objetivo "${p.nome}" criado, meta de ${fmtMoeda(p.valor)}` +
+                  (p.jaGuardado > 0 ? `, com ${fmtMoeda(p.jaGuardado)} já guardado` : "") +
+                  (p.prazoData ? `, prazo ${formatarDataBR(p.prazoData)}` : "") +
+                  `. Falta juntar ${fmtMoeda(falta)}.` + dica
+      };
+    }
   }
 
 };
+
+/* Deduz o ícone do objetivo pelo nome (o app tem um conjunto fixo) */
+function iconeObjetivoIA(nome) {
+  const n = normIA(nome);
+  if (/carro|moto|veiculo|honda|toyota|fiat/.test(n)) return "carro";
+  if (/viagem|viajar|ferias|praia|europa|chile|disney|passagem|hotel/.test(n)) return "viagem";
+  if (/casa|apartamento|apê|ape|imovel|terreno|reforma|mudanca/.test(n)) return "casa";
+  if (/curso|faculdade|estudo|escola|mestrado|ingles|livro/.test(n)) return "estudos";
+  if (/casamento|noivado|festa|aliança|alianca/.test(n)) return "casamento";
+  if (/reserva|emergencia|emergência/.test(n)) return "reserva";
+  if (/celular|iphone|notebook|pc|computador|tv|console|playstation|xbox|eletronico|eletrônico|fone/.test(n)) return "eletronico";
+  return "geral";
+}
 
 /* O que mandamos para a IA como ferramentas disponíveis */
 function esquemaAcoesIA() {
