@@ -5702,19 +5702,16 @@ function rendimentoDiarioRF(inv) {
   return brutoDia * (1 - ir);
 }
 
-/* Valor de HOJE de qualquer investimento, unificado:
-   - cripto: quantidade × preço de mercado atual
-   - renda fixa: valor crescido por dias úteis (líquido de IR)
+/* Valor de HOJE de qualquer investimento:
+   - cripto: quantidade × preço de mercado atual (ao vivo)
+   - renda fixa: o aporte crescido pelo rendimento acumulado até hoje,
+     contado por dias úteis e já líquido de IR (é o CDB rendendo de verdade)
    - renda variável (ações, FII, imóvel...): o valor atual informado, ou o aporte */
 function valorAtualInvestimento(inv) {
   if (inv.criptoId) return valorAtualCripto(inv);
-  if (ehRendaFixa(inv.tipo) || (taxaAnualEfetiva(inv) > 0 && inv.taxaPeriodo)) {
-    // Tem taxa de rendimento contratada → cresce sozinho
-    const cresc = valorRendaFixaHoje(inv);
-    // Se também informou um valor atual manual maior (raro), respeita o maior
-    return inv.valorAtual != null ? Math.max(cresc, inv.valorAtual) : cresc;
-  }
-  // Renda variável sem taxa: usa o valor atual informado, senão o aporte
+  // Tem taxa de rendimento? Cresce sozinho por dias úteis desde a aplicação.
+  if (taxaAnualEfetiva(inv) > 0) return valorRendaFixaHoje(inv);
+  // Sem taxa (renda variável): usa o valor atual informado, senão o aporte
   return inv.valorAtual != null ? inv.valorAtual : inv.valor;
 }
 
@@ -5789,17 +5786,25 @@ function renderInvestimentos() {
   const elLucroPct = document.getElementById("invTotalLucroPct");
   const elLucroIcone = document.getElementById("invLucroIcone");
   if (elLucro) {
+    const semVariacao = Math.abs(lucro) < 0.005;
     const positivo = lucro >= 0;
-    elLucro.textContent = (positivo ? "+" : "−") + fmtMoeda(Math.abs(lucro));
-    elLucro.classList.toggle("valor-positivo", positivo);
-    elLucro.classList.toggle("valor-negativo", !positivo);
+    if (semVariacao) {
+      elLucro.textContent = fmtMoeda(0);
+      elLucro.classList.remove("valor-positivo", "valor-negativo");
+    } else {
+      elLucro.textContent = (positivo ? "+" : "−") + fmtMoeda(Math.abs(lucro));
+      elLucro.classList.toggle("valor-positivo", positivo);
+      elLucro.classList.toggle("valor-negativo", !positivo);
+    }
     if (elLucroPct) {
       const pct = totalInvestido > 0 ? (lucro / totalInvestido) * 100 : 0;
-      elLucroPct.textContent = totalInvestido > 0
-        ? `${positivo ? "+" : "−"}${fmtNum(Math.abs(pct))}% sobre os aportes`
-        : "Valor atual menos os aportes";
+      elLucroPct.textContent = semVariacao
+        ? "Ainda sem rendimento acumulado"
+        : (totalInvestido > 0
+            ? `${positivo ? "+" : "−"}${fmtNum(Math.abs(pct))}% sobre os aportes`
+            : "Valor atual menos os aportes");
     }
-    if (elLucroIcone) elLucroIcone.classList.toggle("inv-resumo-icone-vermelho", !positivo);
+    if (elLucroIcone) elLucroIcone.classList.toggle("inv-resumo-icone-vermelho", !semVariacao && !positivo);
   }
 
   // Ganho estimado por período (só renda fixa e dividendos; cripto não tem taxa)
@@ -5820,9 +5825,9 @@ function renderInvestimentos() {
     const c = ehCripto ? criptoPorId(inv.criptoId) : null;
     const preco = ehCripto ? _precosCripto[inv.criptoId] : null;
 
-    // Valor: para cripto, recalcula com o preço atual; renda fixa cresce por dias úteis
-    const valorHoje = ehCripto ? valorAtualCripto(inv) : valorRendaFixaHoje(inv);
-    const variou = ehCripto && Math.abs(valorHoje - inv.valor) > 0.005;
+    // Valor: cripto pelo preço de mercado; demais pelo valor atual informado
+    const valorHoje = valorAtualInvestimento(inv);
+    const variou = Math.abs(valorHoje - inv.valor) > 0.005;
     const lucro = valorHoje - inv.valor;
 
     // Rendimento (renda fixa)
@@ -5846,13 +5851,20 @@ function renderInvestimentos() {
     }
     if (b) meta += `<span class="mov-sep">·</span><span>${esc(b.nome)}</span>`;
 
-    // Segunda linha do valor: rendimento fixo ou lucro/prejuízo da cripto
+    // Segunda linha do valor:
+    //  - cripto: lucro/prejuízo de mercado
+    //  - renda fixa com taxa: quanto rende POR DIA (líquido de IR)
+    //  - renda variável com dividendos: ganho anual estimado
     let subvalor = "";
     if (ehCripto && variou) {
       const cls = lucro >= 0 ? "inv-lucro" : "inv-prejuizo";
       subvalor = `<div class="inv-item-rend ${cls}">${lucro >= 0 ? "+" : "−"}${fmtMoeda(Math.abs(lucro))}</div>`;
-    } else if (!ehCripto && inv.taxa > 0) {
-      subvalor = `<div class="inv-item-rend">+${fmtMoeda(rendDia)}/dia</div>`;
+    } else if (!ehCripto && taxaAno > 0) {
+      const porDia = rendimentoDiarioRF(inv);
+      if (porDia > 0) subvalor = `<div class="inv-item-rend">+${fmtMoeda(porDia)}/dia</div>`;
+    } else if (!ehCripto && inv.rendaPassiva > 0) {
+      const ganhoAno = valorHoje * (inv.rendaPassiva / 100);
+      if (ganhoAno > 0) subvalor = `<div class="inv-item-rend">~${fmtMoeda(ganhoAno / 12)}/mês</div>`;
     }
 
     return `<div class="inv-item ${ehCripto ? "inv-cripto" : ""}">
@@ -6063,6 +6075,8 @@ formInvestimento?.addEventListener("submit", async e => {
   }
 
   // Campos de renda variável
+  // Renda variável pode ter um valor atual informado (ações, imóvel...);
+  // renda fixa cresce sozinha e não usa este campo.
   const valorAtualInput = document.getElementById("invValorAtual")?.value;
   const valorAtual = valorAtualInput ? Number(valorAtualInput) : null;
   const rendaPassiva = Number(document.getElementById("invRendaPassiva")?.value) || 0;
@@ -6998,8 +7012,12 @@ function abrirEditarInvestimento(id) {
 
   // Mostra só os campos que fazem sentido para o tipo
   const rf = ehRendaFixa(i.tipo);
+  const ehCripto = !!i.criptoId;
   modal.querySelectorAll(".edit-campo-rf").forEach(el => el.classList.toggle("hidden-filter", !rf));
   modal.querySelectorAll(".edit-campo-rv").forEach(el => el.classList.toggle("hidden-filter", rf));
+  // "Vale hoje" serve para todo tipo (a pessoa informa o valor atual), menos
+  // cripto, cujo valor vem do preço de mercado ao vivo.
+  modal.querySelectorAll(".edit-campo-valorhoje").forEach(el => el.classList.toggle("hidden-filter", ehCripto));
 
   document.getElementById("editInvTipoLabel").textContent = i.tipo;
   modal.classList.add("open");
