@@ -9741,7 +9741,7 @@ const ACOES_IA = {
       properties: {
         tipo: { type: "string", enum: ["gasto", "entrada"], description: "gasto para saídas de dinheiro, entrada para receitas" },
         valor: { type: "number", description: "Valor em reais, sempre positivo. Se ele não disse o valor, NÃO chame esta ferramenta: pergunte o valor numa mensagem normal." },
-        descricao: { type: "string", description: "O que foi, em poucas palavras: Mercado, Uber, Salário. Deixe vazio se ele não disse o que era — o app resolve." },
+        descricao: { type: "string", description: "O que foi, em poucas palavras: Mercado, Uber, Salário. Para GASTO pode deixar vazio (o app resolve). Para ENTRADA, sempre diga de onde veio (salário, venda, freela) — se ele não disse, pergunte antes de chamar a ferramenta." },
         conta: { type: "string", description: "Nome da conta ou banco, como está cadastrado. Deixe vazio se ele não disse." },
         categoria: { type: "string", description: "Categoria do gasto. Deixe vazio para o app escolher sozinho pela descrição." },
         data: { type: "string", description: "AAAA-MM-DD, ou hoje / ontem / amanhã. Padrão: hoje." },
@@ -9823,6 +9823,14 @@ const ACOES_IA = {
           texto: "Esse gasto entra em qual categoria?",
           opcoes: opcoesCategoriasIA()
         });
+      }
+
+      // Entrada sem descrição vira um "Entrada" genérico que ninguém entende
+      // depois. Não há opção fechada para "de onde veio", então isso não é
+      // botão: devolvemos para a IA perguntar em texto. Rede de segurança
+      // para quando a IA esquece de perguntar antes.
+      if (p.tipo === "entrada" && !p.descricao) {
+        return { erro: `Esta entrada de ${fmtMoeda(p.valor)} está sem origem, e um lançamento "Entrada" sem nome fica impossível de entender depois. Pergunte a ele de onde veio esse dinheiro (salário, venda, freela, presente...) e chame a ferramenta de novo com isso na descrição. NÃO invente a origem.` };
       }
 
       return { dados: p, perguntas: perguntas };
