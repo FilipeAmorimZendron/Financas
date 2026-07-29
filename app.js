@@ -10537,6 +10537,7 @@ async function executarAcaoIA(acao) {
       const extras = [];       // o vai e vem das ações desta pergunta
       let resposta = "";
       let voltas = 0;
+      let ultimaAcaoOk = false; // a última ação executada deu certo?
 
       while (voltas < 4) {
         voltas++;
@@ -10600,6 +10601,10 @@ async function executarAcaoIA(acao) {
           tirarCarregando();
           if (dados.resposta) addMsg(dados.resposta, "ia");
           const resultado = await executarAcaoIA(dados.acao);
+          // Guarda se a ação deu certo: se a IA não escrever a frase final,
+          // o comprovante já está na tela e a resposta deve ser positiva —
+          // nunca "não consegui", que assustaria mesmo tendo dado certo.
+          ultimaAcaoOk = /^FEITO COM SUCESSO/.test(resultado);
           extras.push({ role: "assistant", content: dados.conteudoIA });
           extras.push({
             role: "user",
@@ -10609,12 +10614,19 @@ async function executarAcaoIA(acao) {
           continue;
         }
 
-        resposta = dados.resposta || "Não consegui gerar uma resposta.";
+        // Sem texto da IA: se a última ação deu certo, o comprovante acima já
+        // fala por si — não mostramos nada. Senão, é um erro de verdade.
+        resposta = dados.resposta || "";
+        if (!resposta && !ultimaAcaoOk) resposta = "Não consegui gerar uma resposta. Pode tentar de novo?";
         break;
       }
 
       tirarCarregando();
-      if (!resposta) resposta = "Prontinho. Se quiser, posso conferir como ficou o seu saldo.";
+      // Nada a dizer mas a ação foi feita: o comprovante basta, ficamos calados.
+      if (!resposta) {
+        if (ultimaAcaoOk) return;
+        resposta = "Não consegui gerar uma resposta. Pode tentar de novo?";
+      }
       addMsg(resposta, "ia");
 
       // Se o chat estiver minimizado/fechado, notifica no sino que a
