@@ -6423,6 +6423,12 @@ body.sem-internet .layout { padding-top: 34px; }
   gap: 14px;
   margin-bottom: 16px;
 }
+.inv-resumo-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+@media (max-width: 780px) {
+  .inv-resumo-3 { grid-template-columns: 1fr; }
+}
 .inv-resumo-card {
   padding: 22px 24px;
   background: var(--surface);
@@ -6462,6 +6468,11 @@ body.sem-internet .layout { padding-top: 34px; }
   border-color: rgba(70,180,131,0.25);
   color: var(--green);
 }
+.inv-resumo-icone-vermelho {
+  background: rgba(226, 75, 74, 0.12);
+  border-color: rgba(226, 75, 74, 0.25);
+  color: var(--red, #e24b4a);
+}
 .inv-resumo-valor {
   font-family: 'IBM Plex Mono', monospace;
   font-size: clamp(26px, 3.4vw, 36px);
@@ -6476,6 +6487,71 @@ body.sem-internet .layout { padding-top: 34px; }
 .inv-resumo-desc {
   font-size: 12.5px;
   color: var(--text-muted);
+}
+
+/* ─── Ganho estimado (por dia/mês/ano) ─── */
+.inv-ganho {
+  background: linear-gradient(135deg, var(--green-dim), var(--surface) 72%);
+  border: 1px solid rgba(70,180,131,0.22);
+  border-radius: var(--radius-lg, 16px);
+  padding: 18px 22px;
+  margin-bottom: 20px;
+}
+.inv-ganho-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.inv-ganho-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.inv-ganho-abas {
+  display: inline-flex;
+  gap: 3px;
+  background: var(--surface2);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 3px;
+}
+.inv-ganho-aba {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.inv-ganho-aba:hover { color: var(--text-primary); }
+.inv-ganho-aba.ativa {
+  background: var(--green);
+  color: #fff;
+}
+[data-theme="dark"] .inv-ganho-aba.ativa { color: #04121F; }
+.inv-ganho-valor {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  margin-bottom: 6px;
+}
+.inv-ganho-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
 }
 
 /* ─── Formulário: alinhamento firme ─── */

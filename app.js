@@ -5511,7 +5511,7 @@ function promptValor(msg, valorInicial) {
 const formInvestimento  = document.getElementById("formInvestimento");
 const listaInvestimentosEl = document.getElementById("listaInvestimentos");
 const invTotalInvestidoEl  = document.getElementById("invTotalInvestido");
-const invTotalRendimentoEl = document.getElementById("invTotalRendimento");
+const invTotalRendimentoEl = document.getElementById("invTotalRendimento"); // legado: substituído pelos 3 cards + ganho estimado
 
 /* ============================================================
    CLASSIFICAÇÃO DOS TIPOS DE INVESTIMENTO
@@ -5702,19 +5702,108 @@ function rendimentoDiarioRF(inv) {
   return brutoDia * (1 - ir);
 }
 
+/* Valor de HOJE de qualquer investimento, unificado:
+   - cripto: quantidade × preço de mercado atual
+   - renda fixa: valor crescido por dias úteis (líquido de IR)
+   - renda variável (ações, FII, imóvel...): o valor atual informado, ou o aporte */
+function valorAtualInvestimento(inv) {
+  if (inv.criptoId) return valorAtualCripto(inv);
+  if (ehRendaFixa(inv.tipo) || (taxaAnualEfetiva(inv) > 0 && inv.taxaPeriodo)) {
+    // Tem taxa de rendimento contratada → cresce sozinho
+    const cresc = valorRendaFixaHoje(inv);
+    // Se também informou um valor atual manual maior (raro), respeita o maior
+    return inv.valorAtual != null ? Math.max(cresc, inv.valorAtual) : cresc;
+  }
+  // Renda variável sem taxa: usa o valor atual informado, senão o aporte
+  return inv.valorAtual != null ? inv.valorAtual : inv.valor;
+}
+
+/* Ganho estimado ANUAL em reais, considerando só o que é previsível:
+   juros da renda fixa + renda passiva (dividendos/aluguel) da renda variável.
+   Cripto NÃO entra: seu ganho é a variação de mercado, não uma taxa. */
+function ganhoEstimadoAnual() {
+  return state.investimentos.reduce((s, i) => {
+    if (i.criptoId) return s; // cripto não tem ganho por taxa
+    const base = valorAtualInvestimento(i);
+    let ganho = 0;
+    const taxaAno = taxaAnualEfetiva(i);
+    if (taxaAno > 0) {
+      // Rendimento de renda fixa, líquido de IR
+      const ir = ehIsentoIR(i) ? 0 : aliquotaIR(i.dataInicio);
+      ganho += base * (taxaAno / 100) * (1 - ir);
+    }
+    if (i.rendaPassiva > 0) {
+      // Dividendos/aluguel são sobre o valor de hoje
+      ganho += base * (i.rendaPassiva / 100);
+    }
+    return s + ganho;
+  }, 0);
+}
+
+/* Período escolhido para o ganho estimado (dia/mes/ano) */
+let _periodoGanho = "mes";
+
+/* Atualiza o card "Ganho estimado" conforme o período selecionado */
+function atualizarGanhoEstimado() {
+  const elValor = document.getElementById("invGanhoValor");
+  const elDesc = document.getElementById("invGanhoDesc");
+  const elBox = document.getElementById("invGanhoBox");
+  if (!elValor) return;
+
+  const anual = ganhoEstimadoAnual();
+
+  // Esconde o box inteiro se não há nada previsível (só cripto, por ex.)
+  const temPrevisivel = state.investimentos.some(i => !i.criptoId && (taxaAnualEfetiva(i) > 0 || i.rendaPassiva > 0));
+  if (elBox) elBox.style.display = temPrevisivel ? "" : "none";
+  if (!temPrevisivel) return;
+
+  let valor, sufixo;
+  if (_periodoGanho === "dia") { valor = anual / 365; sufixo = "por dia"; }
+  else if (_periodoGanho === "ano") { valor = anual; sufixo = "por ano"; }
+  else { valor = anual / 12; sufixo = "por mês"; }
+
+  elValor.textContent = "+" + fmtMoeda(valor);
+  if (elDesc) {
+    elDesc.textContent = `Estimativa ${sufixo}, com base nas taxas e dividendos informados (já com desconto de IR na renda fixa). Cripto não entra — o ganho dela é a variação de mercado.`;
+  }
+}
+
 function renderInvestimentos() {
   if (!listaInvestimentosEl) return;
 
-  // Total: cripto usa valor de mercado; renda fixa usa valor crescido por dias úteis
-  const total = state.investimentos.reduce((s,i) => {
-    return s + (i.criptoId ? valorAtualCripto(i) : valorRendaFixaHoje(i));
-  }, 0);
-  const rendimentoAno = state.investimentos.reduce((s,i) => {
-    return s + i.valor * (taxaAnualEfetiva(i)/100);
-  }, 0);
+  // ── Os três totais do topo ──
+  // Total investido = soma dos APORTES (o que a pessoa colocou), sempre o
+  //   valor original, nunca o de mercado.
+  // Valor atual = quanto vale HOJE: cripto pelo preço de mercado, renda fixa
+  //   crescida por dias úteis, renda variável pelo valor atual informado.
+  // Lucro/prejuízo = valor atual − investido (inclui a valorização da cripto).
+  const totalInvestido = state.investimentos.reduce((s, i) => s + (Number(i.valor) || 0), 0);
+  const totalAtual = state.investimentos.reduce((s, i) => s + valorAtualInvestimento(i), 0);
+  const lucro = totalAtual - totalInvestido;
 
-  if (invTotalInvestidoEl) invTotalInvestidoEl.textContent = fmtMoeda(total);
-  if (invTotalRendimentoEl) invTotalRendimentoEl.textContent = fmtMoeda(rendimentoAno);
+  if (invTotalInvestidoEl) invTotalInvestidoEl.textContent = fmtMoeda(totalInvestido);
+  const elAtual = document.getElementById("invTotalAtual");
+  if (elAtual) elAtual.textContent = fmtMoeda(totalAtual);
+
+  const elLucro = document.getElementById("invTotalLucro");
+  const elLucroPct = document.getElementById("invTotalLucroPct");
+  const elLucroIcone = document.getElementById("invLucroIcone");
+  if (elLucro) {
+    const positivo = lucro >= 0;
+    elLucro.textContent = (positivo ? "+" : "−") + fmtMoeda(Math.abs(lucro));
+    elLucro.classList.toggle("valor-positivo", positivo);
+    elLucro.classList.toggle("valor-negativo", !positivo);
+    if (elLucroPct) {
+      const pct = totalInvestido > 0 ? (lucro / totalInvestido) * 100 : 0;
+      elLucroPct.textContent = totalInvestido > 0
+        ? `${positivo ? "+" : "−"}${fmtNum(Math.abs(pct))}% sobre os aportes`
+        : "Valor atual menos os aportes";
+    }
+    if (elLucroIcone) elLucroIcone.classList.toggle("inv-resumo-icone-vermelho", !positivo);
+  }
+
+  // Ganho estimado por período (só renda fixa e dividendos; cripto não tem taxa)
+  atualizarGanhoEstimado();
 
   if (!state.investimentos.length) {
     listaInvestimentosEl.innerHTML = vazio(
@@ -9015,6 +9104,16 @@ function trocarAbaInv(aba) {
 
 document.querySelectorAll("#invAbas .meta-aba").forEach(btn => {
   btn.addEventListener("click", () => trocarAbaInv(btn.dataset.aba));
+});
+
+/* Abas do ganho estimado (por dia / mês / ano) */
+document.querySelectorAll("#invGanhoAbas .inv-ganho-aba").forEach(btn => {
+  btn.addEventListener("click", () => {
+    _periodoGanho = btn.dataset.periodo || "mes";
+    document.querySelectorAll("#invGanhoAbas .inv-ganho-aba").forEach(b =>
+      b.classList.toggle("ativa", b === btn));
+    atualizarGanhoEstimado();
+  });
 });
 
 

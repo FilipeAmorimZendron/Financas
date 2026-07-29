@@ -883,8 +883,8 @@
         <!-- ═══ CARTEIRA ═══ -->
         <div class="inv-painel" id="painelCarteira">
 
-          <div class="inv-resumo">
-            <div class="inv-resumo-card inv-resumo-principal">
+          <div class="inv-resumo inv-resumo-3">
+            <div class="inv-resumo-card">
               <div class="inv-resumo-topo">
                 <span class="inv-resumo-label">Total investido</span>
                 <span class="inv-resumo-icone">
@@ -892,18 +892,42 @@
                 </span>
               </div>
               <div class="inv-resumo-valor" id="invTotalInvestido">R$ 0,00</div>
-              <div class="inv-resumo-desc">Soma de todos os aportes</div>
+              <div class="inv-resumo-desc">Soma dos seus aportes</div>
             </div>
-            <div class="inv-resumo-card">
+            <div class="inv-resumo-card inv-resumo-principal">
               <div class="inv-resumo-topo">
-                <span class="inv-resumo-label">Rendimento projetado</span>
-                <span class="inv-resumo-icone inv-resumo-icone-verde">
+                <span class="inv-resumo-label">Lucro / prejuízo</span>
+                <span class="inv-resumo-icone inv-resumo-icone-verde" id="invLucroIcone">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
                 </span>
               </div>
-              <div class="inv-resumo-valor valor-positivo" id="invTotalRendimento">R$ 0,00</div>
-              <div class="inv-resumo-desc">Projeção com base nas taxas (1 ano)</div>
+              <div class="inv-resumo-valor valor-positivo" id="invTotalLucro">R$ 0,00</div>
+              <div class="inv-resumo-desc" id="invTotalLucroPct">Valor atual menos os aportes</div>
             </div>
+            <div class="inv-resumo-card">
+              <div class="inv-resumo-topo">
+                <span class="inv-resumo-label">Valor atual</span>
+                <span class="inv-resumo-icone">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </span>
+              </div>
+              <div class="inv-resumo-valor" id="invTotalAtual">R$ 0,00</div>
+              <div class="inv-resumo-desc">Quanto vale hoje no mercado</div>
+            </div>
+          </div>
+
+          <!-- Ganho estimado por período (renda fixa + dividendos) -->
+          <div class="inv-ganho" id="invGanhoBox">
+            <div class="inv-ganho-topo">
+              <span class="inv-ganho-label">Ganho estimado</span>
+              <div class="inv-ganho-abas" id="invGanhoAbas">
+                <button type="button" class="inv-ganho-aba" data-periodo="dia">Por dia</button>
+                <button type="button" class="inv-ganho-aba ativa" data-periodo="mes">Por mês</button>
+                <button type="button" class="inv-ganho-aba" data-periodo="ano">Por ano</button>
+              </div>
+            </div>
+            <div class="inv-ganho-valor" id="invGanhoValor">R$ 0,00</div>
+            <div class="inv-ganho-desc" id="invGanhoDesc">Com base nas taxas e dividendos que você informou. Cripto não entra aqui — o ganho dela é a variação de mercado.</div>
           </div>
 
           <div class="form-panel">
