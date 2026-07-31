@@ -289,9 +289,45 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── Sanitiza o que a IA devolveu ──
+    // A IA às vezes coloca no campo "categoria" um texto que não é categoria
+    // (ex: a própria pergunta que deveria ter feito: "Você me informa o motivo").
+    // Toda categoria fora da lista oficial é rejeitada: o lançamento vira uma
+    // DÚVIDA, para o usuário escolher a categoria nos botões — nunca salvamos
+    // uma categoria inventada.
+    const CATS_VALIDAS = new Set([...CATEGORIAS.map(c => c.toLowerCase()), "entrada"]);
+    const lancBrutos = Array.isArray(resultado.lancamentos) ? resultado.lancamentos : [];
+    const duvidasBrutas = Array.isArray(resultado.duvidas) ? resultado.duvidas : [];
+
+    const lancamentosOk = [];
+    lancBrutos.forEach(l => {
+      if (!l || typeof l !== "object") return;
+      const cat = String(l.categoria || "").trim();
+      const ehEntrada = String(l.tipo || "").toLowerCase() === "entrada";
+      if (ehEntrada) { l.categoria = "Entrada"; lancamentosOk.push(l); return; }
+      if (cat && CATS_VALIDAS.has(cat.toLowerCase())) {
+        lancamentosOk.push(l);
+      } else {
+        // Categoria inválida/inventada → vira dúvida com botões de categoria
+        duvidasBrutas.push({
+          data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo || "gasto",
+          pergunta: "Em qual categoria esse gasto se encaixa?",
+          opcoes: ["Alimentação", "Transporte", "Compras", "Outros"]
+        });
+      }
+    });
+
+    // Também limpa as dúvidas: a pergunta nunca pode virar categoria, e as
+    // opções devem ser categorias de verdade.
+    const duvidasOk = duvidasBrutas.filter(d => d && typeof d === "object").map(d => {
+      let opcoes = Array.isArray(d.opcoes) ? d.opcoes.filter(o => CATS_VALIDAS.has(String(o).toLowerCase())) : [];
+      if (opcoes.length < 2) opcoes = ["Alimentação", "Transporte", "Compras", "Outros"];
+      return { ...d, opcoes };
+    });
+
     return res.status(200).json({
-      lancamentos: Array.isArray(resultado.lancamentos) ? resultado.lancamentos : [],
-      duvidas:     Array.isArray(resultado.duvidas)     ? resultado.duvidas     : [],
+      lancamentos: lancamentosOk,
+      duvidas:     duvidasOk,
       resumo:      resultado.resumo || "",
       usos:        usosInfo
     });

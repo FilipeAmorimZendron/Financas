@@ -4506,6 +4506,17 @@ function lancamentoValido(m) {
   const valorOk = Number.isFinite(valor) && valor > 0;
   const tipoOk = m.tipo === "entrada" || m.tipo === "gasto";
   const descOk = typeof m.descricao === "string" && m.descricao.trim().length > 0;
+
+  // Defesa final contra categoria inventada (ex: "Você me informa o motivo").
+  // Só aceita categoria que exista de verdade no app; senão joga em "Outros"
+  // para nunca salvar uma frase-instrução como categoria.
+  const cat = String(m.categoria || "").trim();
+  if (m.tipo === "entrada") {
+    m.categoria = "Entrada";
+  } else if (!cat || !todasCategorias().some(c => c.toLowerCase() === cat.toLowerCase())) {
+    m.categoria = "Outros";
+  }
+
   return dataOk && valorOk && tipoOk && descOk;
 }
 
