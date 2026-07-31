@@ -3920,7 +3920,9 @@ formImportarExtrato?.addEventListener("submit", async e => {
               body: JSON.stringify({
                 texto: naoSabe.map(l => `${l.data};${l.descricao};${l.tipo === "entrada" ? "" : "-"}${l.valor}`).join("\n"),
                 token: localStorage.getItem("fp_token") || "",
-                hoje: hojeISO()
+                hoje: hojeISO(),
+                titular: state.perfil?.nome || "",
+                contas: (state.bancos || []).map(b => b.nome)
               })
             });
             if (respIA.ok) {
@@ -3960,6 +3962,8 @@ formImportarExtrato?.addEventListener("submit", async e => {
 
     corpo.token = localStorage.getItem("fp_token") || "";
     corpo.hoje = hojeISO();
+    corpo.titular = state.perfil?.nome || "";
+    corpo.contas = (state.bancos || []).map(b => b.nome);
 
     const resp = await fetch("/api/ler-extrato", {
       method: "POST",
@@ -4110,6 +4114,8 @@ async function processarExtratoChat(arquivo, bancoId, addChat) {
     }
     corpo.token = localStorage.getItem("fp_token") || "";
     corpo.hoje = hojeISO();
+    corpo.titular = state.perfil?.nome || "";       // ajuda a IA a detectar transferências suas
+    corpo.contas = (state.bancos || []).map(b => b.nome); // nomes das contas do usuário
 
     const resp = await fetch("/api/ler-extrato", {
       method: "POST",
@@ -4227,6 +4233,18 @@ function abrirRevisao(lancamentos, duvidas, resumo, bancoId) {
   const jaResolvidas = [];
   duvidas.forEach(d0 => {
     const d = norm(d0);
+    // A IA marcou como transferência entre contas próprias: vira a pergunta
+    // de transferência (Sim/Não), não uma pergunta de categoria.
+    if (d0.ehTransferenciaPropria) {
+      duvidasRestantes.push({
+        ...d,
+        resposta: null,
+        ehTransferencia: true,
+        pergunta: d.pergunta || "Isso parece uma transferência entre as suas contas. O dinheiro não saiu do seu patrimônio, só mudou de lugar.",
+        opcoes: ["Sim, é entre minhas contas", "Não, é um gasto/recebimento normal"]
+      });
+      return;
+    }
     const lembrada = memoria[chaveMemoria(d.descricao)];
     if (lembrada) {
       jaResolvidas.push({ ...d, categoria: lembrada });
@@ -4324,6 +4342,12 @@ function renderRevisao() {
     revisaoDados.duvidas.forEach((d, i) => {
       const respondida = !!d.resposta;
       const opcoes = d.opcoes || categoriasRevisao();
+      let confirmacaoTransf = "";
+      if (d.resposta === "__transferencia" && d.transferencia) {
+        const bo = state.bancos.find(b => b.id === d.transferencia.origem);
+        const bd = state.bancos.find(b => b.id === d.transferencia.destino);
+        confirmacaoTransf = `<div class="rev-transf-ok">↔ Transferência: ${esc(bo?.nome || "conta")} → ${esc(bd?.nome || "conta")}. Não conta como gasto.</div>`;
+      }
       html += `<div class="rev-duvida ${respondida ? "rev-duvida-ok" : "rev-duvida-pendente"}" id="rev-duvida-${i}">
         <div class="rev-duvida-topo">
           <span class="rev-duvida-desc">${esc(d.descricao || "")}</span>
@@ -4332,6 +4356,7 @@ function renderRevisao() {
           </span>
         </div>
         <div class="rev-duvida-pergunta">${esc(d.data || "")} · ${esc(d.pergunta || "Qual categoria?")}</div>
+        ${confirmacaoTransf}
         <div class="rev-duvida-opcoes">
           ${opcoes.map((op, oi) => `
             <button type="button" class="rev-opcao ${d.resposta === op ? "rev-opcao-ativa" : ""}"
@@ -4411,9 +4436,24 @@ function responderDuvida(indice, indiceOpcao) {
     const opcoes = d.opcoes || categoriasRevisao();
     const escolha = opcoes[indiceOpcao] || "Outros";
 
-    // Pergunta de transferência: a primeira opção descarta o lançamento
+    // Pergunta de transferência entre contas próprias:
+    //  opção 0 = "Sim, é entre minhas contas" → escolher a outra conta
+    //  opção 1 = "Não, é um gasto/recebimento normal" → tratar normal
     if (d.ehTransferencia) {
-      d.resposta = (indiceOpcao === 0) ? "__ignorar" : (d.categoria || "Outros");
+      if (indiceOpcao === 0) {
+        escolherContaTransferencia(indice);   // abre a escolha da outra conta
+        return;
+      }
+      // "Não": deixa de ser transferência; se era gasto/entrada, precisa de categoria
+      d.ehTransferencia = false;
+      d.transferencia = null;
+      if (d.tipo === "entrada") {
+        d.resposta = "Entrada";
+      } else {
+        // vira uma pergunta de categoria normal
+        d.opcoes = ["Alimentação", "Transporte", "Compras", "Outros"];
+        d.resposta = null;
+      }
       renderRevisao();
       return;
     }
@@ -4423,6 +4463,51 @@ function responderDuvida(indice, indiceOpcao) {
     gravarMemoriaCategoria(d.descricao, d.resposta);
   }
   renderRevisao();
+}
+
+/* Pergunta para qual (ou de qual) conta foi a transferência, em botões.
+   A conta que a pessoa importou já é um dos lados; ela escolhe o outro. */
+function escolherContaTransferencia(indice) {
+  const d = revisaoDados.duvidas[indice];
+  if (!d) return;
+  const contaImportada = state.bancos.find(b => b.id === revisaoDados.bancoId);
+  // As outras contas (nunca a mesma que foi importada)
+  const outras = state.bancos.filter(b => b.id !== revisaoDados.bancoId);
+
+  if (!outras.length) {
+    toast("Você só tem uma conta cadastrada. Cadastre a outra conta para registrar a transferência.", "warning");
+    return;
+  }
+
+  // Monta os botões da outra conta e injeta abaixo da dúvida
+  const alvo = document.getElementById(`rev-duvida-${indice}`);
+  if (!alvo) return;
+  const jaTem = alvo.querySelector(".rev-transf-contas");
+  if (jaTem) { jaTem.remove(); return; } // toggle
+
+  const box = document.createElement("div");
+  box.className = "rev-transf-contas";
+  const rotulo = d.tipo === "entrada"
+    ? "De qual das suas contas esse dinheiro veio?"
+    : "Para qual das suas contas o dinheiro foi?";
+  box.innerHTML = `<div class="rev-transf-rotulo">${esc(rotulo)}</div>
+    <div class="rev-transf-opcoes">
+      ${outras.map(b => `<button type="button" class="rev-opcao" data-conta="${b.id}">${esc(b.nome)}</button>`).join("")}
+    </div>`;
+  box.querySelectorAll("[data-conta]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const outraId = btn.dataset.conta;
+      // Origem e destino conforme o sentido: gasto = saiu daqui, foi para lá;
+      // entrada = veio de lá, entrou aqui.
+      const origem = d.tipo === "entrada" ? outraId : revisaoDados.bancoId;
+      const destino = d.tipo === "entrada" ? revisaoDados.bancoId : outraId;
+      d.resposta = "__transferencia";
+      d.transferencia = { origem, destino, valor: Number(d.valor) || 0, data: d.data,
+        descricao: d.descricao || "Transferência entre contas" };
+      renderRevisao();
+    });
+  });
+  alvo.appendChild(box);
 }
 
 function trocarCategoriaItem(indice, categoria) {
@@ -4529,8 +4614,11 @@ async function salvarRevisao() {
 
   // Junta os itens já certos com as dúvidas respondidas
   const paraSalvar = revisaoDados.itens.slice();
+  const transferencias = [];
   revisaoDados.duvidas.forEach(d => {
-    if (d.resposta && d.resposta !== "__ignorar") {
+    if (d.resposta === "__transferencia" && d.transferencia) {
+      transferencias.push(d.transferencia);
+    } else if (d.resposta && d.resposta !== "__ignorar" && d.resposta !== "__transferencia") {
       paraSalvar.push({
         data: d.data, descricao: d.descricao, valor: d.valor,
         tipo: d.tipo, categoria: d.resposta
@@ -4560,7 +4648,7 @@ async function salvarRevisao() {
   const novos = validos.filter(m => !jaExiste(m));
   const dup = validos.length - novos.length;
 
-  if (!novos.length) {
+  if (!novos.length && !transferencias.length) {
     toast("Todos esses lançamentos já estavam no app.", "info");
     fecharRevisao();
     return;
@@ -4584,6 +4672,19 @@ async function salvarRevisao() {
       });
     }
 
+    // Transferências entre contas próprias (não entram como gasto/receita)
+    for (const t of transferencias) {
+      if (!t.origem || !t.destino || t.origem === t.destino) continue;
+      const nova = await dbInsert("transferencias", {
+        conta_origem: t.origem, conta_destino: t.destino,
+        valor: Number(t.valor), data: t.data, descricao: t.descricao
+      });
+      state.transferencias.push({
+        id: nova.id, origem: nova.conta_origem, destino: nova.conta_destino,
+        valor: Number(nova.valor), data: nova.data, descricao: nova.descricao || ""
+      });
+    }
+
     fecharRevisao();
     formImportarExtrato?.reset();
     resetarDropImport();
@@ -4600,6 +4701,7 @@ async function salvarRevisao() {
     renderTudo();
 
     let msg = `${novos.length} lançamento(s) salvos.`;
+    if (transferencias.length) msg += ` ${transferencias.length} transferência(s) entre contas.`;
     if (dup > 0) msg += ` ${dup} já existia(m).`;
     if (descartados > 0) msg += ` ${descartados} com dados inválidos foram ignorados.`;
     toast(msg, "success");

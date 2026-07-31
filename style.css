@@ -7635,11 +7635,22 @@ body.sem-internet .layout { padding-top: 34px; }
 /* Item "não incluso" (com X) */
 .lp-plano-off {
   color: var(--lp-text-dim);
-  opacity: 0.65;
+  opacity: 0.6;
 }
-.lp-plano-off::before {
-  content: "✕" !important;
-  color: var(--lp-text-dim) !important;
+.lp-plano-lista li.lp-plano-off::before {
+  /* Item não incluso: um "×" cinza limpo, redefinido por completo para não
+     herdar tamanho/posição do check verde (o que quebrava o desenho).
+     O seletor casa o contexto .lp-plano-lista li para vencer o check. */
+  content: "" !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 4px !important;
+  width: 15px !important;
+  height: 15px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23808a99' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'/%3E%3Cline x1='6' y1='6' x2='18' y2='18'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: contain !important;
 }
 .lp-plano-btn-ghost {
   background: transparent;
@@ -8577,6 +8588,27 @@ body.scroll-travado {
   line-height: 1.5;
 }
 .rev-duvida-opcoes { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 4px; }
+
+/* Escolha da outra conta ao marcar transferência entre contas próprias */
+.rev-transf-contas {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--accent-glow);
+  border-radius: 10px;
+}
+.rev-transf-rotulo {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.rev-transf-opcoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.rev-transf-ok {
+  margin: 6px 0 2px;
+  font-size: 12.5px;
+  color: var(--accent);
+  font-weight: 500;
+}
 .rev-opcao {
   border: 1px solid var(--border-soft, #2C384A);
   background: rgba(255,255,255,0.04);

@@ -112,7 +112,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { texto, arquivoBase64, tipoArquivo, token, hoje } = req.body || {};
+    const { texto, arquivoBase64, tipoArquivo, token, hoje, titular, contas } = req.body || {};
 
     if (!texto && !arquivoBase64) {
       return res.status(400).json({ erro: "Envie o conteúdo do extrato." });
@@ -207,6 +207,14 @@ export default async function handler(req, res) {
       "- Outros: SÓ quando realmente não se encaixa em nenhuma acima. Evite ao máximo usar 'Outros' — quase toda transação tem uma categoria melhor. Se reconhecer a marca ou o tipo de estabelecimento, use a categoria certa.",
       "",
       "IMPORTANTE SOBRE 'OUTROS': é a categoria de último recurso. Antes de usá-la, pense no que aquele estabelecimento vende. Um nome como 'DROGA RAIA' é Saúde, 'POSTO SHELL' é Transporte, 'NETFLIX' é Lazer. Só use 'Outros' se, mesmo pensando, não der para saber o ramo — e nesse caso prefira mandar para 'duvidas' e perguntar.",
+      "",
+      "TRANSFERÊNCIAS ENTRE AS CONTAS DA PRÓPRIA PESSOA:",
+      titular
+        ? `- O titular deste extrato é "${titular}". Uma transferência (Pix, TED, DOC) enviada PARA ou recebida DE "${titular}" (ou variações desse mesmo nome) é dinheiro passando entre contas da MESMA pessoa — não é gasto nem receita de verdade.`
+        : "- Transferências (Pix, TED, DOC) em que o remetente/destinatário é a MESMA pessoa dona do extrato são dinheiro passando entre contas próprias — não é gasto nem receita.",
+      contas && contas.length ? `- As contas que a pessoa tem no app são: ${contas.join(", ")}. Se a transferência menciona uma dessas, é quase certo que é entre contas próprias.` : "",
+      "- Quando identificar uma transferência assim, NÃO a classifique como gasto/entrada comum. Coloque em \"duvidas\" com o campo \"ehTransferenciaPropria\": true, pergunta explicando, e as opções [\"Sim, transferência entre minhas contas\", \"Não, é um gasto/recebimento normal\"]. Assim a pessoa confirma e escolhe a outra conta no app.",
+      "- Transferências para OUTRAS pessoas (nomes diferentes do titular) são gastos/recebimentos normais — trate normalmente.",
       "",
       "QUANDO VOCÊ TIVER DÚVIDA:",
       "- Se não conseguir categorizar com segurança mesmo usando o guia acima, NÃO jogue em 'Outros'. Coloque o item em \"duvidas\" e pergunte.",
@@ -320,6 +328,15 @@ export default async function handler(req, res) {
     // Também limpa as dúvidas: a pergunta nunca pode virar categoria, e as
     // opções devem ser categorias de verdade.
     const duvidasOk = duvidasBrutas.filter(d => d && typeof d === "object").map(d => {
+      // Dúvida de transferência própria: as opções são Sim/Não, não categorias.
+      if (d.ehTransferenciaPropria) {
+        return {
+          ...d,
+          opcoes: Array.isArray(d.opcoes) && d.opcoes.length === 2
+            ? d.opcoes
+            : ["Sim, transferência entre minhas contas", "Não, é um gasto/recebimento normal"]
+        };
+      }
       let opcoes = Array.isArray(d.opcoes) ? d.opcoes.filter(o => CATS_VALIDAS.has(String(o).toLowerCase())) : [];
       if (opcoes.length < 2) opcoes = ["Alimentação", "Transporte", "Compras", "Outros"];
       return { ...d, opcoes };
