@@ -3405,7 +3405,7 @@ body.sem-internet .layout { padding-top: 34px; }
 
 /* ─── Demo: extrato importado pela IA (estilo chat) ──────── */
 .lp-extrato {
-  margin-top: 88px;
+  margin-top: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 60px;
@@ -3543,7 +3543,7 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .lp-ec-enviar svg { width: 18px; height: 18px; }
 @media (max-width: 900px) {
-  .lp-extrato { grid-template-columns: 1fr; gap: 34px; margin-top: 60px; }
+  .lp-extrato { grid-template-columns: 1fr; gap: 34px; margin-top: 0; }
   .lp-extrato-chat { margin: 0 auto; }
 }
 
