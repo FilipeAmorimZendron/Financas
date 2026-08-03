@@ -7901,6 +7901,8 @@ const AVATARES = [
   { id: "macaco",   nome: "Macaco"   },
   { id: "cachorro", nome: "Cachorro" },
   { id: "girafa",   nome: "Girafa"   },
+  { id: "cavalo",   nome: "Cavalo"   },
+  { id: "pinguim",  nome: "Pinguim"  },
 ];
 
 const TAM_MAX_AVATAR = 2 * 1024 * 1024;   // 2 MB
