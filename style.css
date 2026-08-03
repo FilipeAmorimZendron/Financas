@@ -2687,110 +2687,132 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-hero-fone { display: flex; justify-content: center; position: relative; }
 .lp-fone {
   position: relative;
-  width: 340px;
-  max-width: 88vw;
-  background: linear-gradient(145deg, #1c1c1e, #0a0a0c);
-  border-radius: 54px;
-  padding: 12px;
+  width: 380px;
+  max-width: 90vw;
+  background: linear-gradient(145deg, #2a2a2e, #0c0c0e);
+  border-radius: 58px;
+  padding: 13px;
   box-shadow:
-    0 40px 80px rgba(0,0,0,0.55),
-    0 0 0 2px rgba(255,255,255,0.06),
-    inset 0 0 0 1px rgba(255,255,255,0.04);
+    0 50px 100px rgba(0,0,0,0.6),
+    0 0 0 2px rgba(255,255,255,0.07),
+    inset 0 0 0 1px rgba(255,255,255,0.05);
 }
-/* Botão lateral direito (liga/desliga) */
+/* Botão liga/desliga (direita) */
 .lp-fone::before {
   content: "";
   position: absolute;
-  right: -3px; top: 160px;
-  width: 3px; height: 88px;
-  background: linear-gradient(180deg, #2a2a2c, #161618);
+  right: -3px; top: 175px;
+  width: 3px; height: 95px;
+  background: linear-gradient(180deg, #3a3a3c, #161618);
   border-radius: 0 3px 3px 0;
 }
-/* Botões laterais esquerdos (volume) */
+/* Botões de volume (esquerda) */
 .lp-fone::after {
   content: "";
   position: absolute;
-  left: -3px; top: 150px;
-  width: 3px; height: 54px;
-  background: linear-gradient(180deg, #2a2a2c, #161618);
+  left: -3px; top: 165px;
+  width: 3px; height: 58px;
+  background: linear-gradient(180deg, #3a3a3c, #161618);
   border-radius: 3px 0 0 3px;
-  box-shadow: 0 -76px 0 #2a2a2c;
+  box-shadow: 0 -82px 0 #3a3a3c;
 }
-.lp-fone-notch {
+.lp-fone-ilha {
   position: absolute;
-  top: 24px; left: 50%; transform: translateX(-50%);
-  width: 98px; height: 30px;
+  top: 26px; left: 50%; transform: translateX(-50%);
+  width: 104px; height: 30px;
   background: #000;
   border-radius: 20px;
-  z-index: 3;
+  z-index: 5;
 }
-/* Câmera na ilha dinâmica */
-.lp-fone-notch::after {
+.lp-fone-ilha::after {
   content: "";
   position: absolute;
-  right: 12px; top: 50%; transform: translateY(-50%);
+  right: 11px; top: 50%; transform: translateY(-50%);
   width: 9px; height: 9px;
   border-radius: 50%;
   background: radial-gradient(circle at 30% 30%, #1a3a4a, #000 70%);
-  box-shadow: 0 0 0 1px rgba(80,160,180,0.15);
 }
 .lp-fone-tela {
   position: relative;
-  border-radius: 44px;
+  border-radius: 46px;
   overflow: hidden;
-  background: linear-gradient(180deg, #0d1319, #0a0f14);
+  background: #0a0f14;
   display: flex;
   flex-direction: column;
-  height: 620px;
+  height: 680px;
 }
-.lp-chat-topo {
+
+/* Barra de status */
+.lp-fone-status {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 52px 18px 14px;
-  background: rgba(30,246,221,0.05);
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  justify-content: space-between;
+  padding: 16px 30px 6px;
+  color: #fff;
+  flex-shrink: 0;
 }
-.lp-chat-ava {
-  width: 40px; height: 40px;
-  border-radius: 12px;
+.lp-status-hora { font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
+.lp-status-icones { display: flex; align-items: center; gap: 6px; }
+.lp-status-icones svg { height: 12px; width: auto; color: #fff; }
+
+/* Notificação push no topo */
+.lp-fone-notif {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin: 8px 12px 4px;
+  padding: 12px 13px;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  animation: lp-notif-cai 0.7s cubic-bezier(0.16,1,0.3,1) 0.3s backwards;
+}
+@keyframes lp-notif-cai { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
+.lp-notif-ava {
+  width: 34px; height: 34px;
+  border-radius: 9px;
   background: linear-gradient(135deg, var(--lp-teal), var(--lp-teal-soft));
   display: grid; place-items: center;
   color: #04121F;
   flex-shrink: 0;
 }
-.lp-chat-ava svg { width: 22px; height: 22px; }
-.lp-chat-nome { font-weight: 700; font-size: 14.5px; color: #fff; }
-.lp-chat-status { font-size: 11.5px; color: var(--lp-teal-soft); display: flex; align-items: center; gap: 6px; }
-.lp-chat-online {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--lp-teal);
-  box-shadow: 0 0 6px var(--lp-teal);
-}
+.lp-notif-ava svg { width: 19px; height: 19px; }
+.lp-notif-texto { flex: 1; min-width: 0; }
+.lp-notif-topo { display: flex; justify-content: space-between; align-items: baseline; }
+.lp-notif-nome { font-size: 13px; font-weight: 700; color: #fff; }
+.lp-notif-agora { font-size: 11px; color: rgba(255,255,255,0.5); }
+.lp-notif-corpo { font-size: 12.5px; color: rgba(255,255,255,0.85); line-height: 1.4; margin-top: 2px; }
+.lp-notif-corpo strong { color: var(--lp-teal-soft); }
+
+/* Corpo da conversa */
 .lp-chat-corpo {
   flex: 1;
-  padding: 16px 14px;
+  padding: 14px 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   overflow: hidden;
+  justify-content: flex-end;
 }
 .lp-msg {
-  max-width: 82%;
-  padding: 10px 13px;
-  border-radius: 18px;
+  max-width: 80%;
+  padding: 9px 12px 20px;
+  border-radius: 16px;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.45;
+  position: relative;
   opacity: 0;
-  animation: lp-msg-ciclo 12s ease-in-out infinite;
+  animation: lp-msg-ciclo 13s ease-in-out infinite;
 }
-.lp-msg strong { color: var(--lp-teal-soft); font-weight: 700; }
+.lp-msg strong { font-weight: 700; }
 .lp-msg-ia {
   align-self: flex-start;
-  background: #1a2530;
-  color: #dce6ef;
+  background: #1c2731;
+  color: #e3ebf2;
   border-bottom-left-radius: 5px;
 }
+.lp-msg-ia strong { color: var(--lp-teal-soft); }
 .lp-msg-eu {
   align-self: flex-end;
   background: linear-gradient(135deg, var(--lp-teal-soft), var(--lp-teal));
@@ -2799,74 +2821,89 @@ body.sem-internet .layout { padding-top: 34px; }
   border-bottom-right-radius: 5px;
 }
 .lp-msg-eu strong { color: #04121F; }
-/* Conversa devagar e em loop: cada mensagem entra com ~1,2s de intervalo,
-   fica visível o ciclo todo, e a sequência recomeça a cada 12s. */
-.lp-msg-ia:nth-child(1) { animation-delay: 0s; }
-.lp-msg-eu:nth-child(2) { animation-delay: 1.4s; }
-.lp-msg-ia:nth-child(3) { animation-delay: 2.8s; }
-.lp-msg-eu:nth-child(4) { animation-delay: 4.2s; }
-.lp-msg-ia:nth-child(5) { animation-delay: 5.6s; }
-/* Aparece, permanece a maior parte do ciclo, some suave e recomeça */
+.lp-msg-remetente {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--lp-teal);
+  margin-bottom: 3px;
+}
+.lp-msg-hora, .lp-msg-hora-ia {
+  position: absolute;
+  right: 11px; bottom: 6px;
+  font-size: 10px;
+  opacity: 0.7;
+}
+.lp-msg-hora { color: rgba(4,18,31,0.7); }
+.lp-msg-hora-ia { color: rgba(227,235,242,0.5); }
+.lp-tique { color: #34b7f1; font-size: 10px; letter-spacing: -1px; }
+/* Conversa devagar e em loop */
+.lp-msg-eu:nth-child(1) { animation-delay: 0.6s; }
+.lp-msg-ia:nth-child(2) { animation-delay: 2.0s; }
+.lp-msg-eu:nth-child(3) { animation-delay: 3.6s; }
+.lp-msg-ia:nth-child(4) { animation-delay: 5.2s; }
 @keyframes lp-msg-ciclo {
   0%   { opacity: 0; transform: translateY(10px); }
-  6%   { opacity: 1; transform: translateY(0); }
-  85%  { opacity: 1; transform: translateY(0); }
-  96%  { opacity: 0; transform: translateY(0); }
+  5%   { opacity: 1; transform: translateY(0); }
+  88%  { opacity: 1; transform: translateY(0); }
+  97%  { opacity: 0; }
   100% { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .lp-msg { opacity: 1; animation: none; }
+  .lp-fone-notif { animation: none; }
 }
+
+/* Campo de digitação estilo WhatsApp */
 .lp-chat-input {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 14px 22px;
-  border-top: 1px solid rgba(255,255,255,0.05);
-}
-.lp-chat-input-campo {
-  flex: 1;
-  padding: 10px 15px;
-  border-radius: 999px;
-  border: 1px solid rgba(30,246,221,0.3);
-  font-size: 12.5px;
-  color: var(--lp-text-dim);
-}
-.lp-chat-input-enviar {
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--lp-teal-soft), var(--lp-teal));
-  display: grid; place-items: center;
-  color: #04121F;
+  gap: 10px;
+  padding: 12px 16px 26px;
   flex-shrink: 0;
 }
-.lp-chat-input-enviar svg { width: 16px; height: 16px; }
+.lp-chat-mais, .lp-chat-mic {
+  color: var(--lp-teal-soft);
+  flex-shrink: 0;
+  display: grid; place-items: center;
+}
+.lp-chat-mais svg, .lp-chat-mic svg { width: 21px; height: 21px; }
+.lp-chat-input-campo {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #1c2731;
+  font-size: 13px;
+  color: rgba(227,235,242,0.45);
+}
 
 /* ─── FAIXA ANIMADA (marquee) ─── */
 .lp-marquee {
   overflow: hidden;
-  border-top: 1px solid var(--lp-borda, rgba(255,255,255,0.08));
-  border-bottom: 1px solid var(--lp-borda, rgba(255,255,255,0.08));
-  background: rgba(255,255,255,0.02);
-  padding: 16px 0;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: rgba(0,0,0,0.25);
+  padding: 18px 0;
   white-space: nowrap;
 }
 .lp-marquee-track {
   display: inline-flex;
   align-items: center;
-  gap: 22px;
-  animation: lp-marquee-scroll 40s linear infinite;
+  gap: 46px;
+  animation: lp-marquee-scroll 42s linear infinite;
 }
 .lp-marquee-item {
-  font-size: 14.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--lp-text-dim);
+  flex-shrink: 0;
 }
-.lp-marquee-sep {
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: var(--lp-teal);
-  opacity: 0.6;
+.lp-marquee-item svg {
+  width: 18px; height: 18px;
+  color: var(--lp-teal-soft);
   flex-shrink: 0;
 }
 @keyframes lp-marquee-scroll {
