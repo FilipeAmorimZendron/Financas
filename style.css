@@ -2578,11 +2578,11 @@ body.sem-internet .layout { padding-top: 34px; }
   min-height: 100vh;
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
-  align-items: center;
+  align-items: start;
   gap: 60px;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 150px 40px 80px;
+  padding: 130px 40px 80px;
   position: relative;
 }
 /* Brilho sutil atrás do hero — atmosfera, não decoração */
@@ -2756,20 +2756,33 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-status-icones { display: flex; align-items: center; gap: 6px; }
 .lp-status-icones svg { height: 12px; width: auto; color: #fff; }
 
-/* Notificação push no topo */
+/* Notificação que CHEGA deslizando do topo, no fim do ciclo da conversa.
+   Fica sobre a tela (absolute) e é sincronizada com o loop de 13s: aparece
+   perto do fim, como uma notificação que chega após a IA responder. */
 .lp-fone-notif {
+  position: absolute;
+  top: 46px; left: 12px; right: 12px;
+  z-index: 6;
   display: flex;
   align-items: flex-start;
   gap: 11px;
-  margin: 8px 12px 4px;
   padding: 12px 13px;
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(26, 37, 48, 0.86);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 18px;
-  animation: lp-notif-cai 0.7s cubic-bezier(0.16,1,0.3,1) 0.3s backwards;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+  opacity: 0;
+  animation: lp-notif-ciclo 13s ease-in-out infinite;
 }
-@keyframes lp-notif-cai { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
+/* Chega ~depois da última resposta (por volta de 7s de 13s), fica um tempo e sai */
+@keyframes lp-notif-ciclo {
+  0%, 52%   { opacity: 0; transform: translateY(-20px) scale(0.96); }
+  58%       { opacity: 1; transform: translateY(0) scale(1); }
+  86%       { opacity: 1; transform: translateY(0) scale(1); }
+  93%, 100% { opacity: 0; transform: translateY(-20px) scale(0.96); }
+}
 .lp-notif-ava {
   width: 34px; height: 34px;
   border-radius: 9px;
@@ -2797,11 +2810,11 @@ body.sem-internet .layout { padding-top: 34px; }
   justify-content: flex-end;
 }
 .lp-msg {
-  max-width: 80%;
-  padding: 9px 12px 20px;
+  max-width: 82%;
+  padding: 10px 13px 21px;
   border-radius: 16px;
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 13.5px;
+  line-height: 1.5;
   position: relative;
   opacity: 0;
   animation: lp-msg-ciclo 13s ease-in-out infinite;
@@ -2809,25 +2822,25 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-msg strong { font-weight: 700; }
 .lp-msg-ia {
   align-self: flex-start;
-  background: #1c2731;
-  color: #e3ebf2;
+  background: #16202a;
+  color: #eaf1f7;
   border-bottom-left-radius: 5px;
 }
 .lp-msg-ia strong { color: var(--lp-teal-soft); }
 .lp-msg-eu {
   align-self: flex-end;
   background: linear-gradient(135deg, var(--lp-teal-soft), var(--lp-teal));
-  color: #04121F;
-  font-weight: 500;
+  color: #042028;
+  font-weight: 600;
   border-bottom-right-radius: 5px;
 }
-.lp-msg-eu strong { color: #04121F; }
+.lp-msg-eu strong { color: #042028; }
 .lp-msg-remetente {
   display: block;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
-  color: var(--lp-teal);
-  margin-bottom: 3px;
+  color: var(--lp-teal-soft);
+  margin-bottom: 4px;
 }
 .lp-msg-hora, .lp-msg-hora-ia {
   position: absolute;
@@ -2838,7 +2851,7 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-msg-hora { color: rgba(4,18,31,0.7); }
 .lp-msg-hora-ia { color: rgba(227,235,242,0.5); }
 .lp-tique { color: #34b7f1; font-size: 10px; letter-spacing: -1px; }
-/* Conversa devagar e em loop */
+/* Conversa devagar e em loop de 13s (sincronizada com a notificação) */
 .lp-msg-eu:nth-child(1) { animation-delay: 0.6s; }
 .lp-msg-ia:nth-child(2) { animation-delay: 2.0s; }
 .lp-msg-eu:nth-child(3) { animation-delay: 3.6s; }
@@ -2846,13 +2859,13 @@ body.sem-internet .layout { padding-top: 34px; }
 @keyframes lp-msg-ciclo {
   0%   { opacity: 0; transform: translateY(10px); }
   5%   { opacity: 1; transform: translateY(0); }
-  88%  { opacity: 1; transform: translateY(0); }
+  90%  { opacity: 1; transform: translateY(0); }
   97%  { opacity: 0; }
   100% { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .lp-msg { opacity: 1; animation: none; }
-  .lp-fone-notif { animation: none; }
+  .lp-fone-notif { display: none; }
 }
 
 /* Campo de digitação estilo WhatsApp */
