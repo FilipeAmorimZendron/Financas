@@ -1936,33 +1936,7 @@
           </div>
 
           <!-- Conversa -->
-          <div class="lp-chat-corpo">
-            <div class="lp-msg lp-msg-ia lp-msg-1">
-              <span class="lp-msg-remetente">Assistente FAZ</span>
-              Olá! 👋 Sou o Assistente FAZ. Me conta um gasto que eu registro pra você.
-              <span class="lp-msg-hora-ia">12:40</span>
-            </div>
-            <div class="lp-msg lp-msg-eu lp-msg-2">
-              gastei 200 de gasolina
-              <span class="lp-msg-hora">12:41 <span class="lp-tique">✓✓</span></span>
-            </div>
-            <div class="lp-digitando lp-dig-1"><span></span><span></span><span></span></div>
-            <div class="lp-msg lp-msg-ia lp-msg-3">
-              <span class="lp-msg-remetente">Assistente FAZ</span>
-              Anotado! <strong>R$ 200,00</strong> em <strong>Transporte</strong>, hoje. Categorizei sozinho ✓
-              <span class="lp-msg-hora-ia">12:41</span>
-            </div>
-            <div class="lp-msg lp-msg-eu lp-msg-4">
-              quanto posso gastar até o fim do mês?
-              <span class="lp-msg-hora">12:42 <span class="lp-tique">✓✓</span></span>
-            </div>
-            <div class="lp-digitando lp-dig-2"><span></span><span></span><span></span></div>
-            <div class="lp-msg lp-msg-ia lp-msg-5">
-              <span class="lp-msg-remetente">Assistente FAZ</span>
-              Você ainda tem <strong>R$ 1.240,00</strong> de sobra real — já descontando as contas que faltam pagar.
-              <span class="lp-msg-hora-ia">12:42</span>
-            </div>
-          </div>
+          <div class="lp-chat-corpo" id="lpChatCorpo"></div>
 
           <!-- Campo de digitação -->
           <div class="lp-chat-input">
@@ -1975,8 +1949,8 @@
             </span>
           </div>
 
-          <!-- Notificação que CHEGA no fim (desliza do topo, com o sino) -->
-          <div class="lp-fone-notif">
+          <!-- Notificação que CHEGA no fim (controlada por JS) -->
+          <div class="lp-fone-notif" id="lpFoneNotif">
             <div class="lp-notif-ava">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             </div>

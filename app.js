@@ -7728,6 +7728,108 @@ function trocarCenarioDemo() {
   demoAtual = { ...proximo };
 }
 
+/* ─── Demo do chat no celular da landing ─────────────────────
+   Orquestra a conversa passo a passo (mensagem → digitando → resposta),
+   deixa tudo montado e PARADO por alguns segundos, depois limpa e recomeça.
+   Evita a sobreposição/piscada que acontecia com só CSS. */
+const LP_CHAT_ROTEIRO = [
+  { tipo: "ia",  texto: 'Olá! 👋 Sou o Assistente FAZ. Me conta um gasto que eu registro pra você.', hora: "12:40" },
+  { tipo: "eu",  texto: 'gastei 200 de gasolina', hora: "12:41" },
+  { tipo: "dig" },
+  { tipo: "ia",  texto: 'Anotado! <strong>R$ 200,00</strong> em <strong>Transporte</strong>, hoje. Categorizei sozinho ✓', hora: "12:41" },
+  { tipo: "eu",  texto: 'quanto posso gastar até o fim do mês?', hora: "12:42" },
+  { tipo: "dig" },
+  { tipo: "ia",  texto: 'Você ainda tem <strong>R$ 1.240,00</strong> de sobra real — já descontando as contas que faltam pagar.', hora: "12:42" },
+];
+
+let _lpChatTimers = [];
+function lpLimparTimers() { _lpChatTimers.forEach(t => clearTimeout(t)); _lpChatTimers = []; }
+function lpEsperar(ms) { return new Promise(r => { const t = setTimeout(r, ms); _lpChatTimers.push(t); }); }
+
+function lpMontarMensagem(item) {
+  const div = document.createElement("div");
+  div.className = "lp-msg " + (item.tipo === "ia" ? "lp-msg-ia" : "lp-msg-eu");
+  let html = "";
+  if (item.tipo === "ia") html += '<span class="lp-msg-remetente">Assistente FAZ</span>';
+  html += item.texto;
+  if (item.tipo === "ia") {
+    html += `<span class="lp-msg-hora-ia">${item.hora}</span>`;
+  } else {
+    html += `<span class="lp-msg-hora">${item.hora} <span class="lp-tique">✓✓</span></span>`;
+  }
+  div.innerHTML = html;
+  return div;
+}
+function lpMontarDigitando() {
+  const div = document.createElement("div");
+  div.className = "lp-digitando";
+  div.innerHTML = "<span></span><span></span><span></span>";
+  return div;
+}
+
+async function lpRodarConversa() {
+  const corpo = document.getElementById("lpChatCorpo");
+  const notif = document.getElementById("lpFoneNotif");
+  if (!corpo) return;
+
+  while (true) {
+    // Monta passo a passo
+    corpo.innerHTML = "";
+    if (notif) notif.classList.remove("aberta");
+
+    for (const item of LP_CHAT_ROTEIRO) {
+      if (item.tipo === "dig") {
+        const dig = lpMontarDigitando();
+        corpo.appendChild(dig);
+        await lpEsperar(1300);      // "digitando..." por 1,3s
+        dig.remove();               // some quando a resposta chega
+      } else {
+        const msg = lpMontarMensagem(item);
+        corpo.appendChild(msg);
+        requestAnimationFrame(() => msg.classList.add("visivel"));
+        await lpEsperar(item.tipo === "eu" ? 1200 : 1500);
+      }
+    }
+
+    // Notificação chega no fim
+    if (notif) {
+      await lpEsperar(600);
+      notif.classList.add("aberta");
+    }
+
+    // Tudo montado e PARADO — deixa o usuário ler
+    await lpEsperar(4500);
+
+    // Some suave e recomeça
+    corpo.classList.add("lp-chat-saindo");
+    if (notif) notif.classList.remove("aberta");
+    await lpEsperar(600);
+    corpo.classList.remove("lp-chat-saindo");
+    await lpEsperar(400);
+  }
+}
+
+function iniciarChatDemo() {
+  const corpo = document.getElementById("lpChatCorpo");
+  if (!corpo) return;
+  // Respeita quem prefere menos movimento: monta tudo estático, sem loop
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    corpo.innerHTML = "";
+    LP_CHAT_ROTEIRO.filter(i => i.tipo !== "dig").forEach(item => {
+      const msg = lpMontarMensagem(item);
+      msg.classList.add("visivel");
+      corpo.appendChild(msg);
+    });
+    return;
+  }
+  // Só anima quando o celular está visível na tela
+  const obs = new IntersectionObserver(([e]) => {
+    if (e.isIntersecting) { lpLimparTimers(); lpRodarConversa(); }
+    else { lpLimparTimers(); }
+  }, { threshold: 0.3 });
+  obs.observe(corpo);
+}
+
 function iniciarPainelDemo() {
   const painel = document.getElementById("painelDemo");
   if (!painel) return;
@@ -7807,6 +7909,7 @@ function iniciarLanding() {
   iniciarRevelacao();
   iniciarNavScroll();
   iniciarPainelDemo();
+  iniciarChatDemo();
   duplicarDepoimentos();
 }
 

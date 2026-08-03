@@ -2774,15 +2774,12 @@ body.sem-internet .layout { padding-top: 34px; }
   border-radius: 18px;
   box-shadow: 0 12px 30px rgba(0,0,0,0.4);
   opacity: 0;
-  animation: lp-notif-ciclo 15s ease-in-out infinite;
+  opacity: 0;
+  transform: translateY(-20px) scale(0.96);
+  transition: opacity 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1);
+  pointer-events: none;
 }
-/* Chega depois da última resposta (~8.4s de 15s ≈ 60%), fica e sai */
-@keyframes lp-notif-ciclo {
-  0%, 62%   { opacity: 0; transform: translateY(-20px) scale(0.96); }
-  67%       { opacity: 1; transform: translateY(0) scale(1); }
-  90%       { opacity: 1; transform: translateY(0) scale(1); }
-  95%, 100% { opacity: 0; transform: translateY(-20px) scale(0.96); }
-}
+.lp-fone-notif.aberta { opacity: 1; transform: translateY(0) scale(1); }
 .lp-notif-ava {
   width: 34px; height: 34px;
   border-radius: 9px;
@@ -2817,8 +2814,10 @@ body.sem-internet .layout { padding-top: 34px; }
   line-height: 1.5;
   position: relative;
   opacity: 0;
-  animation: lp-msg-ciclo 15s ease-in-out infinite;
+  transform: translateY(10px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
 }
+.lp-msg.visivel { opacity: 1; transform: translateY(0); }
 .lp-msg strong { font-weight: 700; }
 .lp-msg-ia {
   align-self: flex-start;
@@ -2843,7 +2842,9 @@ body.sem-internet .layout { padding-top: 34px; }
   margin-bottom: 4px;
 }
 
-/* Indicador "digitando…" — 3 pontinhos, no estilo de balão da IA */
+/* Indicador "digitando…" — 3 pontinhos, no estilo de balão da IA.
+   O JS adiciona e remove este elemento na hora certa; aqui ele só entra
+   suave e os pontinhos pulam enquanto existe. */
 .lp-digitando {
   align-self: flex-start;
   display: flex;
@@ -2853,11 +2854,9 @@ body.sem-internet .layout { padding-top: 34px; }
   background: #16202a;
   border-radius: 16px;
   border-bottom-left-radius: 5px;
-  opacity: 0;
-  animation-duration: 15s;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
+  animation: lp-dig-entra 0.3s ease backwards;
 }
+@keyframes lp-dig-entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .lp-digitando span {
   width: 7px; height: 7px;
   border-radius: 50%;
@@ -2870,29 +2869,6 @@ body.sem-internet .layout { padding-top: 34px; }
   0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
   30%           { transform: translateY(-5px); opacity: 1; }
 }
-/* O "digitando" aparece por ~1,2s e some quando a mensagem da IA chega.
-   O ciclo total é 15s; o indicador fica visível só uma janela curta.
-   dig-1: visível ~3.2s→4.4s (21%→29%); dig-2: ~7.2s→8.4s (48%→56%). */
-.lp-dig-1 {
-  animation-delay: 0s;
-  animation-name: lp-dig1-ciclo;
-}
-.lp-dig-2 {
-  animation-delay: 0s;
-  animation-name: lp-dig2-ciclo;
-}
-@keyframes lp-dig1-ciclo {
-  0%, 20%   { opacity: 0; transform: translateY(6px); }
-  22%       { opacity: 1; transform: translateY(0); }
-  28%       { opacity: 1; transform: translateY(0); }
-  30%, 100% { opacity: 0; }
-}
-@keyframes lp-dig2-ciclo {
-  0%, 47%   { opacity: 0; transform: translateY(6px); }
-  49%       { opacity: 1; transform: translateY(0); }
-  55%       { opacity: 1; transform: translateY(0); }
-  57%, 100% { opacity: 0; }
-}
 .lp-msg-hora, .lp-msg-hora-ia {
   position: absolute;
   right: 11px; bottom: 6px;
@@ -2902,25 +2878,10 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-msg-hora { color: rgba(4,18,31,0.7); }
 .lp-msg-hora-ia { color: rgba(227,235,242,0.5); }
 .lp-tique { color: #34b7f1; font-size: 10px; letter-spacing: -1px; }
-/* Sequência da conversa (loop 15s): boas-vindas → resposta → digitando →
-   resposta da IA → pergunta → digitando → resposta da IA.
-   Cada elemento aparece na sua vez; o "digitando" some quando a msg chega. */
-.lp-msg-1 { animation-delay: 0.5s; }
-.lp-msg-2 { animation-delay: 2.0s; }
-.lp-dig-1 { animation-delay: 3.2s; }
-.lp-msg-3 { animation-delay: 4.4s; }
-.lp-msg-4 { animation-delay: 6.0s; }
-.lp-dig-2 { animation-delay: 7.2s; }
-.lp-msg-5 { animation-delay: 8.4s; }
-@keyframes lp-msg-ciclo {
-  0%   { opacity: 0; transform: translateY(10px); }
-  4%   { opacity: 1; transform: translateY(0); }
-  92%  { opacity: 1; transform: translateY(0); }
-  98%  { opacity: 0; }
-  100% { opacity: 0; }
-}
+/* Saída suave da conversa inteira antes de recomeçar (JS adiciona a classe) */
+.lp-chat-saindo .lp-msg { opacity: 0; transform: translateY(-6px); }
 @media (prefers-reduced-motion: reduce) {
-  .lp-msg { opacity: 1; animation: none; }
+  .lp-msg { opacity: 1; transform: none; transition: none; }
   .lp-digitando { display: none; }
   .lp-fone-notif { display: none; }
 }
