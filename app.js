@@ -3649,9 +3649,11 @@ function somaMesesFatura(faturaMes, n) {
 /* Registra uma compra no crédito: uma parcela por fatura.
    Não desconta conta agora — isso só acontece quando a fatura é paga. */
 async function lancarCompraCredito(item, cartaoId, dataCompra, parcelas) {
-  const cartao = state.bancos.find(b => b.id === cartaoId);
-  const diaFech = cartao?.diaFechamento || null;
-  const faturaBase = faturaDaCompra(dataCompra, diaFech);
+  // A compra entra na fatura do MÊS em que foi feita. Não empurramos para o
+  // mês seguinte pelo dia de fechamento — assim o gasto do mês sempre aparece
+  // na fatura em aberto. (O dia de fechamento segue valendo só para o cálculo
+  // do vencimento da fatura, em vencimentoDaFatura.)
+  const faturaBase = faturaDaCompra(dataCompra, null);
   const compraId = (crypto?.randomUUID?.() || String(Date.now() + Math.random()));
   const valorParcela = Math.round((item.valor / parcelas) * 100) / 100;
 
@@ -3817,21 +3819,16 @@ formTexto?.addEventListener("submit", async e => {
       }
     }
 
-    // Aviso de fatura: se a compra no crédito caiu numa fatura diferente da
-    // que está em aberto (por causa do dia de fechamento), avisa — para não
-    // parecer que o lançamento "sumiu" da fatura atual.
+    // Aviso de fatura: a compra entra na fatura do mês em que foi feita.
+    // Se ainda houver uma fatura MAIS ANTIGA em aberto, avisamos em qual
+    // fatura o lançamento entrou — para não parecer que "sumiu".
     if (ehCredito && !pendente) {
-      const cartaoSel = state.bancos.find(b => b.id === bancoId);
-      const faturaCompra = faturaDaCompra(data, cartaoSel?.diaFechamento || null);
+      const faturaCompra = faturaDaCompra(data, null);
       const faturaAberta = proximaFaturaAberta(bancoId);
-      if (faturaCompra && faturaCompra !== faturaAberta) {
+      if (faturaCompra && faturaAberta && faturaCompra !== faturaAberta) {
         const nmMes = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
-        const [fAno, fMes] = faturaCompra.split("-");
-        const mesNome = `${nmMes[Number(fMes)-1]} de ${fAno}`;
-        const motivo = cartaoSel?.diaFechamento
-          ? ` (compra após o fechamento, dia ${cartaoSel.diaFechamento})`
-          : "";
-        toast(`Lançado na fatura de ${mesNome}${motivo}. Veja em "Próximas faturas" no cartão.`, "info");
+        const nomeFat = fm => { const [a, m] = fm.split("-"); return `${nmMes[Number(m)-1]} de ${a}`; };
+        toast(`Lançado na fatura de ${nomeFat(faturaCompra)}. A fatura de ${nomeFat(faturaAberta)} ainda está em aberto para pagar.`, "info");
       }
     }
 
