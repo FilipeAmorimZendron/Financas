@@ -3168,6 +3168,60 @@ body.sem-internet .layout { padding-top: 34px; }
   background: var(--lp-bg-alt);
 }
 .lp-ia-destaque { color: var(--lp-teal); }
+
+/* ─── Cards dos papéis da IA (estilo "equipe") ─── */
+.lp-papeis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  max-width: 1080px;
+  margin: 48px auto 0;
+}
+@media (max-width: 900px) { .lp-papeis { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .lp-papeis { grid-template-columns: 1fr; } }
+.lp-papel {
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  border: 1px solid var(--lp-line);
+  border-radius: 20px;
+  padding: 28px 22px;
+  text-align: center;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.lp-papel:hover {
+  transform: translateY(-4px);
+  border-color: rgba(30,246,221,0.3);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+}
+.lp-papel-ico {
+  width: 64px; height: 64px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: rgba(30,246,221,0.1);
+  border: 1.5px solid rgba(30,246,221,0.35);
+  color: var(--lp-teal-soft);
+}
+.lp-papel-ico svg { width: 28px; height: 28px; }
+.lp-papel-nome {
+  font-family: 'Sora', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--lp-text);
+  margin-bottom: 5px;
+}
+.lp-papel-cargo {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-teal-soft);
+  margin-bottom: 14px;
+}
+.lp-papel-desc {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--lp-text-dim);
+}
 .lp-ia-tag {
   display: inline-block;
   background: rgba(30, 246, 221, 0.12);
