@@ -3817,6 +3817,24 @@ formTexto?.addEventListener("submit", async e => {
       }
     }
 
+    // Aviso de fatura: se a compra no crédito caiu numa fatura diferente da
+    // que está em aberto (por causa do dia de fechamento), avisa — para não
+    // parecer que o lançamento "sumiu" da fatura atual.
+    if (ehCredito && !pendente) {
+      const cartaoSel = state.bancos.find(b => b.id === bancoId);
+      const faturaCompra = faturaDaCompra(data, cartaoSel?.diaFechamento || null);
+      const faturaAberta = proximaFaturaAberta(bancoId);
+      if (faturaCompra && faturaCompra !== faturaAberta) {
+        const nmMes = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+        const [fAno, fMes] = faturaCompra.split("-");
+        const mesNome = `${nmMes[Number(fMes)-1]} de ${fAno}`;
+        const motivo = cartaoSel?.diaFechamento
+          ? ` (compra após o fechamento, dia ${cartaoSel.diaFechamento})`
+          : "";
+        toast(`Lançado na fatura de ${mesNome}${motivo}. Veja em "Próximas faturas" no cartão.`, "info");
+      }
+    }
+
     formTexto.reset();
     dataMovimentoInput.value = hojeISO();
     // Volta os campos ao estado padrão (débito) e re-sincroniza o select
