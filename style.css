@@ -2878,8 +2878,11 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-msg-hora { color: rgba(4,18,31,0.7); }
 .lp-msg-hora-ia { color: rgba(227,235,242,0.5); }
 .lp-tique { color: #34b7f1; font-size: 10px; letter-spacing: -1px; }
-/* Saída suave da conversa inteira antes de recomeçar (JS adiciona a classe) */
-.lp-chat-saindo .lp-msg { opacity: 0; transform: translateY(-6px); }
+/* Saída suave de cada mensagem no reset (JS remove uma a uma, em cascata) */
+.lp-msg.saindo {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.97);
+}
 @media (prefers-reduced-motion: reduce) {
   .lp-msg { opacity: 1; transform: none; transition: none; }
   .lp-digitando { display: none; }

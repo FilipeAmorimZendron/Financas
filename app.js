@@ -7736,7 +7736,7 @@ const LP_CHAT_ROTEIRO = [
   { tipo: "ia",  texto: 'Olá! 👋 Sou o Assistente FAZ. Me conta um gasto que eu registro pra você.', hora: "12:40" },
   { tipo: "eu",  texto: 'gastei 200 de gasolina', hora: "12:41" },
   { tipo: "dig" },
-  { tipo: "ia",  texto: 'Anotado! <strong>R$ 200,00</strong> em <strong>Transporte</strong>, hoje. Categorizei sozinho ✓', hora: "12:41" },
+  { tipo: "ia",  texto: 'Anotado! <strong>R$ 200,00</strong> em <strong>Transporte</strong>, hoje. Categorizei sozinho ✓', hora: "12:41", notifica: true },
   { tipo: "eu",  texto: 'quanto posso gastar até o fim do mês?', hora: "12:42" },
   { tipo: "dig" },
   { tipo: "ia",  texto: 'Você ainda tem <strong>R$ 1.240,00</strong> de sobra real — já descontando as contas que faltam pagar.', hora: "12:42" },
@@ -7775,6 +7775,7 @@ async function lpRodarConversa() {
   while (true) {
     // Monta passo a passo
     corpo.innerHTML = "";
+    corpo.classList.remove("lp-chat-saindo");
     if (notif) notif.classList.remove("aberta");
 
     for (const item of LP_CHAT_ROTEIRO) {
@@ -7787,25 +7788,32 @@ async function lpRodarConversa() {
         const msg = lpMontarMensagem(item);
         corpo.appendChild(msg);
         requestAnimationFrame(() => msg.classList.add("visivel"));
-        await lpEsperar(item.tipo === "eu" ? 1200 : 1500);
+
+        // Quando o gasto é registrado, a notificação chega, fica e sai
+        if (item.notifica && notif) {
+          await lpEsperar(400);
+          notif.classList.add("aberta");
+          // deixa a notificação visível por um tempo e recolhe, sem travar a conversa
+          const t = setTimeout(() => notif.classList.remove("aberta"), 3200);
+          _lpChatTimers.push(t);
+        }
+
+        await lpEsperar(item.tipo === "eu" ? 1200 : 1600);
       }
     }
 
-    // Notificação chega no fim
-    if (notif) {
-      await lpEsperar(600);
-      notif.classList.add("aberta");
-    }
+    // Tudo montado e parado — deixa o usuário ler o final
+    await lpEsperar(3800);
 
-    // Tudo montado e PARADO — deixa o usuário ler
-    await lpEsperar(4500);
-
-    // Some suave e recomeça
-    corpo.classList.add("lp-chat-saindo");
+    // ── Reset suave: as mensagens somem em cascata (de baixo pra cima) ──
     if (notif) notif.classList.remove("aberta");
-    await lpEsperar(600);
-    corpo.classList.remove("lp-chat-saindo");
-    await lpEsperar(400);
+    const msgs = Array.from(corpo.querySelectorAll(".lp-msg"));
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      msgs[i].classList.remove("visivel");
+      msgs[i].classList.add("saindo");
+      await lpEsperar(120);        // uma sai logo após a outra, suave
+    }
+    await lpEsperar(500);          // respira antes de recomeçar
   }
 }
 
