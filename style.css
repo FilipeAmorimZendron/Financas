@@ -2436,7 +2436,7 @@ body.sem-internet .layout { padding-top: 34px; }
   /* Paleta extraída da logo FAZ */
   --lp-bg:        #011025;   /* navy da logo */
   --lp-surface:   #0D1B2F;
-  --lp-bg-alt:    #04162e;
+  --lp-bg-alt:    #011025;   /* igualado ao --lp-bg: fundo navy contínuo em toda a landing */
   --lp-surface-2: #1A273A;
   --lp-line:      #2C384A;
   --lp-text:      #E6EEF5;
