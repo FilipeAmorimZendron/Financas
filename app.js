@@ -4246,8 +4246,19 @@ function abrirRevisao(lancamentos, duvidas, resumo, bancoId) {
       return;
     }
     const lembrada = memoria[chaveMemoria(d.descricao)];
-    if (lembrada) {
-      jaResolvidas.push({ ...d, categoria: lembrada });
+    if (lembrada && todasCategorias().some(c => c === lembrada)) {
+      // A IA já viu isso antes: sugere a categoria de antes JÁ marcada, mas
+      // deixa como dúvida para o usuário confirmar ou trocar (não grava sozinha).
+      // Coloca a lembrada como 1ª opção e destaca que é a sugestão.
+      const opcoesBase = Array.isArray(d.opcoes) && d.opcoes.length ? d.opcoes.slice() : ["Alimentação", "Transporte", "Compras", "Outros"];
+      const opcoes = [lembrada, ...opcoesBase.filter(o => o !== lembrada)];
+      duvidasRestantes.push({
+        ...d,
+        resposta: null,
+        sugerida: lembrada,               // pré-seleção visual
+        pergunta: d.pergunta || `Da última vez você marcou como "${lembrada}". Confirma?`,
+        opcoes
+      });
     } else {
       duvidasRestantes.push({ ...d, resposta: null });
     }
@@ -4358,10 +4369,12 @@ function renderRevisao() {
         <div class="rev-duvida-pergunta">${esc(d.data || "")} · ${esc(d.pergunta || "Qual categoria?")}</div>
         ${confirmacaoTransf}
         <div class="rev-duvida-opcoes">
-          ${opcoes.map((op, oi) => `
-            <button type="button" class="rev-opcao ${d.resposta === op ? "rev-opcao-ativa" : ""}"
-              data-duvida="${i}" data-opcao="${oi}">${esc(op)}</button>
-          `).join("")}
+          ${opcoes.map((op, oi) => {
+            const ehSugerida = d.sugerida && op === d.sugerida && !d.resposta;
+            return `<button type="button" class="rev-opcao ${d.resposta === op ? "rev-opcao-ativa" : ""} ${ehSugerida ? "rev-opcao-sugerida" : ""}"
+              data-duvida="${i}" data-opcao="${oi}">${ehSugerida ? "★ " : ""}${esc(op)}</button>`;
+          }).join("")}
+          ${d.ehTransferencia ? "" : `<button type="button" class="rev-opcao rev-opcao-outra" data-duvida-outra="${i}">Outra…</button>`}
           <button type="button" class="rev-opcao rev-opcao-ignorar ${d.resposta === "__ignorar" ? "rev-opcao-ativa" : ""}"
             data-duvida="${i}" data-opcao="-1">Não importar</button>
         </div>
@@ -4408,6 +4421,13 @@ function renderRevisao() {
   // elimina o bug de "sempre cair no último item".
   if (!corpo.dataset.ligado) {
     corpo.addEventListener("click", (e) => {
+      // Botão "Outra…": abre a lista completa de categorias para esta dúvida
+      const btnOutra = e.target.closest(".rev-opcao-outra");
+      if (btnOutra) {
+        const iDuvida = Number(btnOutra.dataset.duvidaOutra);
+        if (!Number.isNaN(iDuvida)) abrirTodasCategorias(iDuvida);
+        return;
+      }
       const btn = e.target.closest(".rev-opcao");
       if (!btn) return;
       const iDuvida = Number(btn.dataset.duvida);
@@ -4517,6 +4537,35 @@ function trocarCategoriaItem(indice, categoria) {
     // Correção manual também vira aprendizado
     gravarMemoriaCategoria(it.descricao, categoria);
   }
+}
+
+/* Abre a lista COMPLETA de categorias para uma dúvida (botão "Outra…").
+   Assim o usuário nunca fica preso nas poucas opções sugeridas — ele
+   escolhe qualquer categoria que existe no app, inclusive as suas. */
+function abrirTodasCategorias(indice) {
+  const d = revisaoDados.duvidas[indice];
+  if (!d) return;
+  const alvo = document.getElementById(`rev-duvida-${indice}`);
+  if (!alvo) return;
+  const existente = alvo.querySelector(".rev-todas-cats");
+  if (existente) { existente.remove(); return; }  // toggle
+
+  const todas = todasCategorias();
+  const box = document.createElement("div");
+  box.className = "rev-todas-cats";
+  box.innerHTML = `<div class="rev-todas-rotulo">Escolha a categoria:</div>
+    <div class="rev-todas-lista">
+      ${todas.map(c => `<button type="button" class="rev-opcao" data-cat-completa="${esc(c)}">${esc(c)}</button>`).join("")}
+    </div>`;
+  box.querySelectorAll("[data-cat-completa]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const cat = btn.dataset.catCompleta;
+      d.resposta = cat;
+      gravarMemoriaCategoria(d.descricao, cat);   // aprende para o próximo extrato
+      renderRevisao();
+    });
+  });
+  alvo.appendChild(box);
 }
 
 function removerItemRevisao(indice) {

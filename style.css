@@ -8589,6 +8589,35 @@ body.scroll-travado {
 }
 .rev-duvida-opcoes { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 4px; }
 
+/* Categoria sugerida pela memória (a que você usou da última vez) */
+.rev-opcao-sugerida {
+  border-color: var(--accent) !important;
+  background: var(--accent-dim) !important;
+  color: var(--accent) !important;
+  font-weight: 600;
+}
+/* Botão "Outra…" que abre a lista completa */
+.rev-opcao-outra {
+  border-style: dashed;
+  color: var(--accent);
+}
+.rev-opcao-outra:hover { background: var(--accent-dim); }
+
+/* Lista completa de categorias (aberta pelo "Outra…") */
+.rev-todas-cats {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+}
+.rev-todas-rotulo {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.rev-todas-lista { display: flex; gap: 8px; flex-wrap: wrap; }
+
 /* Escolha da outra conta ao marcar transferência entre contas próprias */
 .rev-transf-contas {
   margin-top: 10px;

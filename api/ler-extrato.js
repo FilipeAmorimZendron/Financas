@@ -207,6 +207,8 @@ export default async function handler(req, res) {
       "- Outros: SÓ quando realmente não se encaixa em nenhuma acima. Evite ao máximo usar 'Outros' — quase toda transação tem uma categoria melhor. Se reconhecer a marca ou o tipo de estabelecimento, use a categoria certa.",
       "",
       "IMPORTANTE SOBRE 'OUTROS': é a categoria de último recurso. Antes de usá-la, pense no que aquele estabelecimento vende. Um nome como 'DROGA RAIA' é Saúde, 'POSTO SHELL' é Transporte, 'NETFLIX' é Lazer. Só use 'Outros' se, mesmo pensando, não der para saber o ramo — e nesse caso prefira mandar para 'duvidas' e perguntar.",
+      "ANTES de mandar algo para 'duvidas', esforce-se de verdade: nomes de banco costumam trazer o estabelecimento no meio de códigos (ex: 'PAG*IFOOD 4412' é iFood → Alimentação; 'MP *UBER' é Uber → Transporte; 'PICPAY*POSTO' é Posto → Transporte). Procure marcas e palavras conhecidas dentro da bagunça de códigos e maiúsculas. Reserve as dúvidas apenas para o que realmente não dá para deduzir.",
+      "Quando MESMO ASSIM precisar perguntar, dê a MELHOR opção primeiro (seu palpite mais provável), mas sempre inclua 'Outros' entre as opções — e saiba que o app deixa o usuário abrir a lista completa se nenhuma servir. Nunca ofereça opções aleatórias: as 3-4 opções devem ser as mais plausíveis para AQUELE gasto.",
       "",
       "TRANSFERÊNCIAS ENTRE AS CONTAS DA PRÓPRIA PESSOA:",
       titular
