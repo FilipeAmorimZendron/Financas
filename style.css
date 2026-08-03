@@ -2577,12 +2577,12 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-hero {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
+  grid-template-columns: 1.1fr 0.9fr;
   align-items: center;
-  gap: 48px;
-  max-width: 1200px;
+  gap: 60px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 140px 24px 70px;
+  padding: 150px 40px 80px;
   position: relative;
 }
 /* Brilho sutil atrás do hero — atmosfera, não decoração */
@@ -2598,8 +2598,8 @@ body.sem-internet .layout { padding-top: 34px; }
   .lp-hero {
     grid-template-columns: 1fr;
     text-align: center;
-    gap: 40px;
-    padding-top: 120px;
+    gap: 44px;
+    padding: 120px 22px 60px;
   }
 }
 
@@ -2610,14 +2610,14 @@ body.sem-internet .layout { padding-top: 34px; }
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 15px;
+  padding: 9px 18px;
   border-radius: 999px;
   background: rgba(30,246,221,0.08);
   border: 1px solid rgba(30,246,221,0.2);
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--lp-teal-soft);
-  margin-bottom: 22px;
+  margin-bottom: 26px;
 }
 .lp-hero-badge-dot {
   width: 7px; height: 7px;
@@ -2640,11 +2640,11 @@ body.sem-internet .layout { padding-top: 34px; }
 
 .lp-title {
   font-family: 'Sora', sans-serif;
-  font-size: clamp(38px, 5.6vw, 62px);
-  font-weight: 700;
-  line-height: 1.06;
-  letter-spacing: -0.035em;
-  margin: 0 0 24px;
+  font-size: clamp(44px, 6.4vw, 82px);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  margin: 0 0 28px;
 }
 .lp-title-accent {
   color: var(--lp-teal-soft);
@@ -2652,11 +2652,11 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 
 .lp-sub {
-  font-size: clamp(15px, 1.7vw, 17.5px);
-  line-height: 1.65;
+  font-size: clamp(16px, 1.5vw, 19px);
+  line-height: 1.6;
   color: var(--lp-text-dim);
-  max-width: 480px;
-  margin: 0 0 32px;
+  max-width: 500px;
+  margin: 0 0 36px;
 }
 @media (max-width: 900px) { .lp-sub { margin-left: auto; margin-right: auto; } }
 
@@ -2671,9 +2671,10 @@ body.sem-internet .layout { padding-top: 34px; }
 /* Pontinhos de benefício abaixo do CTA */
 .lp-hero-pontos {
   display: flex;
-  gap: 18px;
+  gap: 22px;
   flex-wrap: wrap;
-  font-size: 13px;
+  margin-top: 26px;
+  font-size: 13.5px;
   color: var(--lp-text-dim);
 }
 .lp-hero-pontos span { display: inline-flex; align-items: center; gap: 7px; }
@@ -2915,13 +2916,13 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 
 .lp-btn-primary {
-  padding: 14px 30px;
+  padding: 17px 38px;
   background: var(--lp-teal);
   color: #011025;
   border: none;
   border-radius: 100px;
   font-family: inherit;
-  font-size: 14.5px;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.25s;
@@ -2934,13 +2935,13 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-btn-primary:active { transform: translateY(0); }
 
 .lp-btn-ghost {
-  padding: 14px 26px;
+  padding: 17px 30px;
   background: transparent;
   color: var(--lp-text);
   border: 1px solid var(--lp-line);
   border-radius: 100px;
   font-family: inherit;
-  font-size: 14.5px;
+  font-size: 16px;
   font-weight: 500;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
