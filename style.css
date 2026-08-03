@@ -2575,14 +2575,13 @@ body.sem-internet .layout { padding-top: 34px; }
 
 /* ─── Hero ────────────────────────────────────────────────── */
 .lp-hero {
-  min-height: 100vh;
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
   align-items: start;
   gap: 60px;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 130px 40px 80px;
+  padding: 130px 40px 90px;
   position: relative;
 }
 /* Brilho sutil atrás do hero — atmosfera, não decoração */
