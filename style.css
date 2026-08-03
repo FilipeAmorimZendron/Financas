@@ -2683,40 +2683,71 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 @media (max-width: 900px) { .lp-hero-pontos { justify-content: center; } }
 
-/* ─── CELULAR com o chat do Assistente FAZ ─── */
+/* ─── CELULAR estilo iPhone com o chat do Assistente FAZ ─── */
 .lp-hero-fone { display: flex; justify-content: center; position: relative; }
 .lp-fone {
   position: relative;
-  width: 320px;
-  max-width: 86vw;
-  background: #0a0f14;
-  border: 10px solid #12181f;
-  border-radius: 42px;
-  box-shadow: 0 30px 70px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
-  padding: 14px 12px 16px;
-  overflow: hidden;
+  width: 340px;
+  max-width: 88vw;
+  background: linear-gradient(145deg, #1c1c1e, #0a0a0c);
+  border-radius: 54px;
+  padding: 12px;
+  box-shadow:
+    0 40px 80px rgba(0,0,0,0.55),
+    0 0 0 2px rgba(255,255,255,0.06),
+    inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+/* Botão lateral direito (liga/desliga) */
+.lp-fone::before {
+  content: "";
+  position: absolute;
+  right: -3px; top: 160px;
+  width: 3px; height: 88px;
+  background: linear-gradient(180deg, #2a2a2c, #161618);
+  border-radius: 0 3px 3px 0;
+}
+/* Botões laterais esquerdos (volume) */
+.lp-fone::after {
+  content: "";
+  position: absolute;
+  left: -3px; top: 150px;
+  width: 3px; height: 54px;
+  background: linear-gradient(180deg, #2a2a2c, #161618);
+  border-radius: 3px 0 0 3px;
+  box-shadow: 0 -76px 0 #2a2a2c;
 }
 .lp-fone-notch {
   position: absolute;
-  top: 14px; left: 50%; transform: translateX(-50%);
-  width: 110px; height: 22px;
-  background: #12181f;
-  border-radius: 0 0 14px 14px;
-  z-index: 2;
+  top: 24px; left: 50%; transform: translateX(-50%);
+  width: 98px; height: 30px;
+  background: #000;
+  border-radius: 20px;
+  z-index: 3;
+}
+/* Câmera na ilha dinâmica */
+.lp-fone-notch::after {
+  content: "";
+  position: absolute;
+  right: 12px; top: 50%; transform: translateY(-50%);
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #1a3a4a, #000 70%);
+  box-shadow: 0 0 0 1px rgba(80,160,180,0.15);
 }
 .lp-fone-tela {
-  border-radius: 30px;
+  position: relative;
+  border-radius: 44px;
   overflow: hidden;
   background: linear-gradient(180deg, #0d1319, #0a0f14);
   display: flex;
   flex-direction: column;
-  height: 560px;
+  height: 620px;
 }
 .lp-chat-topo {
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 26px 16px 14px;
+  padding: 52px 18px 14px;
   background: rgba(30,246,221,0.05);
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
@@ -2747,10 +2778,11 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-msg {
   max-width: 82%;
   padding: 10px 13px;
-  border-radius: 15px;
+  border-radius: 18px;
   font-size: 13px;
   line-height: 1.5;
-  animation: lp-msg-entra 0.5s ease backwards;
+  opacity: 0;
+  animation: lp-msg-ciclo 12s ease-in-out infinite;
 }
 .lp-msg strong { color: var(--lp-teal-soft); font-weight: 700; }
 .lp-msg-ia {
@@ -2767,29 +2799,41 @@ body.sem-internet .layout { padding-top: 34px; }
   border-bottom-right-radius: 5px;
 }
 .lp-msg-eu strong { color: #04121F; }
-.lp-msg-ia:nth-child(1) { animation-delay: 0.2s; }
-.lp-msg-eu:nth-child(2) { animation-delay: 0.7s; }
-.lp-msg-ia:nth-child(3) { animation-delay: 1.2s; }
-.lp-msg-eu:nth-child(4) { animation-delay: 1.7s; }
-.lp-msg-ia:nth-child(5) { animation-delay: 2.2s; }
-@keyframes lp-msg-entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+/* Conversa devagar e em loop: cada mensagem entra com ~1,2s de intervalo,
+   fica visível o ciclo todo, e a sequência recomeça a cada 12s. */
+.lp-msg-ia:nth-child(1) { animation-delay: 0s; }
+.lp-msg-eu:nth-child(2) { animation-delay: 1.4s; }
+.lp-msg-ia:nth-child(3) { animation-delay: 2.8s; }
+.lp-msg-eu:nth-child(4) { animation-delay: 4.2s; }
+.lp-msg-ia:nth-child(5) { animation-delay: 5.6s; }
+/* Aparece, permanece a maior parte do ciclo, some suave e recomeça */
+@keyframes lp-msg-ciclo {
+  0%   { opacity: 0; transform: translateY(10px); }
+  6%   { opacity: 1; transform: translateY(0); }
+  85%  { opacity: 1; transform: translateY(0); }
+  96%  { opacity: 0; transform: translateY(0); }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-msg { opacity: 1; animation: none; }
+}
 .lp-chat-input {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 12px 14px 22px;
   border-top: 1px solid rgba(255,255,255,0.05);
 }
 .lp-chat-input-campo {
   flex: 1;
-  padding: 9px 14px;
+  padding: 10px 15px;
   border-radius: 999px;
   border: 1px solid rgba(30,246,221,0.3);
   font-size: 12.5px;
   color: var(--lp-text-dim);
 }
 .lp-chat-input-enviar {
-  width: 34px; height: 34px;
+  width: 36px; height: 36px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--lp-teal-soft), var(--lp-teal));
   display: grid; place-items: center;
@@ -2811,19 +2855,24 @@ body.sem-internet .layout { padding-top: 34px; }
   display: inline-flex;
   align-items: center;
   gap: 22px;
-  animation: lp-marquee-scroll 32s linear infinite;
+  animation: lp-marquee-scroll 40s linear infinite;
 }
 .lp-marquee-item {
   font-size: 14.5px;
   font-weight: 500;
   color: var(--lp-text-dim);
 }
-.lp-marquee-sep { color: var(--lp-teal); font-size: 12px; }
+.lp-marquee-sep {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--lp-teal);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
 @keyframes lp-marquee-scroll {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
 }
-.lp-marquee:hover .lp-marquee-track { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) {
   .lp-marquee-track { animation: none; }
 }
