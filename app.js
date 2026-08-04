@@ -467,23 +467,36 @@ function _nextToast() {
 /* ============================================================
    CONFIRM
    ============================================================ */
-function confirmar(msg) {
+function confirmar(msg, opts = {}) {
+  const { tipo = "perigo", okLabel = "Confirmar", cancelLabel = "Cancelar" } = opts;
+  const neutro = tipo === "neutro";
+  const icone = neutro
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9.2 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.8 2-2.8 3.6"></path><path d="M12 17.5h.01"></path></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
   return new Promise(resolve => {
     const ov = document.createElement("div");
     ov.className = "confirm-ov";
     ov.innerHTML = `
-      <div class="confirm-box">
+      <div class="confirm-box ${neutro ? "is-neutro" : "is-perigo"}" role="dialog" aria-modal="true">
+        <div class="confirm-ico">${icone}</div>
         <p class="confirm-msg">${msg}</p>
         <div class="confirm-btns">
-          <button class="btn-ghost confirm-cancel">Cancelar</button>
-          <button class="btn-danger-solid confirm-ok">Confirmar</button>
+          <button class="confirm-cancel">${cancelLabel}</button>
+          <button class="confirm-ok">${okLabel}</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
     requestAnimationFrame(() => ov.classList.add("open"));
-    ov.querySelector(".confirm-ok").onclick     = () => { ov.remove(); resolve(true);  };
-    ov.querySelector(".confirm-cancel").onclick = () => { ov.remove(); resolve(false); };
-    ov.addEventListener("click", e => { if (e.target === ov) { ov.remove(); resolve(false); } });
+    const fechar = val => {
+      ov.classList.remove("open");
+      setTimeout(() => ov.remove(), 180);
+      resolve(val);
+    };
+    ov.querySelector(".confirm-ok").onclick     = () => fechar(true);
+    ov.querySelector(".confirm-cancel").onclick = () => fechar(false);
+    ov.addEventListener("click", e => { if (e.target === ov) fechar(false); });
+    ov.addEventListener("keydown", e => { if (e.key === "Escape") fechar(false); });
+    setTimeout(() => ov.querySelector(".confirm-cancel")?.focus(), 60);
   });
 }
 
@@ -1020,7 +1033,7 @@ document.getElementById("formCadastro")?.addEventListener("submit", async e => {
 
 /* Logout */
 document.getElementById("btnLogout")?.addEventListener("click", async () => {
-  const ok = await confirmar("Deseja sair da sua conta?");
+  const ok = await confirmar("Deseja sair da sua conta?", { tipo: "neutro", okLabel: "Sair" });
   if (!ok) return;
   await sbLogout();
   state.bancos = state.movimentos = state.transferencias = state.recorrencias = state.metas = [];
