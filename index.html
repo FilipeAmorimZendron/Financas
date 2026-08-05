@@ -2627,11 +2627,16 @@
   <!-- Suporte / dúvidas -->
   <section class="lp-secao">
     <div class="lp-suporte reveal">
-      <img class="lp-suporte-img" src="pessoa-duvida.png" alt="Pessoa com uma dúvida" onerror="this.style.display='none'">
-      <div class="lp-suporte-texto">
-        <h3 class="lp-suporte-titulo">Ficou com alguma dúvida?</h3>
-        <p class="lp-suporte-sub">A gente lê e responde cada mensagem. Dúvida, sugestão de melhoria ou só uma ideia — escreve pra gente. O FAZ cresce com quem usa.</p>
+      <div class="lp-suporte-badge" aria-hidden="true">
+        <svg viewBox="0 0 64 64" fill="none">
+          <circle cx="35" cy="25" r="11.5" fill="#0e2233"/>
+          <path d="M15 57c0-10.5 9-17 20-17s20 6.5 20 17z" fill="#0e2233"/>
+          <path d="M12.6 15a5.4 5.4 0 0 1 10.6 1.6c0 3.5-5.2 3.7-5.2 6.8" stroke="#14A797" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+          <circle cx="17.9" cy="28.6" r="2.1" fill="#14A797"/>
+        </svg>
       </div>
+      <h3 class="lp-suporte-titulo">Ficou com alguma dúvida?</h3>
+      <p class="lp-suporte-sub">A gente lê e responde cada mensagem. Dúvida, sugestão de melhoria ou só uma ideia — escreve pra gente. O FAZ cresce com quem usa.</p>
       <a class="lp-suporte-btn" href="mailto:contato@fazfinancas.com">Enviar um e-mail</a>
     </div>
   </section>
@@ -2639,10 +2644,11 @@
   <!-- CTA FINAL -->
   <section class="lp-final reveal">
     <div class="lp-final-card">
+      <span class="lp-final-badge">Comece grátis</span>
       <h2 class="lp-final-titulo">Pare de descobrir<br>no fim do mês.</h2>
       <p class="lp-final-sub">O <strong>FAZ</strong> mostra o que sobra antes de você gastar.</p>
-      <button class="lp-btn-primary lp-btn-grande" onclick="abrirAuth('cadastro')">Criar conta grátis</button>
-      <p class="lp-nota">Leva 2 minutos. Sem cartão.</p>
+      <button class="lp-btn-primary lp-btn-grande" onclick="abrirAuth('cadastro')">Criar conta grátis <span class="lp-final-seta">→</span></button>
+      <p class="lp-nota">Leva 2 minutos · Sem cartão · Grátis pra sempre</p>
     </div>
   </section>
 
