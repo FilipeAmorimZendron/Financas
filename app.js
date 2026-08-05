@@ -178,17 +178,16 @@ async function excluirCategoria(id) {
   if (!cat) return;
 
   const uso = usosDaCategoria(cat.nome);
-  let msg = `Excluir a categoria <strong>${esc(cat.nome)}</strong>?`;
+  let desc = "";
   if (uso.total > 0) {
     const partes = [];
     if (uso.movs)  partes.push(`${uso.movs} lançamento${uso.movs > 1 ? "s" : ""}`);
     if (uso.recs)  partes.push(`${uso.recs} gasto${uso.recs > 1 ? "s" : ""} fixo${uso.recs > 1 ? "s" : ""}`);
     if (uso.metas) partes.push(`${uso.metas} meta${uso.metas > 1 ? "s" : ""}`);
-    msg += `<br><br>Ela está sendo usada em ${partes.join(", ")}.<br>` +
-           `Esses registros <strong>continuam com o nome</strong>, mas a categoria deixa de aparecer para novas escolhas.`;
+    desc = `Ela está sendo usada em ${partes.join(", ")}. Esses registros continuam com o nome, mas a categoria some das novas escolhas.`;
   }
 
-  const ok = await confirmar(msg);
+  const ok = await confirmar(`Excluir a categoria "${esc(cat.nome)}"?`, { tipo: "perigo", descricao: desc, okLabel: "Excluir" });
   if (!ok) return;
 
   try {
@@ -467,19 +466,27 @@ function _nextToast() {
 /* ============================================================
    CONFIRM
    ============================================================ */
-function confirmar(msg, opts = {}) {
-  const { tipo = "perigo", okLabel = "Confirmar", cancelLabel = "Cancelar" } = opts;
+function confirmar(titulo, opts = {}) {
+  const { tipo = "perigo", descricao = "", lista = null, okLabel = "Confirmar", cancelLabel = "Cancelar" } = opts;
   const neutro = tipo === "neutro";
   const icone = neutro
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9.2 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.8 2-2.8 3.6"></path><path d="M12 17.5h.01"></path></svg>'
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+  const xIcone = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+  const descHtml  = descricao ? `<p class="confirm-msg">${descricao}</p>` : "";
+  const listaHtml = (Array.isArray(lista) && lista.length)
+    ? `<ul class="confirm-lista">${lista.map(i => `<li>${i}</li>`).join("")}</ul>`
+    : "";
   return new Promise(resolve => {
     const ov = document.createElement("div");
     ov.className = "confirm-ov";
     ov.innerHTML = `
-      <div class="confirm-box ${neutro ? "is-neutro" : "is-perigo"}" role="dialog" aria-modal="true">
+      <div class="confirm-box ${neutro ? "is-neutro" : "is-perigo"}" role="alertdialog" aria-modal="true">
+        <button class="confirm-x" aria-label="Fechar">${xIcone}</button>
         <div class="confirm-ico">${icone}</div>
-        <p class="confirm-msg">${msg}</p>
+        <h3 class="confirm-titulo">${titulo}</h3>
+        ${descHtml}
+        ${listaHtml}
         <div class="confirm-btns">
           <button class="confirm-cancel">${cancelLabel}</button>
           <button class="confirm-ok">${okLabel}</button>
@@ -489,11 +496,12 @@ function confirmar(msg, opts = {}) {
     requestAnimationFrame(() => ov.classList.add("open"));
     const fechar = val => {
       ov.classList.remove("open");
-      setTimeout(() => ov.remove(), 180);
+      setTimeout(() => ov.remove(), 200);
       resolve(val);
     };
     ov.querySelector(".confirm-ok").onclick     = () => fechar(true);
     ov.querySelector(".confirm-cancel").onclick = () => fechar(false);
+    ov.querySelector(".confirm-x").onclick      = () => fechar(false);
     ov.addEventListener("click", e => { if (e.target === ov) fechar(false); });
     ov.addEventListener("keydown", e => { if (e.key === "Escape") fechar(false); });
     setTimeout(() => ov.querySelector(".confirm-cancel")?.focus(), 60);
@@ -1033,7 +1041,7 @@ document.getElementById("formCadastro")?.addEventListener("submit", async e => {
 
 /* Logout */
 document.getElementById("btnLogout")?.addEventListener("click", async () => {
-  const ok = await confirmar("Deseja sair da sua conta?", { tipo: "neutro", okLabel: "Sair" });
+  const ok = await confirmar("Sair da sua conta?", { tipo: "neutro", descricao: "Você pode entrar de novo quando quiser.", okLabel: "Sair" });
   if (!ok) return;
   await sbLogout();
   state.bancos = state.movimentos = state.transferencias = state.recorrencias = state.metas = [];
@@ -5023,7 +5031,7 @@ limparFiltrosBtn?.addEventListener("click",()=>{
 });
 
 limparTudoBtn?.addEventListener("click", async () => {
-  const ok = await confirmar("Tem certeza que deseja apagar TODOS os dados? Esta ação não pode ser desfeita.");
+  const ok = await confirmar("Apagar todos os dados?", { tipo: "perigo", descricao: "Isso remove todas as contas, lançamentos, metas e investimentos. Não dá para desfazer.", okLabel: "Apagar tudo" });
   if (!ok) return;
   mostrarLoading(true, "Limpando os dados", "Um momento...");
   try {
@@ -5048,10 +5056,11 @@ async function excluirMovimento(id) {
   // Se faz parte de uma compra parcelada, oferece excluir todas as parcelas
   if (mov.compraId && mov.parcelaTotal > 1) {
     const irmas = state.movimentos.filter(m => m.compraId === mov.compraId);
-    const ok = await confirmar(
-      `Esta é uma compra parcelada (${mov.parcelaTotal}x). ` +
-      `Excluir todas as ${irmas.length} parcelas?`
-    );
+    const ok = await confirmar("Excluir compra parcelada?", {
+      tipo: "perigo",
+      descricao: `Esta compra tem ${mov.parcelaTotal}x. Todas as ${irmas.length} parcelas serão excluídas.`,
+      okLabel: "Excluir todas",
+    });
     if (!ok) return;
     _salvarUndo();
     try {
@@ -5066,7 +5075,7 @@ async function excluirMovimento(id) {
     return;
   }
 
-  const ok = await confirmar("Excluir esta movimentação?"); if (!ok) return;
+  const ok = await confirmar("Excluir lançamento?", { tipo: "perigo", descricao: "Ele será removido do seu extrato.", okLabel: "Excluir" }); if (!ok) return;
   const label = state.movimentos.find(m=>m.id===id)?.descricao || "Lançamento";
   _salvarUndo();
   try {
@@ -5078,7 +5087,7 @@ async function excluirMovimento(id) {
 
 async function excluirConta(id) {
   const temMovs = state.movimentos.some(m=>m.bancoId===id);
-  const ok = await confirmar(temMovs ? "Esta conta tem movimentações vinculadas. Excluir mesmo assim?" : "Excluir esta conta?");
+  const ok = await confirmar("Excluir esta conta?", { tipo: "perigo", descricao: temMovs ? "Ela tem movimentações vinculadas, que também serão removidas." : "A conta e seus dados serão removidos.", okLabel: "Excluir" });
   if (!ok) return;
   const label = state.bancos.find(b=>b.id===id)?.nome || "Conta";
   _salvarUndo();
@@ -5090,7 +5099,7 @@ async function excluirConta(id) {
 }
 
 async function excluirTransferencia(id) {
-  const ok = await confirmar("Excluir esta transferência?"); if (!ok) return;
+  const ok = await confirmar("Excluir transferência?", { tipo: "perigo", descricao: "A transferência será removida.", okLabel: "Excluir" }); if (!ok) return;
   _salvarUndo();
   try {
     await dbDelete("transferencias", id);
@@ -5100,7 +5109,7 @@ async function excluirTransferencia(id) {
 }
 
 async function excluirRecorrencia(id) {
-  const ok = await confirmar("Excluir este gasto fixo?"); if (!ok) return;
+  const ok = await confirmar("Excluir gasto fixo?", { tipo: "perigo", descricao: "Ele deixará de se repetir.", okLabel: "Excluir" }); if (!ok) return;
   const label = state.recorrencias.find(r=>r.id===id)?.descricao || "Recorrência";
   _salvarUndo();
   try {
@@ -5111,7 +5120,7 @@ async function excluirRecorrencia(id) {
 }
 
 async function excluirMeta(id) {
-  const ok = await confirmar("Excluir esta meta?"); if (!ok) return;
+  const ok = await confirmar("Excluir meta?", { tipo: "perigo", descricao: "A meta será removida.", okLabel: "Excluir" }); if (!ok) return;
   const label = state.metas.find(m=>m.id===id)?.categoria || "Meta";
   _salvarUndo();
   try {
@@ -5644,7 +5653,7 @@ async function adicionarValorObjetivo(id) {
 }
 
 async function excluirObjetivo(id) {
-  const ok = await confirmar("Excluir este objetivo?"); if (!ok) return;
+  const ok = await confirmar("Excluir objetivo?", { tipo: "perigo", descricao: "O objetivo será removido.", okLabel: "Excluir" }); if (!ok) return;
   const label = state.objetivos.find(o => o.id === id)?.nome || "Objetivo";
   try {
     await dbDelete("objetivos", id);
@@ -6347,7 +6356,7 @@ formInvestimento?.addEventListener("submit", async e => {
 
 /* Monta o título exibido do investimento */
 async function excluirInvestimento(id) {
-  const ok = await confirmar("Excluir este investimento?"); if (!ok) return;
+  const ok = await confirmar("Excluir investimento?", { tipo: "perigo", descricao: "Ele será removido da sua carteira.", okLabel: "Excluir" }); if (!ok) return;
   const label = state.investimentos.find(i => i.id === id)?.nome || "Investimento";
   try {
     await dbDelete("investimentos", id);
@@ -7074,7 +7083,7 @@ async function pagarOcorrencia(recId, vencimento) {
 async function desfazerPagamento(recId, vencimento) {
   const pag = state.recPagamentos.find(p => p.recorrenciaId === recId && p.vencimento === vencimento);
   if (!pag) return;
-  const ok = await confirmar("Desfazer este pagamento? O lançamento será removido do extrato.");
+  const ok = await confirmar("Desfazer pagamento?", { tipo: "perigo", descricao: "O lançamento será removido do extrato.", okLabel: "Desfazer" });
   if (!ok) return;
 
   mostrarLoading(true);
@@ -7523,15 +7532,17 @@ function exportarTudoCSV() {
 
 async function iniciarExclusaoConta() {
   // Passo 1: alertar sobre a irreversibilidade
-  const ok1 = await confirmar(
-    `<strong>Tem certeza?</strong><br><br>
-     Isso apagará permanentemente:<br>
-     • ${state.bancos.length} conta(s)<br>
-     • ${state.movimentos.length} lançamento(s)<br>
-     • ${state.investimentos.length} investimento(s)<br>
-     • Todas as metas, objetivos e recorrências<br><br>
-     <strong>Não há como desfazer.</strong>`
-  );
+  const ok1 = await confirmar("Excluir sua conta?", {
+    tipo: "perigo",
+    descricao: "Esta ação é permanente e não pode ser desfeita. Serão apagados:",
+    lista: [
+      `${state.bancos.length} conta(s)`,
+      `${state.movimentos.length} lançamento(s)`,
+      `${state.investimentos.length} investimento(s)`,
+      "Todas as metas, objetivos e recorrências",
+    ],
+    okLabel: "Excluir conta",
+  });
   if (!ok1) return;
 
   // Passo 2: exigir confirmação por digitação (evita clique acidental)
@@ -8014,9 +8025,11 @@ async function pedirTrocaSenha() {
   const email = state.user?.email;
   if (!email) return;
 
-  const ok = await confirmar(
-    `Enviaremos um link de redefinição para<br><strong>${esc(email)}</strong>.<br><br>Deseja continuar?`
-  );
+  const ok = await confirmar("Redefinir senha?", {
+    tipo: "neutro",
+    descricao: `Enviaremos um link de redefinição para <strong>${esc(email)}</strong>.`,
+    okLabel: "Enviar link",
+  });
   if (!ok) return;
 
   mostrarLoading(true);
