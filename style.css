@@ -3226,7 +3226,6 @@ body.sem-internet .layout { padding-top: 34px; }
 
 /* ─── Bloco IA: diferencial ──────────────────────────────── */
 .lp-ia-secao {
-  border-top: 1px solid var(--lp-line);
   background: var(--lp-bg-alt);
 }
 .lp-ia-destaque { color: var(--lp-teal); }
@@ -3405,7 +3404,6 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 
 /* ─── Problema: a comparação ─────────────────────────────── */
-.lp-problema { border-top: 1px solid var(--lp-line); }
 .lp-problema-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -3771,7 +3769,6 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-final {
   text-align: center;
   padding: 88px 24px 108px;
-  border-top: 1px solid var(--lp-line);
   position: relative;
 }
 .lp-final-card {
@@ -10984,7 +10981,7 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
 }
 
 /* ─── Faixas alternadas (full-bleed: sangram até as bordas da tela) ─── */
-.lp-secao.lp-band-forte, .lp-secao.lp-band-clara { position: relative; }
+.lp-secao.lp-band-forte, .lp-secao.lp-band-clara { position: relative; z-index: 0; }
 .lp-secao.lp-band-forte::before,
 .lp-secao.lp-band-clara::before {
   content: "";
