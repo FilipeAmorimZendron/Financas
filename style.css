@@ -9060,14 +9060,14 @@ body.scroll-travado {
   position: absolute;
   top: 0; left: 50%;
   transform: translate(-50%, -50%);
-  width: 100px; height: 100px;
+  width: 104px; height: 104px;
   border-radius: 50%;
-  display: grid; place-items: center;
-  background: linear-gradient(180deg, #eef5f4, #d8ebe8);
+  overflow: hidden;
+  background: #ffffff;
   border: 5px solid var(--lp-bg);
   box-shadow: 0 14px 32px rgba(0,0,0,0.45);
 }
-.lp-suporte-badge svg { width: 58px; height: 58px; }
+.lp-suporte-badge img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lp-suporte-titulo {
   font-family: 'Sora', sans-serif;
   font-size: 24px;
@@ -10981,4 +10981,21 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
 
 @media (prefers-reduced-motion: reduce) {
   .ia-opcao:hover { transform: none; }
+}
+
+/* ─── Faixas alternadas entre as seções (forte / clara) ─── */
+.lp-band-forte { background: #010E1E; }
+.lp-band-clara { background: #0E2138; }
+
+/* ─── CTA final: botão com gradiente e brilho ─── */
+.lp-btn-grande {
+  padding: 18px 44px;
+  font-size: 16px;
+  background: linear-gradient(135deg, #1EF6DD, #16C9B3);
+  box-shadow: 0 12px 34px rgba(30,246,221,0.38), inset 0 1px 0 rgba(255,255,255,0.45);
+  transition: transform 0.15s cubic-bezier(0.16,1,0.3,1), box-shadow 0.2s;
+}
+.lp-btn-grande:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 46px rgba(30,246,221,0.5), inset 0 1px 0 rgba(255,255,255,0.45);
 }
