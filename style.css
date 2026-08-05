@@ -10983,9 +10983,20 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   .ia-opcao:hover { transform: none; }
 }
 
-/* ─── Faixas alternadas entre as seções (forte / clara) ─── */
-.lp-band-forte { background: #010E1E; }
-.lp-band-clara { background: #0E2138; }
+/* ─── Faixas alternadas (full-bleed: sangram até as bordas da tela) ─── */
+.lp-secao.lp-band-forte, .lp-secao.lp-band-clara { position: relative; }
+.lp-secao.lp-band-forte::before,
+.lp-secao.lp-band-clara::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0; bottom: 0;
+  left: calc(50% - 50vw);
+  width: 100vw;
+}
+.lp-secao.lp-band-forte::before { background: #010E1E; }
+.lp-secao.lp-band-clara::before { background: #0E2138; }
+.lp-final.lp-band-forte { background: #010E1E; }
 
 /* ─── CTA final: botão com gradiente e brilho ─── */
 .lp-btn-grande {
