@@ -6234,12 +6234,19 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 
 @media (max-width: 640px) {
+  /* Os filtros de período quebram em linhas — todos visíveis, sem precisar
+     arrastar de lado (antes ficavam escondidos na rolagem horizontal). */
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
   .periodo-seletor {
     width: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
+    flex-wrap: wrap;
+    overflow-x: visible;
+    border-radius: 16px;
   }
-  .periodo-seletor::-webkit-scrollbar { display: none; }
   .periodo-opcao { flex-shrink: 0; }
 
   .pend-item {
@@ -10778,7 +10785,11 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   .field input, .field select, .field textarea {
     font-size: 16px;   /* 16px evita o zoom automático do iOS ao focar */
     padding: 14px 15px;
+    height: auto !important;      /* sem altura fixa: o texto não corta mais */
+    min-height: 50px;
+    line-height: 1.4 !important;
   }
+  .field textarea { min-height: 90px; }
 
   /* Tooltip do gráfico: um pouco menor para caber na tela */
   .sino-item-tempo { font-size: 10.5px; }
