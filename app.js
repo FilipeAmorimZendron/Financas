@@ -2625,6 +2625,13 @@ function renderGraficoEvolucao() {
   });
   const dados = dadosSaldo;
 
+  // Escala das linhas de entradas/gastos: damos um teto BEM maior que o pico
+  // real, para elas ficarem no terço de baixo do gráfico — visualmente
+  // separadas da linha do saldo (que fica em cima). Assim 1.500 não parece
+  // estar no mesmo nível de um saldo de 51.000.
+  const picoMov = Math.max(1, ...dadosEntradas, ...dadosGastos);
+  const tetoMov = picoMov * 3.2;   // as linhas ocupam ~1/3 inferior da altura
+
   // Verifica se houve algum movimento DENTRO do período mostrado.
   // Se a linha ficar reta por falta de dados, avisamos — senão parece um bug.
   const iniISO = isoDe(dataIni);
@@ -2806,8 +2813,11 @@ function renderGraficoEvolucao() {
         yMov: {
           // Eixo das entradas/gastos do dia — escala própria (valores menores).
           // Oculto para não poluir; serve só para as duas linhas terem proporção.
+          // O teto alto empurra as linhas para o terço de baixo do gráfico,
+          // separando-as visualmente da linha do saldo lá em cima.
           position: "right",
           beginAtZero: true,
+          max: tetoMov,
           display: false,
           grid: { display: false }
         }
