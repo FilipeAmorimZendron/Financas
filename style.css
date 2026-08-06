@@ -1368,7 +1368,7 @@ textarea { resize: vertical; }
 }
 .banco-card:hover { border-color: var(--teal-glow); box-shadow: var(--shadow-sm); transform: translateY(-2px); }
 .banco-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.banco-card-nome { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.banco-card-nome { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
 .banco-card-tipo {
   font-size: 11px; color: var(--text-muted);
   background: var(--surface3); border-radius: 20px; padding: 2px 9px;
@@ -1485,7 +1485,10 @@ textarea { resize: vertical; }
   .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .card-value { font-size: 19px; }
   .dashboard-grid { grid-template-columns: 1fr; }
-  .form-grid, .form-grid-large, .form-grid-contas, .form-grid-import, .form-grid-filtro { grid-template-columns: 1fr; }
+  .form-grid, .form-grid-large, .form-grid-contas, .form-grid-import, .form-grid-filtro { grid-template-columns: 1fr; gap: 16px; }
+  .lanc-form { gap: 20px; }
+  .lanc-linha-campos { gap: 16px; }
+  .form-panel { padding: 20px 16px; }
   .bancos-cards-grid { grid-template-columns: 1fr; }
   .panel { padding: 16px; }
   .finance-table th, .finance-table td { padding: 9px 10px; font-size: 12px; }
