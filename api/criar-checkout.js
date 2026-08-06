@@ -146,11 +146,9 @@ export default async function handler(req, res) {
     // o Asaas costuma não devolvê-la — por isso o vínculo real com o usuário
     // fica na nossa tabela de checkouts, gravada logo abaixo.
     const corpoBase = {
-      // Cartão primeiro (padrão) para preservar a renovação automática da
-      // assinatura; Pix disponível como alternativa para quem não quer usar
-      // cartão. No Pix, cada ciclo gera uma cobrança que o cliente paga na mão
-      // (a tolerância de atraso do webhook cobre o intervalo).
-      billingTypes: ["CREDIT_CARD", "PIX"],
+      // O Asaas só permite CREDIT_CARD em cobrança RECURRENT (assinatura que
+      // renova sozinha). Pix recorrente exige o fluxo de "Pix Automático".
+      billingTypes: ["CREDIT_CARD"],
       chargeTypes: ["RECURRENT"],
       minutesToExpire: 60,
       callback: {
