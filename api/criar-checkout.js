@@ -8,8 +8,8 @@
 
 // ---- Configuração dos planos (valores em reais) ----
 const PLANOS = {
-  premium: { mensal: 25.9, anual: 264.0, nome: "FAZ Finanças Premium" },
-  master:  { mensal: 47.9, anual: 488.4, nome: "FAZ Finanças Master" },
+  premium: { mensal: 25.9, anual: 264.0, nome: "FAZ Finanças Premium", desc: "IA financeira, contas ilimitadas, relatórios e importação de extrato. Cancele quando quiser." },
+  master:  { mensal: 47.9, anual: 488.4, nome: "FAZ Finanças Master",  desc: "IA ilimitada, conexão bancária, análise aprofundada e suporte prioritário. Cancele quando quiser." },
 };
 
 // Sandbox por padrão. Em produção troque para https://api.asaas.com/v3
@@ -146,6 +146,10 @@ export default async function handler(req, res) {
     // o Asaas costuma não devolvê-la — por isso o vínculo real com o usuário
     // fica na nossa tabela de checkouts, gravada logo abaixo.
     const corpoBase = {
+      // Pré-preenche o pagador com o cliente que já criamos/reaproveitamos acima
+      // (nome e e-mail), para ele não precisar redigitar. Se o Asaas passar a
+      // exigir telefone por causa desta linha, basta removê-la.
+      customer: cliente.id,
       // O Asaas só permite CREDIT_CARD em cobrança RECURRENT (assinatura que
       // renova sozinha). Pix recorrente exige o fluxo de "Pix Automático".
       billingTypes: ["CREDIT_CARD"],
@@ -158,8 +162,8 @@ export default async function handler(req, res) {
       },
       items: [
         {
-          name: config.nome,
-          description: `Assinatura ${plano} (${ciclo})`,
+          name: `${config.nome} (${ciclo})`,
+          description: config.desc,
           quantity: 1,
           value: valor,
         },
