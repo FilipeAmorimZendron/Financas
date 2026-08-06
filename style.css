@@ -2663,39 +2663,55 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-nav-hamburguer.aberto span:nth-child(2) { opacity: 0; }
 .lp-nav-hamburguer.aberto span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
-/* Menu mobile que abre abaixo da barra */
+/* Menu mobile — overlay fixo de tela cheia (não herda a posição da nav) */
 .lp-nav-menu-mobile {
   display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
   flex-direction: column;
-  gap: 4px;
-  margin: 10px auto 0;
-  max-width: 380px;
-  padding: 14px;
-  background: rgba(11, 17, 20, 0.96);
-  backdrop-filter: blur(18px);
-  border: 1px solid var(--lp-line);
-  border-radius: 20px;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 32px;
+  background: rgba(6, 12, 18, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 .lp-nav-menu-mobile.aberto { display: flex; }
+.lp-menu-mobile-fechar {
+  position: absolute;
+  top: 24px; right: 24px;
+  width: 44px; height: 44px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--lp-line);
+  border-radius: 50%;
+  color: var(--lp-text);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
 .lp-nav-menu-mobile a {
-  padding: 13px 16px;
+  padding: 18px 20px;
   color: var(--lp-text);
   text-decoration: none;
-  font-size: 15px;
-  font-weight: 500;
-  border-radius: 12px;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 14px;
   transition: background 0.15s;
 }
 .lp-nav-menu-mobile a:active { background: rgba(255,255,255,0.06); }
 .lp-menu-mobile-entrar {
-  margin-top: 6px;
-  padding: 13px 16px;
+  margin-top: 12px;
+  padding: 18px 20px;
   background: var(--lp-teal);
   color: #011025;
   border: none;
-  border-radius: 12px;
+  border-radius: 100px;
   font-family: inherit;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -4339,16 +4355,18 @@ body.sem-internet .layout { padding-top: 34px; }
 
 /* ─── Responsivo ─────────────────────────────────────────── */
 @media (max-width: 860px) {
-  /* No celular vira uma coluna só: a mídia fica como faixa no topo,
-     acima do formulário, em vez de ocupar metade da tela. */
-  .auth-shell { grid-template-columns: 1fr; min-height: auto; max-width: 420px; }
-  .auth-col-midia {
-    display: block;
-    min-height: 180px;
-    max-height: 200px;
-    order: -1;
+  /* No celular: uma coluna só, o formulário é o que importa e precisa
+     rolar inteiro (senão o botão Entrar fica cortado e não dá pra logar). */
+  .auth-shell {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    max-height: 92vh;
+    max-width: 420px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
-  .auth-col-form { padding: 40px 30px; }
+  .auth-col-midia { display: none; }
+  .auth-col-form { padding: 36px 26px; }
 }
 @media (max-width: 480px) {
   .auth-modal { padding: 14px; align-items: flex-start; padding-top: 34px; }
@@ -9042,13 +9060,22 @@ body.scroll-travado {
   margin-top: 40px;
   overflow: hidden;
 }
-/* Celular: card cabe na tela (comentário inteiro visível) */
+/* Celular: em vez de rolar sozinho (que bugava no Safari), o usuário
+   arrasta os depoimentos com o dedo. Sem máscara, sem animação. */
 @media (max-width: 560px) {
   .lp-depoimento { width: 82vw; max-width: 340px; }
   .lp-depo-marquee {
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    -webkit-mask-image: none;
+    mask-image: none;
   }
+  .lp-depo-track {
+    animation: none;
+    width: max-content;
+  }
+  .lp-depoimento { scroll-snap-align: center; }
 }
 .lp-depo-track {
   display: flex;
