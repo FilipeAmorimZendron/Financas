@@ -8961,15 +8961,23 @@ body.scroll-travado {
 .lp-depoimentos-secao {
   background: var(--lp-bg-alt);
   padding: 56px 0;
-  overflow: hidden;
 }
 .lp-depo-marquee {
   position: relative;
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-top: 40px;
+  overflow: hidden;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+/* Celular: card cabe na tela (comentário inteiro visível) */
+@media (max-width: 560px) {
+  .lp-depoimento { width: 82vw; max-width: 340px; }
+  .lp-depo-marquee {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent);
+  }
 }
 .lp-depo-track {
   display: flex;
