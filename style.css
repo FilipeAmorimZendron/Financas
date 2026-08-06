@@ -1462,6 +1462,13 @@ textarea { resize: vertical; }
 }
 
 @media (max-width: 900px) {
+  /* CRÍTICO: qualquer campo com fonte < 16px faz o iOS dar zoom ao focar
+     (e não volta). Forçar 16px em TODOS os campos elimina esse zoom. */
+  input, select, textarea,
+  .field input, .field select, .field textarea,
+  .auth-campo input, .busca-input, .cor-hex-input {
+    font-size: 16px !important;
+  }
   .layout { grid-template-columns: minmax(0, 1fr); padding-bottom: 68px; overflow-x: hidden; max-width: 100vw; }
   html, body { overflow-x: hidden; max-width: 100%; width: 100%; position: relative; }
   .content { min-width: 0; overflow-x: hidden; max-width: 100%; }
@@ -9102,30 +9109,34 @@ body.scroll-travado {
   overflow: hidden;
 }
 /* Celular: nada de carrossel (bugava no Safari). Os depoimentos viram uma
-   lista vertical simples — impossível de bugar. Mostra 3, o resto some. */
+   lista vertical simples e forçada — 5 comentários, um embaixo do outro. */
 @media (max-width: 560px) {
   .lp-depo-marquee {
-    overflow: visible;
-    -webkit-mask-image: none;
-    mask-image: none;
+    overflow: visible !important;
+    width: 100% !important;
+    margin: 40px 0 0 !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
   }
   .lp-depo-track {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-    width: 100%;
-    animation: none;
-    padding: 0 20px;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 16px !important;
+    width: 100% !important;
+    animation: none !important;
+    transform: none !important;
+    padding: 0 20px !important;
   }
   .lp-depoimento {
-    width: 100%;
-    max-width: 100%;
-    min-height: 0;
-    padding: 26px 24px;
+    width: 100% !important;
+    max-width: 400px !important;
+    min-height: 0 !important;
+    padding: 24px !important;
+    opacity: 1 !important;
   }
-  /* Mostra só os 3 primeiros; o resto (duplicados do marquee) some */
-  .lp-depo-track .lp-depoimento:nth-child(n+4) { display: none; }
+  /* Mostra só os 5 primeiros; o resto (duplicados do marquee) some */
+  .lp-depo-track .lp-depoimento:nth-child(n+6) { display: none !important; }
 }
 .lp-depo-track {
   display: flex;
