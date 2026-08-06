@@ -1493,6 +1493,23 @@ function calcularAvisos() {
       });
     }
 
+  } else if (statusAss === "cancelada_fim_ciclo") {
+    // Cancelou mas ainda está dentro do mês pago: avisa até quando tem acesso.
+    const ate = perfilAviso.proximaCobranca;
+    const diasRestantes = ate
+      ? Math.floor((new Date(ate + "T00:00:00") - new Date(hojeISO() + "T00:00:00")) / 86400000)
+      : null;
+    if (diasRestantes !== null && diasRestantes >= 0) {
+      const dataBonita = new Date(ate + "T00:00:00").toLocaleDateString("pt-BR");
+      avisos.push({
+        tipo: "cartao",
+        titulo: "Assinatura cancelada",
+        texto: `Seu plano ${nomePlanoAviso || "pago"} segue ativo até ${dataBonita}. Depois dessa data, sua conta volta para o plano grátis. Você pode assinar de novo quando quiser.`,
+        prioridade: 2,
+        acao: "trocarTela('planos')"
+      });
+    }
+
   } else if (statusAss === "cancelada_falta_pagamento") {
     // O Asaas encerrou a assinatura por falta de pagamento
     const perdido = perfilAviso.planoAnterior;
@@ -8302,6 +8319,16 @@ function planoAtual() {
   if (status === "atrasada" && ehPago) {
     if (!p.atrasoDesde) return plano;   // sem data: dá o benefício da dúvida
     if (dentroDaTolerancia()) return plano;
+  }
+
+  // Cancelada mas dentro do mês pago: o cliente pediu para não renovar, porém
+  // pagou o ciclo atual. Mantém o acesso até a data da próxima cobrança que
+  // não vai mais acontecer. Passou dessa data, cai para básico.
+  if (status === "cancelada_fim_ciclo" && ehPago) {
+    const ate = p.proximaCobranca;
+    if (!ate) return plano;   // sem data guardada: mantém o acesso por segurança
+    const aindaVale = new Date(hojeISO() + "T00:00:00") < new Date(ate + "T00:00:00");
+    if (aindaVale) return plano;
   }
 
   // cancelada_falta_pagamento, inativa e qualquer outro: sem acesso pago

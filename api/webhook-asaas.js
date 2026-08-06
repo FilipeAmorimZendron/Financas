@@ -214,13 +214,20 @@ const EVENTOS_ATRASO = [
   "PAYMENT_OVERDUE",
 ];
 
-// Corte imediato: aqui não há o que esperar — o dinheiro voltou,
-// foi contestado, ou a assinatura acabou.
+// Corte imediato: o dinheiro voltou ou foi contestado. Não há mês pago a
+// respeitar — o acesso cai na hora.
 const EVENTOS_CORTE = [
   "PAYMENT_REFUNDED",
   "PAYMENT_CHARGEBACK_REQUESTED",
   "PAYMENT_CHARGEBACK_DISPUTE",
   "PAYMENT_DELETED",
+];
+
+// Cancelamento: a assinatura foi encerrada (não vai mais renovar), mas o
+// cliente PAGOU o ciclo atual. Mantém o acesso até a próxima cobrança que
+// não vai mais acontecer — só então cai para básico. (Diferente do estorno,
+// aqui o dinheiro do mês fica com a gente.)
+const EVENTOS_CANCELAMENTO = [
   "SUBSCRIPTION_DELETED",
   "SUBSCRIPTION_INACTIVATED",
 ];
@@ -390,21 +397,24 @@ export default async function handler(req, res) {
       console.log(`ATRASO registrado para ${userId}. Acesso mantido por ${DIAS_TOLERANCIA} dias.`);
 
     } else if (EVENTOS_CORTE.includes(evento)) {
-      // Corta na hora. Guarda o motivo e qual plano foi perdido, para o app
-      // conseguir explicar ao cliente o que aconteceu.
+      // Estorno ou contestação: o dinheiro saiu da nossa conta. Corta na hora.
       novoPlano = "basico";
       extras.atraso_desde = null;
       if (plano && plano !== "basico") extras.plano_anterior = plano;
+      novoStatus = "inativa";
 
-      // Falta de pagamento tem status próprio: a mensagem ao cliente é outra
-      // (ele pode reassinar) comparada a um estorno ou contestação.
-      const porFaltaDePagamento =
-        evento === "SUBSCRIPTION_DELETED" ||
-        evento === "SUBSCRIPTION_INACTIVATED" ||
-        evento === "PAYMENT_DELETED";
-      novoStatus = porFaltaDePagamento ? "cancelada_falta_pagamento" : "inativa";
+      console.log(`CORTE imediato (estorno/contestação) para ${userId} — evento ${evento}`);
 
-      console.log(`CORTE imediato para ${userId} — evento ${evento} — status ${novoStatus}`);
+    } else if (EVENTOS_CANCELAMENTO.includes(evento)) {
+      // Cancelamento: a assinatura não vai mais renovar, mas o cliente pagou
+      // o ciclo atual. Mantém o plano e o acesso até a data que já estava
+      // guardada em proxima_cobranca — o app rebaixa sozinho quando ela chegar.
+      // O dinheiro do mês em curso fica com a gente (não é estorno).
+      novoStatus = "cancelada_fim_ciclo";
+      novoPlano = plano || null;   // mantém o plano atual até o fim do ciclo
+      if (plano && plano !== "basico") extras.plano_anterior = plano;
+
+      console.log(`CANCELAMENTO para ${userId} — acesso mantido até proxima_cobranca — evento ${evento}`);
 
     } else {
       // Evento que não muda o status (ex.: PAYMENT_CREATED). Só confirma o recebimento.
