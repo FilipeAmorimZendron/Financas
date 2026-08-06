@@ -1895,6 +1895,15 @@
         <a href="#faq">Dúvidas</a>
       </div>
       <button class="lp-btn-nav" onclick="abrirAuth('login')">Entrar</button>
+      <button class="lp-nav-hamburguer" id="lpHamburguer" aria-label="Menu" onclick="lpToggleMenu()">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <div class="lp-nav-menu-mobile" id="lpNavMenuMobile">
+      <a href="#recursos" onclick="lpFecharMenu()">Recursos</a>
+      <a href="#planos" onclick="lpFecharMenu()">Planos</a>
+      <a href="#faq" onclick="lpFecharMenu()">Dúvidas</a>
+      <button class="lp-menu-mobile-entrar" onclick="lpFecharMenu(); abrirAuth('login')">Entrar</button>
     </div>
   </nav>
 

@@ -7679,6 +7679,19 @@ function rolarPara(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+/* Menu hambúrguer da landing no mobile */
+function lpToggleMenu() {
+  const menu = document.getElementById("lpNavMenuMobile");
+  const btn = document.getElementById("lpHamburguer");
+  if (!menu || !btn) return;
+  const aberto = menu.classList.toggle("aberto");
+  btn.classList.toggle("aberto", aberto);
+}
+function lpFecharMenu() {
+  document.getElementById("lpNavMenuMobile")?.classList.remove("aberto");
+  document.getElementById("lpHamburguer")?.classList.remove("aberto");
+}
+
 /* Toggle Mensal/Anual dos planos na landing */
 (function () {
   const toggle = document.getElementById("lpPlanosToggle");
