@@ -11883,7 +11883,7 @@ async function executarAcaoIA(acao) {
   function ligar() {
     document.addEventListener("click", function (e) {
       // Abrir (clicou no botão flutuante)
-      if (e.target.closest("#iaFab")) {
+      if (e.target.closest("#iaFab") || e.target.closest("#iaFabMobile")) {
         e.preventDefault();
         if (typeof ehPremium === "function" && !ehPremium()) {
           pedirUpgrade("O assistente de IA está disponível nos planos Premium e Master.", "Assistente de IA");

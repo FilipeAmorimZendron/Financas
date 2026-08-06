@@ -112,6 +112,11 @@
       </button>
     </nav>
 
+    <!-- Botão flutuante do Assistente FAZ — só no mobile (a sidebar some) -->
+    <button type="button" class="ia-fab-mobile" id="iaFabMobile" title="Falar com o Assistente FAZ" aria-label="Assistente FAZ">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></svg>
+    </button>
+
     <main class="content">
 
       <!-- SINO DE NOTIFICAÇÕES -->
@@ -1895,18 +1900,8 @@
         <a href="#faq">Dúvidas</a>
       </div>
       <button class="lp-btn-nav" onclick="abrirAuth('login')">Entrar</button>
-      <button class="lp-nav-hamburguer" id="lpHamburguer" aria-label="Menu" onclick="lpToggleMenu()">
-        <span></span><span></span><span></span>
-      </button>
     </div>
   </nav>
-  <div class="lp-nav-menu-mobile" id="lpNavMenuMobile">
-    <button class="lp-menu-mobile-fechar" aria-label="Fechar" onclick="lpFecharMenu()">&times;</button>
-    <a href="#recursos" onclick="lpFecharMenu()">Recursos</a>
-    <a href="#planos" onclick="lpFecharMenu()">Planos</a>
-    <a href="#faq" onclick="lpFecharMenu()">Dúvidas</a>
-    <button class="lp-menu-mobile-entrar" onclick="lpFecharMenu(); abrirAuth('login')">Entrar</button>
-  </div>
 
   <!-- HERO -->
   <header class="lp-hero">

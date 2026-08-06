@@ -1469,7 +1469,12 @@ textarea { resize: vertical; }
   .sidebar { display: none !important; }
   .content { padding: 16px; }
   .page-title { font-size: 23px; }
-  .page-header { padding-right: 52px; }
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding-right: 56px;
+    gap: 4px;
+  }
   .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .card-value { font-size: 19px; }
   .dashboard-grid { grid-template-columns: 1fr; }
@@ -3979,15 +3984,27 @@ body.sem-internet .layout { padding-top: 34px; }
 
 /* ─── Responsivo ─────────────────────────────────────────── */
 @media (max-width: 880px) {
-  .lp-nav-links { display: none; }
-  .lp-btn-nav { display: none; }
-  .lp-nav-hamburguer { display: flex; }
-  .lp-nav-inner { gap: 14px; padding: 10px 14px 10px 18px; }
+  /* Links à mostra, como no computador, só que compactos para caber */
+  .lp-nav-inner { gap: 12px; padding: 9px 9px 9px 14px; }
+  .lp-nav-links { gap: 16px; }
+  .lp-nav-links a { font-size: 13px; }
+  .lp-btn-nav { padding: 8px 15px; font-size: 12.5px; }
+  .lp-logo-img { height: 30px; }
   .lp-problema-grid { grid-template-columns: 1fr; gap: 40px; }
   .lp-cards { grid-template-columns: 1fr; }
   .lp-card-largo { flex-direction: column; gap: 14px; }
   .lp-hero { padding-top: 120px; }
   .lp-secao { padding: 80px 20px; }
+}
+/* Telefones bem estreitos: aperta mais a nav para tudo caber à mostra */
+@media (max-width: 430px) {
+  .lp-nav-inner { gap: 8px; padding: 8px 8px 8px 12px; }
+  .lp-nav-links { gap: 11px; }
+  .lp-nav-links a { font-size: 12px; }
+  .lp-btn-nav { padding: 7px 13px; font-size: 12px; }
+  .lp-logo-img { height: 26px; }
+}
+@media (max-width: 880px) {
   .lp-rodape-topo { flex-direction: column; align-items: flex-start; gap: 20px; }
   .lp-rodape-base { flex-direction: column; align-items: flex-start; gap: 12px; }
 }
@@ -8725,6 +8742,29 @@ body.scroll-travado {
 .sidebar-recolhida .sidebar-ia-btn span { display: none; }
 .sidebar-recolhida .sidebar-ia-btn { padding: 11px 0; }
 
+/* Botão flutuante do Assistente FAZ — só no mobile (a sidebar some lá) */
+.ia-fab-mobile {
+  display: none;
+  position: fixed;
+  right: 16px;
+  bottom: 84px;
+  z-index: 90;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--teal-500, #2D6A72), var(--teal-400, #4A9AA4));
+  border: none;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+.ia-fab-mobile svg { width: 26px; height: 26px; }
+.ia-fab-mobile:active { transform: scale(0.94); }
+@media (max-width: 900px) {
+  .ia-fab-mobile { display: flex; }
+}
+
 
 .ia-chat[hidden] {
   display: none !important;
@@ -9062,7 +9102,7 @@ body.scroll-travado {
   overflow: hidden;
 }
 /* Celular: nada de carrossel (bugava no Safari). Os depoimentos viram uma
-   lista vertical simples — impossível de bugar. Mostra alguns, o resto some. */
+   lista vertical simples — impossível de bugar. Mostra 3, o resto some. */
 @media (max-width: 560px) {
   .lp-depo-marquee {
     overflow: visible;
@@ -9073,7 +9113,7 @@ body.scroll-travado {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 14px;
+    gap: 16px;
     width: 100%;
     animation: none;
     padding: 0 20px;
@@ -9082,9 +9122,10 @@ body.scroll-travado {
     width: 100%;
     max-width: 100%;
     min-height: 0;
+    padding: 26px 24px;
   }
-  /* Mostra os 5 primeiros; o resto (duplicados do marquee) fica escondido */
-  .lp-depo-track .lp-depoimento:nth-child(n+6) { display: none; }
+  /* Mostra só os 3 primeiros; o resto (duplicados do marquee) some */
+  .lp-depo-track .lp-depoimento:nth-child(n+4) { display: none; }
 }
 .lp-depo-track {
   display: flex;
