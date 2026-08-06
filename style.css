@@ -2669,6 +2669,7 @@ body.sem-internet .layout { padding-top: 34px; }
   position: fixed;
   inset: 0;
   z-index: 200;
+  pointer-events: auto;
   flex-direction: column;
   justify-content: center;
   gap: 8px;
@@ -9060,22 +9061,30 @@ body.scroll-travado {
   margin-top: 40px;
   overflow: hidden;
 }
-/* Celular: em vez de rolar sozinho (que bugava no Safari), o usuário
-   arrasta os depoimentos com o dedo. Sem máscara, sem animação. */
+/* Celular: nada de carrossel (bugava no Safari). Os depoimentos viram uma
+   lista vertical simples — impossível de bugar. Mostra alguns, o resto some. */
 @media (max-width: 560px) {
-  .lp-depoimento { width: 82vw; max-width: 340px; }
   .lp-depo-marquee {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x mandatory;
+    overflow: visible;
     -webkit-mask-image: none;
     mask-image: none;
   }
   .lp-depo-track {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    width: 100%;
     animation: none;
-    width: max-content;
+    padding: 0 20px;
   }
-  .lp-depoimento { scroll-snap-align: center; }
+  .lp-depoimento {
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+  }
+  /* Mostra os 5 primeiros; o resto (duplicados do marquee) fica escondido */
+  .lp-depo-track .lp-depoimento:nth-child(n+6) { display: none; }
 }
 .lp-depo-track {
   display: flex;
