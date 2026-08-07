@@ -4243,6 +4243,19 @@ async function processarExtratoChat(arquivo, bancoId, addChat) {
    As demais (e as personalizadas) ficam acessíveis por "Criar categoria". */
 const CATEGORIAS_BASICAS_REVISAO = ["Alimentação", "Transporte", "Moradia", "Compras", "Outros"];
 
+/* Opções de botão para uma dúvida: as básicas + as categorias que o usuário
+   criou (inclusive as recém-criadas nesta mesma tela), sem repetir. Assim uma
+   categoria criada num item aparece como botão em todos os outros. */
+function opcoesDaDuvida(d) {
+  const base = (d && d.opcoes) ? d.opcoes.slice() : CATEGORIAS_BASICAS_REVISAO.slice();
+  const personalizadas = (state.categorias || []).map(c => c.nome);
+  const juntas = [...base];
+  personalizadas.forEach(nome => {
+    if (!juntas.some(x => x.toLowerCase() === nome.toLowerCase())) juntas.push(nome);
+  });
+  return juntas;
+}
+
 function categoriasRevisao() {
   return todasCategorias();
 }
@@ -4419,7 +4432,7 @@ function renderRevisao() {
 
     revisaoDados.duvidas.forEach((d, i) => {
       const respondida = !!d.resposta;
-      const opcoes = d.opcoes || CATEGORIAS_BASICAS_REVISAO;
+      const opcoes = opcoesDaDuvida(d);
       let confirmacaoTransf = "";
       if (d.resposta === "__transferencia" && d.transferencia) {
         const bo = state.bancos.find(b => b.id === d.transferencia.origem);
@@ -4526,9 +4539,10 @@ function responderDuvida(indice, indiceOpcao) {
   const d = revisaoDados.duvidas[indice];
   if (!d) return;
   if (indiceOpcao === -1) {
-    d.resposta = "__ignorar";
+    // Toggle: clicar de novo em "Não importar" desmarca
+    d.resposta = (d.resposta === "__ignorar") ? null : "__ignorar";
   } else {
-    const opcoes = d.opcoes || CATEGORIAS_BASICAS_REVISAO;
+    const opcoes = opcoesDaDuvida(d);
     const escolha = opcoes[indiceOpcao] || "Outros";
 
     // Pergunta de transferência entre contas próprias:
@@ -4553,9 +4567,14 @@ function responderDuvida(indice, indiceOpcao) {
       return;
     }
 
-    d.resposta = escolha;
-    // Aprende a escolha para não perguntar de novo na próxima importação
-    gravarMemoriaCategoria(d.descricao, d.resposta);
+    // Clicar de novo na categoria já escolhida DESMARCA (volta a pendente).
+    if (d.resposta === escolha) {
+      d.resposta = null;
+    } else {
+      d.resposta = escolha;
+      // Aprende a escolha para não perguntar de novo na próxima importação
+      gravarMemoriaCategoria(d.descricao, d.resposta);
+    }
   }
   renderRevisao();
 }
