@@ -7215,7 +7215,7 @@ body.sem-internet .layout { padding-top: 34px; }
 /* Gráficos de rosca lado a lado */
 .plan-graficos {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.5fr 1fr;
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -7229,8 +7229,8 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .plan-donut {
   position: relative;
-  width: 200px;
-  height: 200px;
+  width: 220px;
+  height: 220px;
 }
 
 /* Legenda customizada */
@@ -7957,8 +7957,12 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 
 /* Rosca um pouco menor, respira melhor */
-.plan-donut { width: 176px; height: 176px; }
-.plan-donut-wrap { grid-template-columns: 176px 1fr; }
+.plan-donut { width: 200px; height: 200px; }
+.plan-donut-wrap { grid-template-columns: 200px 1fr; }
+/* O painel Entradas × Gastos é mais estreito: rosca um pouco menor para caber
+   com folga e sobrar espaço, sem espremer a legenda. */
+.plan-grafico-panel:last-child .plan-donut { width: 160px; height: 160px; }
+.plan-grafico-panel:last-child .plan-donut-wrap { grid-template-columns: 160px 1fr; }
 
 /* Painéis de gráfico não precisam ser tão altos quando vazios */
 .plan-grafico-panel { padding-bottom: 8px; }
