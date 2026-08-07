@@ -6840,14 +6840,34 @@ async function marcarComoPago(id) {
   const ehEntrada = m.tipo === "entrada";
   try {
     const hoje = hojeISO();
-    const att = await dbUpdate("movimentos", id, {
+
+    // Se era um gasto no CRÉDITO agendado, ao pagar ele vira uma compra real
+    // no cartão: entra na fatura do mês e passa a ocupar o limite — igual a um
+    // cartão de verdade (o limite só é usado quando a compra acontece).
+    const viraCompraCredito = m.tipo === "gasto"
+      && m.formaPagamento === "credito"
+      && !m.cartaoId
+      && m.bancoId
+      && state.bancos.some(b => b.id === m.bancoId && b.temCartao);
+
+    const patch = {
       status: "pago",
       pago_em: hoje,
       data: hoje   // a data do lançamento vira o dia do pagamento efetivo
-    });
+    };
+    if (viraCompraCredito) {
+      patch.cartao_id = m.bancoId;
+      patch.fatura_mes = faturaDaCompra(hoje, null);
+    }
+
+    await dbUpdate("movimentos", id, patch);
     m.status = "pago";
     m.pagoEm = hoje;
     m.data = hoje;
+    if (viraCompraCredito) {
+      m.cartaoId = m.bancoId;
+      m.faturaMes = patch.fatura_mes;
+    }
     renderTudo();
     toast(
       ehEntrada ? `Recebimento de ${fmtMoeda(m.valor)} confirmado!` : `Pagamento de ${fmtMoeda(m.valor)} registrado!`,
