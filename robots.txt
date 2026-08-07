@@ -1,0 +1,17 @@
+# robots.txt — FAZ Finanças
+
+# Robô do Facebook (necessário para verificação de domínio,
+# prévia de links e scraping de anúncios)
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: facebookcatalog
+Allow: /
+
+# Robô do Instagram
+User-agent: Instagram
+Allow: /
+
+# Demais robôs (buscadores): liberado
+User-agent: *
+Allow: /
