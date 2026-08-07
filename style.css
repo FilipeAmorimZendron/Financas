@@ -7127,6 +7127,50 @@ body.sem-internet .layout { padding-top: 34px; }
    Layout sólido: destaques → gráficos de rosca → listas → tabela.
    ============================================================ */
 
+/* Cabeçalho da planilha com o filtro compacto à direita */
+.plan-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.plan-filtro-compacto {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.plan-filtro-select,
+.plan-filtro-campo {
+  height: 40px;
+  padding: 0 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+.plan-filtro-select { padding-right: 32px; }
+.plan-filtro-select:focus,
+.plan-filtro-campo:focus { border-color: var(--accent); }
+.plan-filtro-limpar {
+  height: 40px;
+  padding: 0 16px;
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.plan-filtro-limpar:hover { background: var(--surface2); color: var(--text-primary); }
+
 /* Destaques no topo */
 .plan-destaques {
   display: grid;
@@ -7200,8 +7244,23 @@ body.sem-internet .layout { padding-top: 34px; }
   display: grid;
   grid-template-columns: auto 1fr auto auto;
   align-items: center;
-  gap: 9px;
+  gap: 4px 9px;
   font-size: 12.5px;
+  padding: 4px 0;
+}
+.plan-leg-barra {
+  grid-column: 1 / -1;
+  height: 5px;
+  background: var(--surface2, rgba(255,255,255,0.05));
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+.plan-leg-barra > span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s var(--ease, ease);
 }
 .plan-leg-cor {
   width: 10px; height: 10px;

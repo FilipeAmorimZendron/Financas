@@ -1115,9 +1115,9 @@ const tipoFiltroSelect       = document.getElementById("tipoFiltro");
 const filtroDiaInput         = document.getElementById("filtroDia");
 const filtroMesInput         = document.getElementById("filtroMes");
 const filtroAnoInput         = document.getElementById("filtroAno");
-const fieldFiltroDia         = document.getElementById("fieldFiltroDia");
-const fieldFiltroMes         = document.getElementById("fieldFiltroMes");
-const fieldFiltroAno         = document.getElementById("fieldFiltroAno");
+const fieldFiltroDia         = document.getElementById("filtroDia");
+const fieldFiltroMes         = document.getElementById("filtroMes");
+const fieldFiltroAno         = document.getElementById("filtroAno");
 const limparFiltrosBtn       = document.getElementById("limparFiltros");
 const filtroCategoriaTabela  = document.getElementById("filtroCategoriaTabela");
 const limparTudoBtn          = document.getElementById("limparTudo");
@@ -3427,14 +3427,19 @@ function renderGraficosPlanilha(movs) {
         },
         plugins: [textoCentro("Total", fmtCompacto(totalGasto))]
       });
-      // Legenda HTML customizada
+      // Legenda HTML customizada, com mini-barra de proporção para comparar
+      // categorias mesmo quando algumas são bem pequenas.
+      const maxVal = data.length ? data[0] : 0;
       document.getElementById("legendaCategorias").innerHTML = pares.map(([cat, val], i) => {
         const pct = totalGasto > 0 ? Math.round((val/totalGasto)*100) : 0;
+        const larguraBarra = maxVal > 0 ? Math.max(3, (val/maxVal)*100) : 0;
+        const cor = corGrafico(cat, i);
         return `<div class="plan-leg-item">
-          <span class="plan-leg-cor" style="background:${corGrafico(cat, i)}"></span>
+          <span class="plan-leg-cor" style="background:${cor}"></span>
           <span class="plan-leg-nome">${esc(cat)}</span>
           <span class="plan-leg-val">${fmtMoeda(val)}</span>
           <span class="plan-leg-pct">${pct}%</span>
+          <span class="plan-leg-barra"><span style="width:${larguraBarra.toFixed(0)}%;background:${cor}"></span></span>
         </div>`;
       }).join("");
     }

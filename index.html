@@ -1094,27 +1094,22 @@
 
       <!-- PLANILHA -->
       <section class="screen" id="screen-planilha">
-        <div class="page-header">
-          <p class="page-eyebrow">Análise</p>
-          <h2 class="page-title">Planilha Financeira</h2>
-        </div>
-
-        <div class="form-panel">
-          <div class="form-panel-title">Filtrar período</div>
-          <form id="formFiltrosPlanilha" class="form-grid form-grid-filtro">
-            <div class="field">
-              <label for="tipoFiltro">Período</label>
-              <select id="tipoFiltro">
-                <option value="todos">Todos</option>
-                <option value="dia">Por dia</option>
-                <option value="mes">Por mês</option>
-                <option value="ano">Por ano</option>
-              </select>
-            </div>
-            <div class="field hidden-filter" id="fieldFiltroDia"><label for="filtroDia">Dia</label><input type="date" id="filtroDia" min="2000-01-01" max="2100-12-31" /></div>
-            <div class="field hidden-filter" id="fieldFiltroMes"><label for="filtroMes">Mês</label><input type="month" id="filtroMes" /></div>
-            <div class="field hidden-filter" id="fieldFiltroAno"><label for="filtroAno">Ano</label><input type="number" id="filtroAno" min="2000" max="2100" placeholder="2026" /></div>
-            <div class="field field-button"><button type="button" id="limparFiltros" class="btn-ghost">Limpar filtros</button></div>
+        <div class="page-header plan-header">
+          <div>
+            <p class="page-eyebrow">Análise</p>
+            <h2 class="page-title">Planilha Financeira</h2>
+          </div>
+          <form id="formFiltrosPlanilha" class="plan-filtro-compacto">
+            <select id="tipoFiltro" class="plan-filtro-select">
+              <option value="todos">Todos</option>
+              <option value="dia">Por dia</option>
+              <option value="mes">Por mês</option>
+              <option value="ano">Por ano</option>
+            </select>
+            <input type="date" id="filtroDia" class="plan-filtro-campo hidden-filter" min="2000-01-01" max="2100-12-31" />
+            <input type="month" id="filtroMes" class="plan-filtro-campo hidden-filter" />
+            <input type="number" id="filtroAno" class="plan-filtro-campo hidden-filter" min="2000" max="2100" placeholder="2026" />
+            <button type="button" id="limparFiltros" class="plan-filtro-limpar" title="Limpar filtros">Limpar</button>
           </form>
         </div>
 
