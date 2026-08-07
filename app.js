@@ -1646,16 +1646,19 @@ function calcularAvisos() {
 
   // 4c. Gasto muito alto num dia (bem acima do normal)
   // Compara o total gasto hoje com a média diária dos últimos 30 dias.
+  // Compras no crédito ficam de fora — igual ao card de Gastos: elas só
+  // contam como saída quando a fatura é paga, não no dia da compra.
   (function () {
+    const ehGastoReal = m => m.tipo === "gasto" && ehPago(m) && m.formaPagamento !== "credito";
     const gastosHoje = state.movimentos.filter(m =>
-      m.tipo === "gasto" && ehPago(m) && (m.data || "").slice(0, 10) === hoje
+      ehGastoReal(m) && (m.data || "").slice(0, 10) === hoje
     );
     const totalHoje = gastosHoje.reduce((s, m) => s + (Number(m.valor) || 0), 0);
     if (totalHoje <= 0) return;
 
     const ha30 = somarDias(hoje, -30);
     const gastos30 = state.movimentos.filter(m =>
-      m.tipo === "gasto" && ehPago(m) && (m.data || "") >= ha30 && (m.data || "") < hoje
+      ehGastoReal(m) && (m.data || "") >= ha30 && (m.data || "") < hoje
     );
     const total30 = gastos30.reduce((s, m) => s + (Number(m.valor) || 0), 0);
     const mediaDia = total30 / 30;
@@ -1678,7 +1681,7 @@ function calcularAvisos() {
     if (d.getDay() !== 1) return; // 1 = segunda
     const ha7 = somarDias(hoje, -7);
     const gastosSemana = state.movimentos.filter(m =>
-      m.tipo === "gasto" && ehPago(m) && (m.data || "") >= ha7 && (m.data || "") < hoje
+      m.tipo === "gasto" && ehPago(m) && m.formaPagamento !== "credito" && (m.data || "") >= ha7 && (m.data || "") < hoje
     );
     if (!gastosSemana.length) return;
     const total = gastosSemana.reduce((s, m) => s + (Number(m.valor) || 0), 0);
