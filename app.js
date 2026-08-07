@@ -11883,9 +11883,16 @@ async function executarAcaoIA(acao) {
       const retomou = restaurarChat();
       if (!retomou) {
         const nome = primeiroNome();
-        const saudacao = nome
-          ? "Olá, " + nome + "! 👋 Que bom te ver por aqui. Sou o Assistente FAZ e estou aqui para te ajudar a entender seus gastos, economizar e organizar suas finanças. 💰\n\nComo posso te ajudar hoje?"
-          : "Olá! 👋 Que bom te ver por aqui. Sou o Assistente FAZ e estou aqui para te ajudar a entender seus gastos, economizar e organizar suas finanças. 💰\n\nComo posso te ajudar hoje?";
+        const abertura = nome ? "Olá, " + nome + "! 👋" : "Olá! 👋";
+        const saudacao = abertura + " Sou o Assistente FAZ. Posso cuidar de quase tudo por aqui pra você — é só me pedir com suas palavras. Por exemplo:\n\n" +
+          "• \"gastei 200 de gasolina no nubank\" — lanço o gasto e já categorizo\n" +
+          "• \"recebi 3500 de salário\" — registro a entrada\n" +
+          "• \"cadastra minha conta do Itaú com 1200\" — crio a conta\n" +
+          "• \"passa 500 da poupança pro nubank\" — faço a transferência\n" +
+          "• \"meu aluguel é 1500 todo dia 10\" — crio o gasto fixo que se repete\n" +
+          "• \"quero juntar 6000 pra uma viagem até dezembro\" — monto o objetivo\n" +
+          "• \"quero gastar no máximo 800 com alimentação\" — defino o limite\n\n" +
+          "Também respondo dúvidas como \"quanto posso gastar esse mês?\". Como posso te ajudar?";
         addMsg(saudacao, "ia");
         conversaIniciada = true;
       }
