@@ -4239,6 +4239,10 @@ async function processarExtratoChat(arquivo, bancoId, addChat) {
 
 /* Categorias oferecidas na revisão do extrato.
    É uma função porque a lista muda quando o usuário cria as dele. */
+/* As categorias básicas que aparecem como botões diretos na revisão.
+   As demais (e as personalizadas) ficam acessíveis por "Criar categoria". */
+const CATEGORIAS_BASICAS_REVISAO = ["Alimentação", "Transporte", "Moradia", "Compras", "Outros"];
+
 function categoriasRevisao() {
   return todasCategorias();
 }
@@ -4415,7 +4419,7 @@ function renderRevisao() {
 
     revisaoDados.duvidas.forEach((d, i) => {
       const respondida = !!d.resposta;
-      const opcoes = d.opcoes || categoriasRevisao();
+      const opcoes = d.opcoes || CATEGORIAS_BASICAS_REVISAO;
       let confirmacaoTransf = "";
       if (d.resposta === "__transferencia" && d.transferencia) {
         const bo = state.bancos.find(b => b.id === d.transferencia.origem);
@@ -4437,7 +4441,8 @@ function renderRevisao() {
             return `<button type="button" class="rev-opcao ${d.resposta === op ? "rev-opcao-ativa" : ""} ${ehSugerida ? "rev-opcao-sugerida" : ""}"
               data-duvida="${i}" data-opcao="${oi}">${ehSugerida ? "★ " : ""}${esc(op)}</button>`;
           }).join("")}
-          ${d.ehTransferencia ? "" : `<button type="button" class="rev-opcao rev-opcao-outra" data-duvida-outra="${i}">Outra…</button>`}
+          ${d.ehTransferencia ? "" : `<button type="button" class="rev-opcao rev-opcao-criar" data-duvida-criar="${i}">➕ Criar categoria agora</button>`}
+          ${d.ehTransferencia ? "" : `<button type="button" class="rev-opcao rev-opcao-transf" data-duvida-transf="${i}">↔ Transferência entre contas</button>`}
           <button type="button" class="rev-opcao rev-opcao-ignorar ${d.resposta === "__ignorar" ? "rev-opcao-ativa" : ""}"
             data-duvida="${i}" data-opcao="-1">Não importar</button>
         </div>
@@ -4484,11 +4489,18 @@ function renderRevisao() {
   // elimina o bug de "sempre cair no último item".
   if (!corpo.dataset.ligado) {
     corpo.addEventListener("click", (e) => {
-      // Botão "Outra…": abre a lista completa de categorias para esta dúvida
-      const btnOutra = e.target.closest(".rev-opcao-outra");
-      if (btnOutra) {
-        const iDuvida = Number(btnOutra.dataset.duvidaOutra);
-        if (!Number.isNaN(iDuvida)) abrirTodasCategorias(iDuvida);
+      // Botão "Criar categoria agora": abre um campo para digitar e criar
+      const btnCriar = e.target.closest(".rev-opcao-criar");
+      if (btnCriar) {
+        const iDuvida = Number(btnCriar.dataset.duvidaCriar);
+        if (!Number.isNaN(iDuvida)) abrirCriarCategoria(iDuvida);
+        return;
+      }
+      // Botão "Transferência entre contas": reaproveita o fluxo de escolher a conta
+      const btnTransf = e.target.closest(".rev-opcao-transf");
+      if (btnTransf) {
+        const iDuvida = Number(btnTransf.dataset.duvidaTransf);
+        if (!Number.isNaN(iDuvida)) escolherContaTransferencia(iDuvida);
         return;
       }
       const btn = e.target.closest(".rev-opcao");
@@ -4516,7 +4528,7 @@ function responderDuvida(indice, indiceOpcao) {
   if (indiceOpcao === -1) {
     d.resposta = "__ignorar";
   } else {
-    const opcoes = d.opcoes || categoriasRevisao();
+    const opcoes = d.opcoes || CATEGORIAS_BASICAS_REVISAO;
     const escolha = opcoes[indiceOpcao] || "Outros";
 
     // Pergunta de transferência entre contas próprias:
@@ -4629,6 +4641,51 @@ function abrirTodasCategorias(indice) {
     });
   });
   alvo.appendChild(box);
+}
+
+/* Abre um campo para o usuário criar uma categoria na hora (botão "Criar
+   categoria agora"). Cria de verdade no banco e já usa como resposta. */
+function abrirCriarCategoria(indice) {
+  const d = revisaoDados.duvidas[indice];
+  if (!d) return;
+  const alvo = document.getElementById(`rev-duvida-${indice}`);
+  if (!alvo) return;
+  const existente = alvo.querySelector(".rev-criar-cat");
+  if (existente) { existente.remove(); return; }  // toggle
+
+  const box = document.createElement("div");
+  box.className = "rev-criar-cat";
+  box.innerHTML = `
+    <div class="rev-criar-rotulo">Nome da nova categoria:</div>
+    <div class="rev-criar-linha">
+      <input type="text" class="rev-criar-input" maxlength="40" placeholder="Ex: Pets, Assinaturas, Viagem" />
+      <button type="button" class="rev-criar-ok">Criar e usar</button>
+    </div>`;
+
+  const input = box.querySelector(".rev-criar-input");
+  const btnOk = box.querySelector(".rev-criar-ok");
+
+  async function confirmar() {
+    const nome = (input.value || "").trim();
+    if (!nome) { input.focus(); return; }
+    btnOk.disabled = true;
+    btnOk.textContent = "Criando…";
+    const criada = await criarCategoriaIA(nome);
+    if (criada) {
+      d.resposta = criada;
+      gravarMemoriaCategoria(d.descricao, criada);   // aprende para o próximo extrato
+      renderRevisao();
+    } else {
+      btnOk.disabled = false;
+      btnOk.textContent = "Criar e usar";
+      alert("Não consegui criar a categoria. Tente outro nome.");
+    }
+  }
+
+  btnOk.addEventListener("click", confirmar);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); confirmar(); } });
+  alvo.appendChild(box);
+  input.focus();
 }
 
 function removerItemRevisao(indice) {

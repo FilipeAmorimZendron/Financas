@@ -9469,6 +9469,57 @@ body.scroll-travado {
 }
 .rev-todas-lista { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* Botões "Criar categoria agora" e "Transferência entre contas" */
+.rev-opcao-criar {
+  border-style: dashed;
+  color: var(--accent);
+}
+.rev-opcao-criar:hover { background: var(--accent-dim); }
+.rev-opcao-transf {
+  border-style: dashed;
+  color: var(--text-secondary);
+}
+.rev-opcao-transf:hover { background: var(--surface2); }
+
+/* Campo para criar categoria na hora */
+.rev-criar-cat {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--accent-glow);
+  border-radius: 10px;
+}
+.rev-criar-rotulo {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.rev-criar-linha { display: flex; gap: 8px; flex-wrap: wrap; }
+.rev-criar-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+}
+.rev-criar-input:focus { border-color: var(--accent); }
+.rev-criar-ok {
+  padding: 10px 16px;
+  background: var(--accent);
+  color: #042028;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rev-criar-ok:disabled { opacity: 0.6; cursor: default; }
+
 /* Escolha da outra conta ao marcar transferência entre contas próprias */
 .rev-transf-contas {
   margin-top: 10px;
