@@ -455,11 +455,71 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false, motivo: "falha supabase", status: resp.status });
     }
 
+    // Pixel (Conversions API): só quando o pagamento foi realmente confirmado,
+    // manda o evento de compra direto do servidor para o Facebook. Assim a
+    // venda é rastreada mesmo que a pessoa não esteja mais no site.
+    if (EVENTOS_ATIVA.includes(evento)) {
+      await enviarPurchaseFacebook({
+        valor: Number(pagamento.value) || 0,
+        email: pagamento.email || null,
+        plano: novoPlano,
+        idEvento: pagamento.id || `${userId}-${Date.now()}`
+      });
+    }
+
     return res.status(200).json({ ok: true, userId: userId, status: novoStatus, plano: novoPlano });
 
   } catch (e) {
     console.error("Erro no webhook:", e);
     // Sempre 200 pra evitar reenvios em loop; o erro fica no log da Vercel.
     return res.status(200).json({ ok: false, motivo: "erro interno" });
+  }
+}
+
+/* Envia o evento de compra (Purchase) para o Facebook via Conversions API.
+   Roda no servidor — não depende do navegador do cliente. Usa variáveis de
+   ambiente: FB_PIXEL_ID e FB_CAPI_TOKEN (configuradas na Vercel). Se não
+   estiverem definidas, apenas ignora (não quebra o webhook). */
+async function enviarPurchaseFacebook({ valor, email, plano, idEvento }) {
+  const PIXEL_ID = process.env.FB_PIXEL_ID;
+  const TOKEN = process.env.FB_CAPI_TOKEN;
+  if (!PIXEL_ID || !TOKEN) return;  // sem config, não faz nada
+
+  try {
+    // O e-mail vai com hash SHA-256 (exigência do Facebook para dados pessoais).
+    const crypto = require("crypto");
+    const emailHash = email
+      ? crypto.createHash("sha256").update(String(email).trim().toLowerCase()).digest("hex")
+      : undefined;
+
+    const corpo = {
+      data: [{
+        event_name: "Purchase",
+        event_time: Math.floor(Date.now() / 1000),
+        event_id: String(idEvento),   // evita contar a mesma venda 2x
+        action_source: "website",
+        user_data: emailHash ? { em: [emailHash] } : {},
+        custom_data: {
+          value: valor,
+          currency: "BRL",
+          content_name: plano || "assinatura"
+        }
+      }]
+    };
+
+    const url = `https://graph.facebook.com/v19.0/${PIXEL_ID}/events?access_token=${encodeURIComponent(TOKEN)}`;
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corpo)
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      console.error("Falha ao enviar Purchase ao Facebook:", r.status, t);
+    } else {
+      console.log(`Purchase enviado ao Facebook: ${plano} R$ ${valor}`);
+    }
+  } catch (e) {
+    console.error("Erro ao enviar Purchase ao Facebook:", e);
   }
 }

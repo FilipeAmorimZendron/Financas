@@ -586,6 +586,8 @@ async function sbCadastro(email, senha) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error_description || data.msg || "Erro ao cadastrar");
+  // Pixel: novo cadastro concluído (evento de topo de funil)
+  if (typeof fbq === "function") { try { fbq("track", "CompleteRegistration"); } catch(e){} }
   return data;
 }
 
@@ -3555,6 +3557,11 @@ function renderTudo() {
 function trocarTela(name) {
   // Sair de planos limpa o aviso de "por que você veio aqui"
   if (name !== "planos" && _motivoUpgrade) limparMotivoUpgrade();
+
+  // Pixel: viu a página de planos (meio de funil — quem considera assinar)
+  if (name === "planos" && typeof fbq === "function") {
+    try { fbq("track", "ViewContent", { content_name: "planos" }); } catch(e){}
+  }
 
   menuItems.forEach(i=>i.classList.toggle("active", i.dataset.screen===name));
   screens.forEach(s => {
@@ -10191,6 +10198,23 @@ async function assinarPlano(plano) {
     if (!resp.ok || !dados.url) {
       toast(dados.erro || "Não foi possível iniciar o pagamento. Tente de novo.", "error");
       return;
+    }
+
+    // Pixel: iniciou o checkout (clicou para assinar). Manda o valor para o
+    // Facebook conseguir otimizar por quem tem mais chance de pagar.
+    if (typeof fbq === "function") {
+      try {
+        const precos = {
+          premium: { mensal: 25.90, anual: 264.00 },
+          master:  { mensal: 47.90, anual: 488.40 }
+        };
+        const valor = (precos[plano] && precos[plano][ciclo]) || 0;
+        fbq("track", "InitiateCheckout", {
+          value: valor,
+          currency: "BRL",
+          content_name: `${plano}_${ciclo}`
+        });
+      } catch(e){}
     }
 
     // Redireciona para a página de pagamento do Asaas
