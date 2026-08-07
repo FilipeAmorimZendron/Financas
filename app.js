@@ -7388,41 +7388,49 @@ const DOCUMENTOS = {
   privacidade: {
     titulo: "Política de Privacidade",
     corpo: `
-      <div class="doc-aviso">⚠️ <strong>Documento provisório.</strong> Substitua por uma versão revisada juridicamente antes de operar comercialmente.</div>
+      <p>Esta Política explica como o FAZ Finanças trata as informações que você registra no aplicativo. Ao usar o serviço, você concorda com as práticas descritas aqui.</p>
 
-      <h4>1. Quem somos</h4>
-      <p>[RAZÃO SOCIAL] — CNPJ [NÚMERO] — controladora dos dados tratados nesta aplicação.<br>
-      Contato do Encarregado (DPO): [E-MAIL]</p>
+      <h4>1. Quem trata seus dados</h4>
+      <p>O FAZ Finanças é o responsável pelo tratamento dos dados desta aplicação. Os dados completos da empresa responsável (razão social e CNPJ) podem ser solicitados a qualquer momento pelo suporte.</p>
 
       <h4>2. Quais dados coletamos</h4>
       <ul>
-        <li><strong>Cadastro:</strong> e-mail e senha (armazenada de forma criptografada).</li>
-        <li><strong>Financeiros:</strong> contas, lançamentos, transferências, recorrências, metas, objetivos e investimentos que você registra.</li>
-        <li><strong>Técnicos:</strong> data e hora de acesso, para segurança da conta.</li>
+        <li><strong>Cadastro:</strong> e-mail e senha (a senha é armazenada de forma criptografada — nem nós conseguimos lê-la).</li>
+        <li><strong>Financeiros:</strong> contas, lançamentos, transferências, recorrências, metas, objetivos e investimentos que você mesmo registra.</li>
+        <li><strong>Técnicos:</strong> data e hora de acesso, usadas apenas para a segurança da sua conta.</li>
       </ul>
-      <p>Não coletamos dados bancários reais, não acessamos suas contas em instituições financeiras e não realizamos transações.</p>
+      <p>Não coletamos dados bancários reais, não acessamos suas contas em instituições financeiras e não realizamos nenhuma transação em seu nome.</p>
 
       <h4>3. Para que usamos</h4>
-      <p>Exclusivamente para prestar o serviço: exibir, calcular e organizar as informações que você mesmo insere. Não vendemos, alugamos nem compartilhamos seus dados com terceiros para fins comerciais.</p>
+      <p>Exclusivamente para prestar o serviço: exibir, calcular e organizar as informações que você insere. <strong>Não vendemos, não alugamos e não compartilhamos seus dados</strong> com terceiros para fins comerciais ou publicitários.</p>
 
-      <h4>4. Onde ficam armazenados</h4>
-      <p>Os dados são hospedados na infraestrutura do Supabase, com criptografia em trânsito e em repouso, e isolamento por usuário (Row Level Security).</p>
-
-      <h4>5. Seus direitos (art. 18 da LGPD)</h4>
+      <h4>4. Como protegemos</h4>
       <ul>
-        <li><strong>Acesso e portabilidade:</strong> exporte seus dados a qualquer momento em JSON ou CSV.</li>
-        <li><strong>Correção:</strong> edite ou exclua qualquer registro dentro do aplicativo.</li>
-        <li><strong>Eliminação:</strong> exclua sua conta e todos os dados de forma permanente.</li>
-        <li><strong>Informação e revogação:</strong> entre em contato pelo e-mail acima.</li>
+        <li>Comunicação criptografada (HTTPS) entre o seu aparelho e o servidor.</li>
+        <li>Criptografia dos dados em trânsito e em repouso.</li>
+        <li><strong>Isolamento por usuário (Row Level Security):</strong> cada conta só enxerga os próprios dados — é tecnicamente impossível um usuário acessar os dados de outro.</li>
+        <li>Acesso autenticado por token: nenhuma informação é liberada sem a sua sessão válida.</li>
       </ul>
 
-      <h4>6. Retenção</h4>
-      <p>Seus dados permanecem enquanto a conta existir. Ao excluir a conta, os dados são apagados de forma permanente.</p>
+      <h4>5. Onde ficam armazenados</h4>
+      <p>Os dados são hospedados na infraestrutura do Supabase, com os mecanismos de criptografia e isolamento descritos acima.</p>
 
-      <h4>7. Alterações</h4>
-      <p>Podemos atualizar esta política. Alterações relevantes serão comunicadas.</p>
+      <h4>6. Seus direitos (art. 18 da LGPD)</h4>
+      <ul>
+        <li><strong>Acesso e portabilidade:</strong> exporte seus dados quando quiser, em JSON ou CSV.</li>
+        <li><strong>Correção:</strong> edite ou exclua qualquer registro dentro do próprio aplicativo.</li>
+        <li><strong>Eliminação:</strong> exclua sua conta e todos os dados de forma permanente.</li>
+        <li><strong>Informação e revogação:</strong> fale com o suporte pelo Instagram.</li>
+      </ul>
 
-      <p class="doc-data">Última atualização: [DATA]</p>
+      <h4>7. Retenção e exclusão</h4>
+      <p>Seus dados permanecem enquanto a conta existir. Ao excluir a conta, todos os dados são apagados de forma permanente e irreversível.</p>
+
+      <h4>8. Alterações</h4>
+      <p>Podemos atualizar esta Política para refletir melhorias ou exigências legais. Alterações relevantes serão comunicadas dentro do aplicativo.</p>
+
+      <h4>9. Contato</h4>
+      <p>Dúvidas sobre privacidade ou seus dados? Fale com o suporte pelo Instagram: <a href="https://www.instagram.com/fazfinancas/" target="_blank" rel="noopener">@fazfinancas</a>.</p>
     `
   },
   assinatura: {
@@ -7451,34 +7459,45 @@ const DOCUMENTOS = {
   termos: {
     titulo: "Termos de Uso",
     corpo: `
-      <div class="doc-aviso">⚠️ <strong>Documento provisório.</strong> Substitua por uma versão revisada juridicamente antes de operar comercialmente.</div>
+      <p>Estes Termos regem o uso do FAZ Finanças. Ao criar uma conta e usar o aplicativo, você concorda com as regras abaixo.</p>
 
-      <h4>1. Objeto</h4>
-      <p>Este aplicativo é uma ferramenta de <strong>organização financeira pessoal</strong>. Ele registra e calcula informações que você mesmo insere.</p>
+      <h4>1. O que é o FAZ</h4>
+      <p>O FAZ Finanças é uma ferramenta de <strong>organização financeira pessoal</strong>. Ele registra, calcula e organiza as informações que você mesmo insere, ajudando você a enxergar seu dinheiro com clareza.</p>
 
-      <h4>2. O que NÃO somos</h4>
-      <p>Não somos instituição financeira, não oferecemos consultoria de investimentos e não recomendamos produtos financeiros. As projeções e simulações são <strong>estimativas baseadas nos dados que você informa</strong> e não constituem promessa de rentabilidade.</p>
+      <h4>2. O que o FAZ NÃO é</h4>
+      <p>Não somos instituição financeira, banco ou corretora. Não oferecemos consultoria de investimentos nem recomendamos produtos financeiros. As projeções e simulações são <strong>estimativas baseadas nos dados que você informa</strong> e não constituem promessa ou garantia de rentabilidade.</p>
 
-      <h4>3. Sua responsabilidade</h4>
+      <h4>3. Sua conta</h4>
       <ul>
-        <li>Manter a senha em sigilo.</li>
-        <li>Conferir a exatidão dos dados que insere.</li>
-        <li>Não usar o serviço para fins ilícitos.</li>
+        <li>Você é responsável por manter sua senha em sigilo.</li>
+        <li>Uma conta é de uso pessoal e individual.</li>
+        <li>Avise o suporte se suspeitar de acesso não autorizado à sua conta.</li>
       </ul>
 
-      <h4>4. Limitação de responsabilidade</h4>
-      <p>O serviço é fornecido "no estado em que se encontra". Não nos responsabilizamos por decisões financeiras tomadas com base nas informações exibidas, tampouco por perdas decorrentes de dados incorretos inseridos pelo usuário.</p>
+      <h4>4. Uso correto</h4>
+      <ul>
+        <li>Confira a exatidão dos dados que insere — os cálculos dependem deles.</li>
+        <li>Não use o serviço para fins ilícitos, fraudulentos ou que violem a lei.</li>
+        <li>Não tente burlar, sobrecarregar ou comprometer a segurança do sistema.</li>
+      </ul>
 
-      <h4>5. Disponibilidade</h4>
-      <p>Empregamos esforços para manter o serviço disponível, mas podem ocorrer interrupções por manutenção ou falhas de terceiros.</p>
+      <h4>5. Seus dados são seus</h4>
+      <p>As informações que você registra pertencem a você. Você pode exportá-las ou excluí-las a qualquer momento, diretamente no aplicativo.</p>
 
-      <h4>6. Encerramento</h4>
-      <p>Você pode encerrar sua conta a qualquer momento. Podemos suspender contas que violem estes termos.</p>
+      <h4>6. Limitação de responsabilidade</h4>
+      <p>O serviço é fornecido "no estado em que se encontra". As decisões financeiras que você toma são de sua responsabilidade. Não nos responsabilizamos por perdas decorrentes de decisões tomadas com base nas informações exibidas, nem por dados incorretos inseridos pelo usuário.</p>
 
-      <h4>7. Foro</h4>
-      <p>Fica eleito o foro da comarca de [CIDADE/UF].</p>
+      <h4>7. Disponibilidade</h4>
+      <p>Trabalhamos para manter o serviço sempre disponível, mas podem ocorrer interrupções por manutenção, atualizações ou falhas de fornecedores externos.</p>
 
-      <p class="doc-data">Última atualização: [DATA]</p>
+      <h4>8. Encerramento</h4>
+      <p>Você pode encerrar sua conta quando quiser. Podemos suspender contas que violem estes Termos ou que representem risco à segurança do serviço.</p>
+
+      <h4>9. Alterações</h4>
+      <p>Estes Termos podem ser atualizados. Mudanças relevantes serão comunicadas dentro do aplicativo.</p>
+
+      <h4>10. Contato</h4>
+      <p>Dúvidas ou suporte? Fale com a gente pelo Instagram: <a href="https://www.instagram.com/fazfinancas/" target="_blank" rel="noopener">@fazfinancas</a>.</p>
     `
   }
 };
