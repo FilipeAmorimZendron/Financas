@@ -1316,6 +1316,30 @@ function saldoComporta(bancoId, valor) {
   return true;
 }
 
+/* Verifica se uma compra no crédito cabe no limite disponível do cartão.
+   Igual a um cartão de verdade: se passa do limite, a compra é recusada.
+   Avisa o usuário e orienta a editar o limite do cartão, caso ele tenha
+   aumentado de verdade no banco. */
+function limiteComporta(cartaoId, valor) {
+  const cartao = state.bancos.find(b => b.id === cartaoId);
+  if (!cartao) return true;
+  // Cartão sem limite definido: não há teto para checar.
+  if (cartao.limite == null) return true;
+  const disp = limiteDisponivel(cartaoId);
+  if (disp == null) return true;
+  if (valor > disp + 0.005) {
+    const falta = valor - disp;
+    toast(
+      `Limite insuficiente no ${cartao.nome}. ` +
+      `Disponível: ${fmtMoeda(disp)} — faltam ${fmtMoeda(falta)}. ` +
+      `Se o seu limite aumentou, edite o cartão e atualize o limite.`,
+      "error"
+    );
+    return false;
+  }
+  return true;
+}
+
 const calcularSaldoTotal = () => state.bancos.reduce((a,b)=>a+calcularSaldoBanco(b.id),0);
 
 /* Saldo total de todas as contas ATÉ uma data (inclusive).
@@ -3808,6 +3832,18 @@ formTexto?.addEventListener("submit", async e => {
       .filter(it => it.tipo === "gasto")
       .reduce((a, it) => a + it.valor, 0);
     if (totalGasto > 0 && !saldoComporta(bancoId, totalGasto)) {
+      return;
+    }
+  }
+
+  // Crédito à vista (compra já feita): não pode passar do limite do cartão,
+  // igual a um cartão de verdade. Agendado (pendente) só ocupa limite quando
+  // for pago, então não bloqueia aqui.
+  if (ehCredito && !pendente) {
+    const totalCredito = itens
+      .filter(it => it.tipo === "gasto")
+      .reduce((a, it) => a + it.valor, 0);
+    if (totalCredito > 0 && !limiteComporta(bancoId, totalCredito)) {
       return;
     }
   }
@@ -6849,6 +6885,11 @@ async function marcarComoPago(id) {
       && !m.cartaoId
       && m.bancoId
       && state.bancos.some(b => b.id === m.bancoId && b.temCartao);
+
+    // Ao virar compra no cartão, checa o limite — igual à compra à vista.
+    if (viraCompraCredito && !limiteComporta(m.bancoId, m.valor)) {
+      return;
+    }
 
     const patch = {
       status: "pago",
