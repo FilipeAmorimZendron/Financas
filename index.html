@@ -1936,6 +1936,12 @@
 
   <!-- HERO -->
   <header class="lp-hero">
+    <!-- Orbs de luz com profundidade (decorativo) -->
+    <div class="lp-hero-orbs" aria-hidden="true">
+      <span class="lp-orb lp-orb-1"></span>
+      <span class="lp-orb lp-orb-2"></span>
+      <span class="lp-orb lp-orb-3"></span>
+    </div>
     <div class="lp-hero-content reveal">
       <span class="lp-hero-badge"><span class="lp-hero-badge-dot"></span>Seu assistente financeiro com IA</span>
       <h1 class="lp-title">
@@ -1956,8 +1962,9 @@
     </div>
 
     <!-- CELULAR com a conversa do Assistente FAZ -->
-    <div class="lp-hero-fone reveal">
-      <div class="lp-fone">
+    <div class="lp-hero-fone reveal" id="lpHeroFone">
+      <div class="lp-fone-float">
+      <div class="lp-fone" id="lpFone3d">
         <div class="lp-fone-ilha"></div>
         <div class="lp-fone-tela">
           <!-- Barra de status do iPhone -->
@@ -1995,6 +2002,7 @@
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   </header>

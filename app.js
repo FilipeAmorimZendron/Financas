@@ -441,22 +441,33 @@ function toast(msg, tipo = "success", comUndo = false) {
   if (!_toastRunning) _nextToast();
 }
 
+/* Ícones em SVG (não em caractere de texto) — nítidos em qualquer tamanho e
+   reconhecíveis pela FORMA, não só pela cor do círculo em volta (importante
+   para quem tem daltonismo: sucesso, erro, aviso e info têm silhuetas
+   diferentes entre si, não dependem de perceber a cor). */
+const _toastIcones = {
+  success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  error:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 2 20h20L12 3.5z"/><line x1="12" y1="10" x2="12" y2="14.5"/><circle cx="12" cy="17.3" r="0.9" fill="currentColor" stroke="none"/></svg>',
+  info:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16.5"/><circle cx="12" cy="7.6" r="0.9" fill="currentColor" stroke="none"/></svg>'
+};
 function _nextToast() {
   if (!_toastQueue.length) { _toastRunning = false; return; }
   _toastRunning = true;
   const { msg, tipo, comUndo } = _toastQueue.shift();
   const t = document.createElement("div");
   t.className = `toast toast-${tipo}`;
-  const ic = { success:"✓", error:"✕", warning:"⚠", info:"ℹ" }[tipo] || "ℹ";
+  const ic = _toastIcones[tipo] || _toastIcones.info;
+  const dur = comUndo ? 5500 : 3000;
   t.innerHTML = `
     <span class="toast-icon">${ic}</span>
     <span class="toast-msg">${msg}</span>
     ${comUndo ? `<button class="toast-undo" onclick="_executarUndo()">Desfazer</button>` : ""}
     <button class="toast-x" onclick="this.closest('.toast').remove()">✕</button>
+    <span class="toast-progresso" style="animation-duration:${dur}ms"></span>
   `;
   toastContainer.appendChild(t);
   requestAnimationFrame(() => t.classList.add("toast-in"));
-  const dur = comUndo ? 5500 : 3000;
   setTimeout(() => {
     t.classList.add("toast-out");
     t.addEventListener("transitionend", () => { t.remove(); _nextToast(); }, { once: true });
@@ -529,6 +540,25 @@ function _executarUndo() {
    API SUPABASE — funções de acesso ao banco
    ============================================================ */
 
+/* Traduz mensagens de erro do Supabase Auth (vêm em inglês) para
+   PT-BR. Se não reconhecer a mensagem, usa o fallback (nunca mostra
+   o texto em inglês pro usuário). */
+function traduzErroAuth(msgBruta, fallback) {
+  const m = String(msgBruta || "").toLowerCase();
+  if (!m) return fallback;
+  if (m.includes("invalid login credentials")) return "E-mail ou senha incorretos.";
+  if (m.includes("email not confirmed")) return "Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada (e o spam).";
+  if (m.includes("already registered") || m.includes("already exists") || m.includes("user already")) return "Este e-mail já está cadastrado. Tente entrar ou clique em \"Esqueci minha senha\".";
+  if (m.includes("password") && m.includes("at least")) return "A senha deve ter pelo menos 6 caracteres.";
+  if (m.includes("different from the old") || m.includes("should be different")) return "A nova senha deve ser diferente da senha atual.";
+  if (m.includes("unable to validate email") || m.includes("invalid format") || m.includes("invalid email")) return "E-mail inválido.";
+  if (m.includes("rate limit")) return "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente de novo.";
+  if (m.includes("security purposes") || m.includes("can only request this after")) return "Por segurança, aguarde alguns segundos antes de tentar novamente.";
+  if (m.includes("token has expired") || m.includes("otp expired") || m.includes("invalid or has expired") || m.includes("invalid token")) return "O link expirou ou é inválido. Solicite um novo.";
+  if (m.includes("user not found")) return "Não encontramos uma conta com esse e-mail.";
+  if (m.includes("signup") && m.includes("disabled")) return "Cadastros estão temporariamente desativados.";
+  return fallback;
+}
 
 /* Autenticação */
 async function sbLogin(email, senha) {
@@ -538,7 +568,7 @@ async function sbLogin(email, senha) {
     body: JSON.stringify({ email, password: senha })
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error_description || data.msg || "Erro ao entrar");
+  if (!res.ok) throw new Error(traduzErroAuth(data.error_description || data.msg, "Não foi possível entrar. Verifique seus dados."));
   return data;
 }
 /* ─── Recuperação de senha ─────────────────────────────── */
@@ -556,7 +586,7 @@ async function sbEnviarResetSenha(email) {
   });
   if (!res.ok) {
     const data = await res.json().catch(()=>({}));
-    throw new Error(data.msg || data.error_description || "Não foi possível enviar o e-mail.");
+    throw new Error(traduzErroAuth(data.msg || data.error_description, "Não foi possível enviar o e-mail."));
   }
   return true;
 }
@@ -573,7 +603,7 @@ async function sbDefinirNovaSenha(accessToken, novaSenha) {
     body: JSON.stringify({ password: novaSenha })
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.msg || data.error_description || "Não foi possível alterar a senha.");
+  if (!res.ok) throw new Error(traduzErroAuth(data.msg || data.error_description, "Não foi possível alterar a senha."));
   return data;
 }
 
@@ -585,7 +615,7 @@ async function sbCadastro(email, senha) {
     body: JSON.stringify({ email, password: senha })
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error_description || data.msg || "Erro ao cadastrar");
+  if (!res.ok) throw new Error(traduzErroAuth(data.error_description || data.msg, "Erro ao cadastrar."));
   // Pixel: novo cadastro concluído (evento de topo de funil)
   if (typeof fbq === "function") { try { fbq("track", "CompleteRegistration"); } catch(e){} }
   return data;
@@ -2684,7 +2714,7 @@ function renderGraficoEvolucao() {
   const corEntrada = "#22C55E";   // verde
   const corGasto   = "#F0642E";   // laranja/vermelho, estilo o modelo
   const txt    = dark ? "#7C8FA3" : "#8296a5";
-  const grid   = dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.045)";
+  const grid   = dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
 
   const ctx = canvas.getContext("2d");
   // Gradiente do saldo (área principal)
@@ -6685,13 +6715,17 @@ function renderResumoCompromissos() {
     } else {
       const soma = arr => arr.reduce((a,m) => a + m.valor, 0);
       const temFatura = arr => arr.some(m => m.origem === "fatura");
+      // Ícones com FORMA distinta por urgência (não só cor): triângulo de
+      // alerta para atrasado/vence hoje, relógio para "vence em breve".
+      const icTriangulo = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 2 20h20L12 3.5z"/><line x1="12" y1="10" x2="12" y2="14.5"/><circle cx="12" cy="17.3" r="0.9" fill="currentColor" stroke="none"/></svg>';
+      const icRelogio    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>';
       let msg = "", cls, icone;
 
       if (atrasadas.length) {
         const n = atrasadas.length;
         const oQue = temFatura(atrasadas) && n === 1 ? "Fatura atrasada" : `${n} conta${n>1?"s":""} atrasada${n>1?"s":""}`;
         msg = `<strong>${oQue}</strong> — ${fmtMoeda(soma(atrasadas))}`;
-        cls = "alerta-erro"; icone = "!";
+        cls = "alerta-erro"; icone = icTriangulo;
         const urgentes = hojeVence.length + ate3dias.length;
         if (urgentes) msg += ` · e ${urgentes} vence${urgentes>1?"m":""} em breve`;
 
@@ -6701,7 +6735,7 @@ function renderResumoCompromissos() {
           ? "Fatura vence hoje"
           : `${n} conta${n>1?"s":""} vence${n>1?"m":""} hoje`;
         msg = `<strong>${oQue}</strong> — ${fmtMoeda(soma(hojeVence))}`;
-        cls = "alerta-erro"; icone = "!";
+        cls = "alerta-erro"; icone = icTriangulo;
         if (ate3dias.length) msg += ` · mais ${ate3dias.length} em até 3 dias`;
 
       } else {
@@ -6709,7 +6743,7 @@ function renderResumoCompromissos() {
         const oQue = temFatura(ate3dias) && n === 1 ? "Fatura vence" : `${n} conta${n>1?"s":""} vence${n>1?"m":""}`;
         const dMin = Math.min(...ate3dias.map(m => diasAte(m.vencimento)));
         msg = `<strong>${oQue} ${dMin === 1 ? "amanhã" : `em ${dMin} dias`}</strong> — ${fmtMoeda(soma(ate3dias))}`;
-        cls = "alerta-aviso"; icone = "•";
+        cls = "alerta-aviso"; icone = icRelogio;
       }
 
       alertaVencEl.className = `alerta-venc ${cls}`;
@@ -7755,17 +7789,17 @@ async function iniciarExclusaoConta() {
 
   mostrarLoading(true);
   try {
-    // Apaga os dados de todas as tabelas.
-    // O RLS garante que só os SEUS dados são atingidos.
-    const tabelas = [
-      "recorrencia_pagamentos", "movimentos", "transferencias",
-      "recorrencias", "metas", "objetivos", "investimentos", "contas"
-    ];
-    for (const t of tabelas) {
-      await fetchSeguro(`${SUPABASE_URL}/rest/v1/${t}?user_id=eq.${state.user.id}`, {
-        method: "DELETE",
-        headers: { ..._h, ...getAuthHeader() }
-      }).catch(() => {});   // segue mesmo se uma tabela não existir
+    // Apaga os dados e o próprio cadastro (login) via servidor — apagar o
+    // usuário do Supabase Auth exige a service_role key, que só existe
+    // no backend. Sem isso, o e-mail/senha continuariam válidos.
+    const resp = await fetch("/api/excluir-conta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: localStorage.getItem("fp_token") || "" })
+    });
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      throw new Error(dados.erro || "Não foi possível excluir a conta agora. Tente novamente em instantes.");
     }
 
     toast("Sua conta e todos os dados foram excluídos.", "success");
@@ -7844,6 +7878,36 @@ function iniciarRevelacao() {
   });
 
   alvos.forEach(el => obs.observe(el));
+}
+
+/* ─── Tilt 3D do celular no hero, seguindo o mouse ─────────
+   Ao passar o mouse sobre a área do hero, o celular inclina
+   sutilmente em direção ao cursor (efeito de profundidade).
+   Some suavemente quando o mouse sai. Ignorado em touch e
+   quando a pessoa prefere menos movimento. */
+function iniciarTiltHero() {
+  const area = document.getElementById("lpHeroFone");
+  const fone = document.getElementById("lpFone3d");
+  if (!area || !fone) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (window.matchMedia("(pointer: coarse)").matches) return; // sem tilt em touch
+
+  const LIMITE = 10; // graus máximos de inclinação
+
+  area.addEventListener("mousemove", (e) => {
+    const r = area.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width;  // 0..1
+    const py = (e.clientY - r.top) / r.height;  // 0..1
+    const rotY = (px - 0.5) * 2 * LIMITE;   // esquerda/direita
+    const rotX = (0.5 - py) * 2 * LIMITE;   // cima/baixo
+    fone.classList.add("lp-fone-tilt-ativo");
+    fone.style.transform = `rotateX(${rotX.toFixed(2)}deg) rotateY(${rotY.toFixed(2)}deg) scale(1.03)`;
+  });
+
+  area.addEventListener("mouseleave", () => {
+    fone.classList.remove("lp-fone-tilt-ativo");
+    fone.style.transform = "";
+  });
 }
 
 /* ─── Nav muda ao rolar ───────────────────────────────────── */
@@ -8169,6 +8233,7 @@ function iniciarLanding() {
   iniciarPainelDemo();
   iniciarChatDemo();
   duplicarDepoimentos();
+  iniciarTiltHero();
 }
 
 

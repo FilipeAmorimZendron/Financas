@@ -351,6 +351,7 @@ button, input, textarea, select {
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   margin-bottom: 20px;
+  perspective: 1000px;
 }
 
 .cards-grid-planilha { grid-template-columns: repeat(2, 1fr); }
@@ -360,14 +361,18 @@ button, input, textarea, select {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 22px;
-  box-shadow: var(--shadow-sm);
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s var(--ease);
+  /* Sombra + friso de luz no topo: mesma profundidade "premium" dos campos */
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255,255,255,0.05);
+  transition: border-color 0.25s, box-shadow 0.35s, transform 0.35s cubic-bezier(0.16,1,0.3,1);
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 .info-card:hover {
   border-color: var(--teal-500);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.08);
+  transform: translateY(-4px) rotateX(3deg);
 }
+@media (hover: none) { .info-card:hover { transform: none; } }
 
 .card-label {
   font-size: 11px;
@@ -426,7 +431,7 @@ button, input, textarea, select {
   border-radius: var(--radius-lg);
   padding: 22px;
   margin-bottom: 16px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 .panel:last-child { margin-bottom: 0; }
 
@@ -531,7 +536,10 @@ button, input, textarea, select {
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.1px;
+  transition: color 0.2s var(--ease, ease);
 }
+/* Label acompanha o foco — o mesmo gesto usado na tela de login */
+.field:focus-within label { color: var(--accent); }
 
 .field input,
 .field textarea,
@@ -544,12 +552,17 @@ button, input, textarea, select {
   font-size: 14px;
   color: var(--text-primary);
   outline: none;
-  transition: border-color 0.16s, box-shadow 0.16s, background 0.16s;
+  /* Sombra + friso claro no topo — o campo já nasce com um pouco de profundidade,
+     não só quando clicado. O friso é o que faz a profundidade aparecer de
+     verdade no tema escuro (sombra sozinha some num fundo já escuro). */
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255,255,255,0.05);
+  transition: border-color 0.2s var(--ease, ease), box-shadow 0.2s var(--ease, ease), background 0.2s var(--ease, ease), transform 0.15s var(--ease, ease);
 }
 .field input:hover,
 .field textarea:hover,
 .field select:hover {
   border-color: var(--teal-glow, #2C4A4A);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255,255,255,0.07);
 }
 /* Selects precisam de espaço à direita para a seta nativa não cortar o texto */
 .field select {
@@ -591,13 +604,15 @@ button, input, textarea, select {
   font-size: 14px;
   color: var(--text-primary);
   cursor: pointer;
-  transition: border-color 0.16s, box-shadow 0.16s;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255,255,255,0.05);
+  transition: border-color 0.2s var(--ease, ease), box-shadow 0.2s var(--ease, ease), transform 0.15s var(--ease, ease);
   text-align: left;
 }
-.tipo-dd-botao:hover { border-color: var(--teal-glow, #2C4A4A); }
+.tipo-dd-botao:hover { border-color: var(--teal-glow, #2C4A4A); box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255,255,255,0.07); }
 .tipo-dd.aberto .tipo-dd-botao {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
+  box-shadow: 0 0 0 4px var(--accent-dim), var(--shadow-md), inset 0 1px 0 rgba(255,255,255,0.07);
+  transform: translateY(-1px);
 }
 .tipo-dd-atual { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tipo-dd-placeholder { color: var(--text-muted); }
@@ -674,7 +689,11 @@ button, input, textarea, select {
 .field select:focus {
   border-color: var(--accent);
   background: var(--surface);
-  box-shadow: 0 0 0 3px var(--accent-dim);
+  box-shadow: 0 0 0 4px var(--accent-dim), var(--shadow-md), inset 0 1px 0 rgba(255,255,255,0.07);
+  transform: translateY(-1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .field input:focus, .field textarea:focus, .field select:focus { transform: none; }
 }
 textarea { resize: vertical; }
 
@@ -716,14 +735,18 @@ textarea { resize: vertical; }
   border: 1px solid var(--red-dim);
   width: auto;
 }
-.btn-danger:hover { background: var(--red-dim); border-color: var(--red); }
+/* Feedback nunca só de cor: some sempre vem junto com uma pequena elevação,
+   perceptível independente de daltonismo. */
+.btn-danger:hover { background: var(--red-dim); border-color: var(--red); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.btn-danger:active { transform: translateY(0); box-shadow: none; }
 
 .btn-ghost {
   background: var(--surface3);
   color: var(--text-secondary);
   border: 1px solid var(--border);
 }
-.btn-ghost:hover { background: var(--surface2); color: var(--text-primary); border-color: var(--teal-glow); }
+.btn-ghost:hover { background: var(--surface2); color: var(--text-primary); border-color: var(--teal-glow); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.btn-ghost:active { transform: translateY(0); box-shadow: none; }
 
 .btn-secondary { background: var(--surface3); color: var(--text-secondary); }
 
@@ -927,7 +950,7 @@ textarea { resize: vertical; }
   padding: 30px;
   width: 100%;
   max-width: 480px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.05);
   animation: modalIn 0.24s var(--ease);
 }
 @keyframes modalIn {
@@ -967,8 +990,10 @@ textarea { resize: vertical; }
   color: var(--text-primary);
   outline: none;
   width: 200px;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s var(--ease, ease), box-shadow 0.2s var(--ease, ease);
 }
+.busca-input:hover { border-color: var(--teal-glow, var(--border)); box-shadow: var(--shadow-md); }
 .busca-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
 .busca-input::placeholder { color: var(--text-muted); }
 
@@ -1076,15 +1101,19 @@ textarea { resize: vertical; }
   pointer-events: none;
 }
 .toast {
+  position: relative;
   display: flex; align-items: center; gap: 11px;
   padding: 13px 16px;
   border-radius: var(--radius-md);
   background: var(--surface);
   border: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
+  /* Sombra funda + friso de luz no topo — o mesmo tratamento "3D" usado
+     em cartões e campos no resto do app. */
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.06);
   font-size: 13.5px; font-weight: 500;
   color: var(--text-primary);
   min-width: 280px; max-width: 420px;
+  overflow: hidden;
   pointer-events: all;
   opacity: 0;
   transform: translateY(12px) scale(0.97);
@@ -1093,11 +1122,14 @@ textarea { resize: vertical; }
 .toast.toast-in  { opacity: 1; transform: translateY(0) scale(1); }
 .toast.toast-out { opacity: 0; transform: translateY(8px) scale(0.97); }
 
+/* Ícone: forma própria por tipo (✓ / ✕ / triângulo / i), não só a cor do
+   círculo — reconhecível por quem não distingue as cores entre si. */
 .toast-icon {
-  width: 22px; height: 22px; border-radius: 50%;
+  width: 24px; height: 24px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700; flex-shrink: 0;
+  flex-shrink: 0;
 }
+.toast-icon svg { width: 14px; height: 14px; }
 .toast-success .toast-icon { background: var(--green-dim); color: var(--green); }
 .toast-error   .toast-icon { background: var(--red-dim);   color: var(--red); }
 .toast-warning .toast-icon { background: rgba(217,154,43,.14); color: #d99a2b; }
@@ -1107,6 +1139,25 @@ textarea { resize: vertical; }
 .toast-error   { border-left: 3px solid var(--red); }
 .toast-warning { border-left: 3px solid #d99a2b; }
 .toast-info    { border-left: 3px solid var(--accent); }
+
+/* Barra que encolhe até o toast sumir — mostra o tempo restante sem
+   depender de cor (é a LARGURA que conta a história). */
+.toast-progresso {
+  position: absolute;
+  left: 0; bottom: 0;
+  height: 2.5px;
+  width: 100%;
+  background: currentColor;
+  opacity: 0.35;
+  transform-origin: left;
+  animation: toast-encolhe linear forwards;
+}
+.toast-success .toast-progresso { color: var(--green); }
+.toast-error   .toast-progresso { color: var(--red); }
+.toast-warning .toast-progresso { color: #d99a2b; }
+.toast-info    .toast-progresso { color: var(--accent); }
+@keyframes toast-encolhe { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .toast-progresso { animation: none; display: none; } }
 
 .toast-msg { flex: 1; line-height: 1.4; }
 .toast-undo {
@@ -1995,15 +2046,26 @@ textarea { resize: vertical; }
 .alerta-venc {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   padding: 13px 16px;
   border-radius: var(--radius-md);
   font-size: 13px;
   margin-bottom: 16px;
   border: 1px solid;
+  border-left-width: 3px;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255,255,255,0.04);
 }
 .alerta-venc strong { font-weight: 600; }
-.alerta-icone { font-size: 15px; flex-shrink: 0; }
+/* Badge com FORMA própria por urgência (triângulo vs relógio) — não depende
+   de diferenciar a cor de fundo. */
+.alerta-icone {
+  width: 26px; height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: currentColor;
+}
+.alerta-icone svg { width: 15px; height: 15px; color: var(--surface); }
 
 .alerta-erro {
   background: rgba(220, 85, 85, 0.08);
@@ -2761,7 +2823,57 @@ body.sem-internet .layout { padding-top: 34px; }
   }
 }
 
-.lp-hero-content { max-width: 680px; position: relative; }
+/* Orbs de luz com profundidade — flutuam devagar, dão sensação 3D atrás do conteúdo */
+.lp-hero-orbs {
+  position: absolute;
+  inset: -80px 0 -60px 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.lp-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.55;
+  will-change: transform;
+}
+.lp-orb-1 {
+  width: 420px; height: 420px;
+  top: -120px; right: 8%;
+  background: radial-gradient(circle at 35% 35%, rgba(30,246,221,0.30), transparent 70%);
+  animation: lp-orb-drift-1 16s ease-in-out infinite;
+}
+.lp-orb-2 {
+  width: 300px; height: 300px;
+  top: 220px; left: -60px;
+  background: radial-gradient(circle at 40% 40%, rgba(25,209,187,0.22), transparent 70%);
+  animation: lp-orb-drift-2 20s ease-in-out infinite;
+}
+.lp-orb-3 {
+  width: 240px; height: 240px;
+  bottom: -60px; right: 30%;
+  background: radial-gradient(circle at 50% 50%, rgba(30,246,221,0.16), transparent 70%);
+  animation: lp-orb-drift-3 13s ease-in-out infinite;
+}
+@keyframes lp-orb-drift-1 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(-30px, 40px, 0) scale(1.08); }
+}
+@keyframes lp-orb-drift-2 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(35px, -25px, 0) scale(1.1); }
+}
+@keyframes lp-orb-drift-3 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(-20px, -30px, 0) scale(0.94); }
+}
+@media (max-width: 900px) { .lp-hero-orbs { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .lp-orb { animation: none; }
+}
+
+.lp-hero-content { max-width: 680px; position: relative; z-index: 1; }
 
 /* Badge do topo (pílula com pontinho) */
 .lp-hero-badge {
@@ -2843,7 +2955,24 @@ body.sem-internet .layout { padding-top: 34px; }
 @media (max-width: 900px) { .lp-hero-pontos { justify-content: center; } }
 
 /* ─── CELULAR estilo iPhone com o chat do Assistente FAZ ─── */
-.lp-hero-fone { display: flex; justify-content: center; position: relative; }
+.lp-hero-fone {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  perspective: 1400px;
+}
+/* Flutuação contínua e suave — dá vida mesmo sem o mouse por perto */
+.lp-fone-float {
+  animation: lp-fone-flutua 6s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+@keyframes lp-fone-flutua {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-14px); }
+}
+@media (prefers-reduced-motion: reduce) { .lp-fone-float { animation: none; } }
+
 .lp-fone {
   position: relative;
   width: 380px;
@@ -2855,6 +2984,18 @@ body.sem-internet .layout { padding-top: 34px; }
     0 50px 100px rgba(0,0,0,0.6),
     0 0 0 2px rgba(255,255,255,0.07),
     inset 0 0 0 1px rgba(255,255,255,0.05);
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 0.5s cubic-bezier(0.16,1,0.3,1), box-shadow 0.5s ease;
+}
+/* Tilt 3D aplicado via JS (rotateX/rotateY seguindo o mouse) */
+.lp-fone.lp-fone-tilt-ativo {
+  transition: transform 0.08s linear;
+  box-shadow:
+    0 60px 120px rgba(0,0,0,0.65),
+    0 0 60px rgba(30,246,221,0.12),
+    0 0 0 2px rgba(255,255,255,0.09),
+    inset 0 0 0 1px rgba(255,255,255,0.06);
 }
 /* Botão liga/desliga (direita) */
 .lp-fone::before {
@@ -3078,6 +3219,9 @@ body.sem-internet .layout { padding-top: 34px; }
   background: rgba(0,0,0,0.25);
   padding: 18px 0;
   white-space: nowrap;
+  /* Some suavemente nas bordas em vez de cortar seco — dá profundidade */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
 }
 .lp-marquee-track {
   display: inline-flex;
@@ -3085,6 +3229,8 @@ body.sem-internet .layout { padding-top: 34px; }
   gap: 46px;
   animation: lp-marquee-scroll 42s linear infinite;
 }
+/* Pausa a rolagem ao passar o mouse — dá tempo de ler */
+.lp-marquee:hover .lp-marquee-track { animation-play-state: paused; }
 .lp-marquee-item {
   display: inline-flex;
   align-items: center;
@@ -3093,12 +3239,16 @@ body.sem-internet .layout { padding-top: 34px; }
   font-weight: 500;
   color: var(--lp-text-dim);
   flex-shrink: 0;
+  transition: color 0.2s;
 }
+.lp-marquee-item:hover { color: var(--lp-text); }
 .lp-marquee-item svg {
   width: 18px; height: 18px;
   color: var(--lp-teal-soft);
   flex-shrink: 0;
+  transition: filter 0.2s;
 }
+.lp-marquee-item:hover svg { filter: drop-shadow(0 0 6px rgba(30,246,221,0.6)); }
 @keyframes lp-marquee-scroll {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
@@ -3333,6 +3483,7 @@ body.sem-internet .layout { padding-top: 34px; }
   gap: 18px;
   max-width: 1080px;
   margin: 48px auto 0;
+  perspective: 1000px;
 }
 @media (max-width: 900px) { .lp-papeis { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 520px) { .lp-papeis { grid-template-columns: 1fr; } }
@@ -3342,12 +3493,17 @@ body.sem-internet .layout { padding-top: 34px; }
   border-radius: 20px;
   padding: 28px 22px;
   text-align: center;
-  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), border-color 0.3s, box-shadow 0.35s;
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 .lp-papel:hover {
-  transform: translateY(-4px);
+  transform: translateY(-6px) rotateX(6deg) scale(1.02);
   border-color: rgba(30,246,221,0.3);
-  box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+  box-shadow: 0 20px 46px rgba(0,0,0,0.35);
+}
+@media (hover: none) {
+  .lp-papel:hover { transform: none; } /* sem tilt em telas de toque */
 }
 .lp-papel-ico {
   width: 64px; height: 64px;
@@ -3357,6 +3513,11 @@ body.sem-internet .layout { padding-top: 34px; }
   background: rgba(30,246,221,0.1);
   border: 1.5px solid rgba(30,246,221,0.35);
   color: var(--lp-teal-soft);
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s;
+}
+.lp-papel:hover .lp-papel-ico {
+  transform: scale(1.1) translateZ(20px);
+  box-shadow: 0 0 26px rgba(30,246,221,0.4);
 }
 .lp-papel-ico svg { width: 28px; height: 28px; }
 .lp-papel-nome {
@@ -3585,7 +3746,13 @@ body.sem-internet .layout { padding-top: 34px; }
   background: linear-gradient(180deg, #0e1a2b, #0a1420);
   overflow: hidden;
   box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+  animation: lp-extrato-flutua 7s ease-in-out infinite;
 }
+@keyframes lp-extrato-flutua {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+@media (prefers-reduced-motion: reduce) { .lp-extrato-chat { animation: none; } }
 .lp-ec-topo {
   display: flex;
   align-items: center;
@@ -3613,6 +3780,7 @@ body.sem-internet .layout { padding-top: 34px; }
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--lp-teal);
   box-shadow: 0 0 0 3px rgba(30,246,221,0.18);
+  animation: lp-pulsa 2s ease-in-out infinite;
 }
 .lp-ec-corpo {
   padding: 20px 18px;
@@ -3709,6 +3877,7 @@ body.sem-internet .layout { padding-top: 34px; }
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
+  perspective: 1200px;
 }
 .lp-vantagens-secao { background: var(--lp-bg-alt); }
 .lp-card-largo {
@@ -3724,13 +3893,17 @@ body.sem-internet .layout { padding-top: 34px; }
   background: var(--lp-surface);
   border: 1px solid var(--lp-line);
   border-radius: 16px;
-  transition: border-color 0.28s, transform 0.28s, background 0.28s;
+  transition: border-color 0.3s, transform 0.4s cubic-bezier(0.16,1,0.3,1), background 0.3s, box-shadow 0.4s;
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 .lp-card:hover {
   border-color: rgba(30,246,221,0.28);
   background: var(--lp-surface-2);
-  transform: translateY(-3px);
+  transform: translateY(-5px) rotateX(3deg) scale(1.012);
+  box-shadow: 0 24px 50px rgba(0,0,0,0.32);
 }
+@media (hover: none) { .lp-card:hover { transform: none; } }
 .lp-card-icone {
   width: 42px; height: 42px;
   display: grid; place-items: center;
@@ -3739,6 +3912,11 @@ body.sem-internet .layout { padding-top: 34px; }
   background: var(--lp-teal-dim);
   color: var(--lp-teal);
   margin-bottom: 18px;
+  transition: transform 0.4s cubic-bezier(0.16,1,0.3,1), box-shadow 0.4s;
+}
+.lp-card:hover .lp-card-icone {
+  transform: scale(1.12) translateZ(16px);
+  box-shadow: 0 0 22px rgba(30,246,221,0.35);
 }
 .lp-card-icone svg { width: 19px; height: 19px; }
 .lp-card-titulo {
@@ -3802,9 +3980,10 @@ body.sem-internet .layout { padding-top: 34px; }
   border: 1px solid var(--lp-line);
   border-radius: 16px;
   padding: 0 24px;
-  transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+  transition: border-color 0.25s, background 0.25s, box-shadow 0.25s, transform 0.25s;
 }
-.lp-faq-item:hover { border-color: rgba(30,246,221,0.28); }
+.lp-faq-item:hover { border-color: rgba(30,246,221,0.28); transform: translateY(-2px); }
+@media (hover: none) { .lp-faq-item:hover { transform: none; } }
 .lp-faq-item[open] {
   border-color: rgba(30,246,221,0.4);
   background:
@@ -3877,11 +4056,16 @@ body.sem-internet .layout { padding-top: 34px; }
   content: "";
   position: absolute;
   top: 0; left: 50%;
-  transform: translateX(-50%);
   width: 520px; height: 300px;
   background: radial-gradient(ellipse at top, rgba(30,246,221,0.07), transparent 70%);
   pointer-events: none;
+  animation: lp-final-respira 5s ease-in-out infinite;
 }
+@keyframes lp-final-respira {
+  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.85; }
+  50%      { transform: translateX(-50%) scale(1.12); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .lp-final::before { animation: none; transform: translateX(-50%); } }
 .lp-final-badge {
   display: inline-block;
   margin: 0 0 20px;
@@ -4168,7 +4352,10 @@ body.sem-internet .layout { padding-top: 34px; }
   font-size: 12px;
   font-weight: 500;
   color: #7C8FA3;
+  transition: color 0.2s ease;
 }
+/* Mesmo gesto usado nos campos do app: o label acompanha o foco */
+.auth-campo:focus-within label { color: #1EF6DD; }
 .auth-campo input {
   width: 100%;
   padding: 13px 15px;
@@ -4384,7 +4571,9 @@ body.sem-internet .layout { padding-top: 34px; }
 /* ─── Responsivo ─────────────────────────────────────────── */
 @media (max-width: 860px) {
   /* No celular: uma coluna só, o formulário é o que importa e precisa
-     rolar inteiro (senão o botão Entrar fica cortado e não dá pra logar). */
+     rolar inteiro (senão o botão Entrar fica cortado e não dá pra logar).
+     O vídeo vira um banner compacto no topo (via order, sem mexer no HTML)
+     em vez de sumir — mantém a identidade visual também no celular. */
   .auth-shell {
     grid-template-columns: 1fr;
     min-height: auto;
@@ -4393,13 +4582,24 @@ body.sem-internet .layout { padding-top: 34px; }
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .auth-col-midia { display: none; }
-  .auth-col-form { padding: 36px 26px; }
+  .auth-col-midia {
+    display: block;
+    order: -1;
+    height: 152px;
+    flex-shrink: 0;
+    border-left: none;
+    border-bottom: 1px solid rgba(120,160,200,0.14);
+  }
+  .auth-midia-texto { padding: 14px 20px; }
+  .auth-midia-frase { font-size: 14.5px; }
+  .auth-midia-assinatura { display: none; } /* espaço curto, assinatura já repete a marca do topo do form */
+  .auth-col-form { padding: 26px 26px 36px; }
 }
 @media (max-width: 480px) {
   .auth-modal { padding: 14px; align-items: flex-start; padding-top: 34px; }
-  .auth-col-form { padding: 34px 24px; }
+  .auth-col-form { padding: 22px 24px 34px; }
   .auth-titulo { font-size: 24px; }
+  .auth-col-midia { height: 132px; }
 }
 
 /* Respeita quem prefere menos movimento */
@@ -7637,7 +7837,7 @@ body.sem-internet .layout { padding-top: 34px; }
 .cor-hex-amostra {
   width: 26px; height: 26px;
   flex-shrink: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-sm, 8px);
   border: 1px solid var(--border);
 }
 .cor-hex-input {
@@ -7647,14 +7847,17 @@ body.sem-internet .layout { padding-top: 34px; }
   padding: 0 9px;
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-sm, 8px);
   color: var(--text-primary);
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;
   text-transform: uppercase;
   outline: none;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s var(--ease, ease), box-shadow 0.2s var(--ease, ease);
 }
-.cor-hex-input:focus { border-color: var(--accent); }
+.cor-hex-input:hover { border-color: var(--teal-glow, var(--border)); box-shadow: var(--shadow-md); }
+.cor-hex-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
 .cor-hex-ok {
   height: 30px;
   padding: 0 12px;
@@ -8368,7 +8571,15 @@ body.sem-internet .layout { padding-top: 34px; }
   border-radius: 16px;
   display: flex;
   flex-direction: column;
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s, border-color 0.3s;
 }
+.lp-plano:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 44px rgba(0,0,0,0.3);
+  border-color: rgba(30,246,221,0.3);
+}
+/* Master mantém a identidade dourada no hover, sem puxar pro teal */
+.lp-plano-master:hover { border-color: #cf9c3c; }
 .lp-plano-destaque {
   border: 2px solid var(--lp-teal);
   background:
@@ -8378,6 +8589,24 @@ body.sem-internet .layout { padding-top: 34px; }
   transform: scale(1.04);
   z-index: 2;
 }
+.lp-plano-destaque:hover { transform: scale(1.04) translateY(-5px); border-color: var(--lp-teal); }
+/* Brilho "respirando" atrás do card em destaque — vivo, mas discreto */
+.lp-plano-destaque::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  z-index: -1;
+  box-shadow: 0 0 0 4px rgba(30,246,221,0.12), 0 0 46px rgba(30,246,221,0.22);
+  animation: lp-plano-respira 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes lp-plano-respira {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+@media (hover: none) { .lp-plano:hover { transform: none; } .lp-plano-destaque:hover { transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) { .lp-plano-destaque::after { animation: none; } }
 .lp-plano-master { border-color: #b8842a; }
 .lp-plano-selo {
   position: absolute;
@@ -8860,7 +9089,7 @@ body.scroll-travado {
   background: var(--surface);
   border: 1px solid var(--border-soft);
   border-radius: 16px;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.05);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -9079,8 +9308,9 @@ body.scroll-travado {
   color: var(--text-primary);
   font-size: 0.9rem;
   outline: none;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease), background 0.2s var(--ease);
 }
-.ia-chat-input input:focus { border-color: var(--accent); }
+.ia-chat-input input:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-dim); }
 .ia-chat-enviar {
   width: 40px;
   height: 40px;
@@ -9180,7 +9410,10 @@ body.scroll-travado {
   width: 100%;
   margin-top: 40px;
   overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
 }
+.lp-depo-marquee:hover .lp-depo-track { animation-play-state: paused; }
 /* Celular: nada de carrossel (bugava no Safari). Os depoimentos viram uma
    lista vertical simples e forçada — 5 comentários, um embaixo do outro. */
 @media (max-width: 560px) {
@@ -9233,7 +9466,14 @@ body.scroll-travado {
   padding: 24px 24px 22px;
   display: flex;
   flex-direction: column;
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), border-color 0.3s, box-shadow 0.35s;
 }
+.lp-depoimento:hover {
+  transform: translateY(-5px) scale(1.015);
+  border-color: rgba(30,246,221,0.28);
+  box-shadow: 0 20px 44px rgba(0,0,0,0.35);
+}
+@media (hover: none) { .lp-depoimento:hover { transform: none; } }
 .lp-depo-estrelas {
   color: #f5a524;
   font-size: 14px;
@@ -9343,9 +9583,32 @@ body.scroll-travado {
 
 /* ─── Card de destaque nos recursos (IA) ─── */
 .lp-card-destaque {
+  position: relative;
   border: 1.5px solid var(--lp-teal);
   background: rgba(15, 138, 125, 0.04);
+  overflow: hidden;
 }
+/* Brilho que percorre a borda devagar — chama atenção sem gritar */
+.lp-card-destaque::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--lp-shimmer-ang, 0deg), transparent 0 82%, rgba(30,246,221,0.9) 92%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: lp-shimmer-gira 5s linear infinite;
+  pointer-events: none;
+}
+@property --lp-shimmer-ang {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes lp-shimmer-gira { to { --lp-shimmer-ang: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .lp-card-destaque::before { animation: none; } }
 .lp-card-badge {
   display: inline-block;
   background: var(--lp-teal);
