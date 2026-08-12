@@ -956,7 +956,7 @@ async function tratarRetornoAssinatura() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               email: state.user?.email,
-              userId: state.user?.id
+              token: localStorage.getItem("fp_token") || ""
             })
           });
           const dados = await resp.json();
@@ -10254,7 +10254,7 @@ async function assinarPlano(plano) {
         ciclo: ciclo,
         email: state.user.email,
         nome: state.perfil?.nome || null,
-        userId: state.user.id
+        token: localStorage.getItem("fp_token") || ""
       })
     });
 

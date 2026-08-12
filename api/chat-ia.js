@@ -79,8 +79,14 @@ export default async function handler(req, res) {
     }
 
     // ─── Controle de limite (só se as chaves do Supabase estiverem configuradas) ───
+    // IMPORTANTE: se as chaves do Supabase existem, o token é OBRIGATÓRIO.
+    // Antes, quem não mandasse "token" pulava essa checagem inteira e usava
+    // a IA de graça e sem limite, mesmo sem login ou sem plano pago.
     let usosInfo = null;
-    if (serviceKey && anonKey && token) {
+    if (serviceKey && anonKey) {
+      if (!token || typeof token !== "string") {
+        return res.status(401).json({ erro: "Sessão inválida. Faça login para usar o assistente." });
+      }
       const userId = await validarUsuario(token, anonKey);
       if (!userId) {
         return res.status(401).json({ erro: "Sessão inválida. Faça login de novo." });

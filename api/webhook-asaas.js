@@ -254,8 +254,25 @@ export default async function handler(req, res) {
     return res.status(405).json({ erro: "Método não permitido" });
   }
 
-  // Validação de token (se você configurou no Asaas)
-  if (WEBHOOK_TOKEN) {
+  // Validação de token (SEMPRE obrigatória — sem isso, qualquer pessoa na
+  // internet pode forjar um POST fingindo ser o Asaas e liberar Premium/Master
+  // de graça em qualquer conta, só adivinhando o formato do corpo).
+  //
+  // Se ASAAS_WEBHOOK_TOKEN não estiver configurado na Vercel, recusamos por
+  // padrão (fail-closed) em vez de aceitar sem checar. A confirmação de
+  // pagamento não fica sem caminho nesse caso: api/confirmar-assinatura.js
+  // é chamado automaticamente pelo app pouco depois do checkout e cobre a
+  // liberação mesmo se o webhook estiver recusando tudo.
+  if (!WEBHOOK_TOKEN) {
+    console.error(
+      "Webhook recusado: ASAAS_WEBHOOK_TOKEN não configurado na Vercel. " +
+      "Configure a mesma variável no painel do Asaas (Integrações › Webhooks) " +
+      "e na Vercel (Settings › Environment Variables) para reativar a confirmação automática."
+    );
+    return res.status(401).json({ erro: "Webhook não configurado com token de segurança." });
+  }
+
+  {
     // O Asaas pode enviar o token em cabeçalhos com nomes ligeiramente diferentes.
     const tokenRecebido =
       req.headers["asaas-access-token"] ||

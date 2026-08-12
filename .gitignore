@@ -1,0 +1,13 @@
+# Segredos e configuração local — nunca comitar
+.env
+.env.local
+.env*.local
+*.pem
+*.key
+
+# Sistema
+.DS_Store
+
+# Vercel / Node (caso um dia entrem dependências)
+.vercel
+node_modules

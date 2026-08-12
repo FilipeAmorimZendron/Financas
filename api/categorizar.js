@@ -3,6 +3,8 @@
 // do app não conseguem identificar (cairia em "Outros").
 // Retorna apenas o nome da categoria.
 
+import { limitar, chaveDoIP } from "./_ratelimit.js";
+
 const CATEGORIAS = [
   "Alimentação", "Transporte", "Moradia", "Saúde",
   "Lazer", "Educação", "Serviços", "Compras", "Outros"
@@ -11,6 +13,14 @@ const CATEGORIAS = [
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ erro: "Método não permitido" });
+  }
+
+  // Esta rota não exige login (roda até para quem ainda não tem conta/plano
+  // pago), então é o alvo mais fácil pra alguém martelar e gastar a chave da
+  // Anthropic. Sem exigir sessão, o limite por IP é a única contenção possível.
+  const { permitido } = limitar(chaveDoIP(req), 20, 60_000);
+  if (!permitido) {
+    return res.status(429).json({ categoria: "Outros" });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

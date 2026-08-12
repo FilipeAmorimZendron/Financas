@@ -122,7 +122,13 @@ export default async function handler(req, res) {
     const custo = arquivoBase64 ? CUSTO_ARQUIVO : CUSTO_TEXTO;
     let usosInfo = null;
 
-    if (serviceKey && anonKey && token) {
+    // IMPORTANTE: se as chaves do Supabase existem, o token é OBRIGATÓRIO.
+    // Antes, quem não mandasse "token" pulava essa checagem inteira e lia
+    // extratos de graça e sem limite, mesmo sem login ou sem plano pago.
+    if (serviceKey && anonKey) {
+      if (!token || typeof token !== "string") {
+        return res.status(401).json({ erro: "Sessão inválida. Faça login para usar esta função." });
+      }
       const userId = await validarUsuario(token, anonKey);
       if (!userId) {
         return res.status(401).json({ erro: "Sessão inválida. Faça login de novo." });

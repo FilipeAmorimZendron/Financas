@@ -7,6 +7,7 @@
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://yuvhkrwksdnajfautkru.supabase.co";
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const ASAAS_URL = process.env.ASAAS_URL || "https://api-sandbox.asaas.com/v3";
 const ASAAS_KEY = process.env.ASAAS_KEY;
 
@@ -19,18 +20,42 @@ function planoPeloValor(valor) {
   return "premium";
 }
 
+// Valida o token do usuário e retorna o ID dele (não dá pra falsificar,
+// mesmo padrão usado em api/chat-ia.js, api/ler-extrato.js e api/excluir-conta.js).
+async function validarUsuario(token, anonKey) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { "apikey": anonKey, "Authorization": `Bearer ${token}` }
+  });
+  if (!res.ok) return null;
+  const user = await res.json();
+  return user && user.id ? user.id : null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ erro: "Método não permitido" });
   }
-  if (!ASAAS_KEY || !SUPABASE_SERVICE_KEY) {
+  if (!ASAAS_KEY || !SUPABASE_SERVICE_KEY || !SUPABASE_ANON_KEY) {
     return res.status(500).json({ erro: "Servidor sem as chaves configuradas" });
   }
 
   try {
-    const { email, userId, customerId } = req.body || {};
-    if (!email || !userId) {
-      return res.status(400).json({ erro: "Informe e-mail e userId" });
+    const { email, token, customerId } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ erro: "Informe o e-mail" });
+    }
+    if (!token || typeof token !== "string") {
+      return res.status(401).json({ erro: "Sessão inválida. Faça login novamente." });
+    }
+
+    // CRÍTICO: o userId NUNCA vem do corpo da requisição — vem só da validação
+    // do token de sessão. Antes, quem chamasse esta rota podia mandar QUALQUER
+    // userId no corpo e ativar Premium/Master na conta de outra pessoa, bastando
+    // ter um pagamento confirmado no Asaas com o próprio e-mail. Agora só dá
+    // pra ativar a assinatura na própria conta de quem está logado.
+    const userId = await validarUsuario(token, SUPABASE_ANON_KEY);
+    if (!userId) {
+      return res.status(401).json({ erro: "Sessão expirada. Faça login novamente." });
     }
 
     const emailLimpo = String(email).trim().toLowerCase();
