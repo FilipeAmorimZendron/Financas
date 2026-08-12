@@ -2209,6 +2209,24 @@ function rotuloPeriodoDashboard() {
   }[_periodoTipo] || "neste mês";
 }
 
+/* Mês de fatura (AAAA-MM) que o widget "Cartões de crédito" do dashboard
+   deve mostrar, conforme o período escolhido. Só existe um mês único pra
+   "este mês", "mês anterior" e "próximo mês" — nesses casos mostramos
+   exatamente a fatura daquele mês (que pode ser R$ 0,00, e é isso mesmo:
+   antes disso aqui, o widget ficava travado sempre na fatura real atual,
+   ignorando o filtro). Em "tudo" ou período customizado não há um mês
+   único pra mostrar, então cai no padrão (fatura em aberto mais próxima). */
+function faturaAlvoDashboard() {
+  if (_periodoDatas) return null;
+  const hoje = new Date();
+  const pad2 = n => String(n).padStart(2, "0");
+  const mesISO = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
+  if (_periodoTipo === "mesanterior") return mesISO(new Date(hoje.getFullYear(), hoje.getMonth()-1, 1));
+  if (_periodoTipo === "proximomes")  return mesISO(new Date(hoje.getFullYear(), hoje.getMonth()+1, 1));
+  if (_periodoTipo === "mes")         return mesISO(hoje);
+  return null; // "tudo"
+}
+
 /* A fatura "a pagar" mais próxima: a primeira fatura não paga, da mais antiga
    para a mais nova. Se o mês atual tem compras, é ele; senão, a próxima que tiver. */
 function proximaFaturaAberta(cartaoId) {
@@ -2286,9 +2304,15 @@ function renderContasDashboard() {
    TELA DO CARTÃO — fatura detalhada e pagamento
    ============================================================ */
 let _cartaoAberto = null;
+let _faturaMesForcada = null;   // quando aberto a partir de um card já filtrado por período
 
-function abrirTelaCartao(cartaoId) {
+// faturaMesForcado é opcional: abre direto na fatura daquele mês (AAAA-MM)
+// em vez da fatura em aberto mais próxima. Usado pelo card do dashboard
+// quando o usuário está filtrando por "mês anterior"/"próximo mês", pra
+// abrir exatamente o mês que ele estava vendo.
+function abrirTelaCartao(cartaoId, faturaMesForcado) {
   _cartaoAberto = cartaoId;
+  _faturaMesForcada = faturaMesForcado || null;
   renderTelaCartao();
   document.getElementById("cartaoOverlay").style.display = "flex";
   document.body.style.overflow = "hidden";
@@ -2297,6 +2321,7 @@ function fecharTelaCartao() {
   document.getElementById("cartaoOverlay").style.display = "none";
   document.body.style.overflow = "";
   _cartaoAberto = null;
+  _faturaMesForcada = null;
 }
 
 function renderTelaCartao() {
@@ -2305,7 +2330,7 @@ function renderTelaCartao() {
   const corpo = document.getElementById("cartaoCorpo");
   if (!corpo) return;
 
-  const faturaMes = proximaFaturaAberta(c.id);
+  const faturaMes = _faturaMesForcada || proximaFaturaAberta(c.id);
   const paga = faturaEstaPaga(c.id, faturaMes);
   const totalAtual = totalFatura(c.id, faturaMes);
   const disponivel = limiteDisponivel(c.id);
@@ -2495,8 +2520,10 @@ function renderCartoesDashboard() {
   const cartoes = state.bancos.filter(b => b.temCartao);
   if (!cartoes.length) return "";
 
+  const alvo = faturaAlvoDashboard();
+
   const cards = cartoes.map(c => {
-    const faturaMes = proximaFaturaAberta(c.id);
+    const faturaMes = alvo || proximaFaturaAberta(c.id);
     const aPagar = totalFatura(c.id, faturaMes);
     const disponivel = limiteDisponivel(c.id);
     const paga = faturaEstaPaga(c.id, faturaMes);
@@ -2517,7 +2544,7 @@ function renderCartoesDashboard() {
           return `fatura ${nm[Number(fm)-1]}/${fa.slice(2)}`;
         })();
 
-    return `<div class="cartao-card" onclick="abrirTelaCartao('${c.id}')">
+    return `<div class="cartao-card" onclick="abrirTelaCartao('${c.id}','${faturaMes}')">
       <div class="cartao-card-top">
         <span class="cartao-card-nome">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
@@ -3680,30 +3707,38 @@ formBanco?.addEventListener("submit", async e => {
       diaVencimento: novo.dia_vencimento || null
     });
 
-    // Se informou uma fatura atual em aberto, cria uma conta a pagar
+    // Se informou uma fatura atual em aberto, registra como compra no
+    // crédito (vinculada ao cartão) — NÃO como conta a pagar avulsa.
+    // Antes, isso criava um lançamento "pendente" solto, sem cartao_id/
+    // fatura_mes/forma_pagamento: ficava invisível pro limite disponível
+    // e pro card de "Cartões de crédito" do dashboard (o valor "sumia" do
+    // cálculo de limite, mesmo aparecendo como conta a pagar avulsa).
     let faturaMsg = "";
     if (temCartao) {
       const faturaAtual = Number(document.getElementById("cartaoFaturaAtual")?.value) || 0;
       if (faturaAtual > 0) {
-        // Vencimento: próximo dia de vencimento do cartão
-        const venc = proximoVencimentoCartao(novo.dia_vencimento);
+        const faturaMesAtual = mesAtualISO();
         const movFatura = await dbInsert("movimentos", {
           descricao: `Fatura ${nome}`,
           conta_id: novo.id,
-          data: venc,
+          data: hojeISO(),
           valor: faturaAtual,
           tipo: "gasto",
           categoria: "Cartão de crédito",
-          status: "pendente",
-          vencimento: venc
+          status: "pago",
+          pago_em: hojeISO(),
+          forma_pagamento: "credito",
+          cartao_id: novo.id,
+          fatura_mes: faturaMesAtual
         });
         state.movimentos.push({
           id: movFatura.id, descricao: movFatura.descricao, bancoId: movFatura.conta_id,
           data: movFatura.data, valor: Number(movFatura.valor), tipo: "gasto",
-          categoria: movFatura.categoria, status: "pendente",
-          vencimento: movFatura.vencimento, pagoEm: null
+          categoria: movFatura.categoria, status: movFatura.status, vencimento: null,
+          pagoEm: movFatura.pago_em, formaPagamento: "credito",
+          cartaoId: movFatura.cartao_id, faturaMes: movFatura.fatura_mes
         });
-        faturaMsg = ` Fatura de ${fmtMoeda(faturaAtual)} registrada para pagar.`;
+        faturaMsg = ` Fatura de ${fmtMoeda(faturaAtual)} registrada no cartão.`;
       }
     }
 
@@ -5420,29 +5455,36 @@ document.getElementById("formEditarConta")?.addEventListener("submit", async e =
     const idx = state.bancos.findIndex(b=>b.id===id);
     if (idx>=0) state.bancos[idx] = { id:att.id, nome:att.nome, tipo:att.tipo, saldoInicial:Number(att.saldo_inicial), saldoData: att.saldo_data || null, cor: att.cor || null, temCartao: att.tem_cartao || false, limite: att.limite != null ? Number(att.limite) : null, diaFechamento: att.dia_fechamento || null, diaVencimento: att.dia_vencimento || null };
 
-    // Se informou uma fatura em aberto, cria uma conta a pagar
+    // Se informou uma fatura em aberto, registra como compra no crédito
+    // (vinculada ao cartão) — mesmo motivo do cadastro de conta: um
+    // lançamento "pendente" solto fica invisível pro limite disponível
+    // e pro card de "Cartões de crédito" do dashboard.
     let faturaMsg = "";
     if (temCartao) {
       const faturaAtual = Number(document.getElementById("editCartaoFaturaAtual")?.value) || 0;
       if (faturaAtual > 0) {
-        const venc = proximoVencimentoCartao(att.dia_vencimento);
+        const faturaMesAtual = mesAtualISO();
         const movFatura = await dbInsert("movimentos", {
           descricao: `Fatura ${att.nome}`,
           conta_id: att.id,
-          data: venc,
+          data: hojeISO(),
           valor: faturaAtual,
           tipo: "gasto",
           categoria: "Cartão de crédito",
-          status: "pendente",
-          vencimento: venc
+          status: "pago",
+          pago_em: hojeISO(),
+          forma_pagamento: "credito",
+          cartao_id: att.id,
+          fatura_mes: faturaMesAtual
         });
         state.movimentos.push({
           id: movFatura.id, descricao: movFatura.descricao, bancoId: movFatura.conta_id,
           data: movFatura.data, valor: Number(movFatura.valor), tipo: "gasto",
-          categoria: movFatura.categoria, status: "pendente",
-          vencimento: movFatura.vencimento, pagoEm: null
+          categoria: movFatura.categoria, status: movFatura.status, vencimento: null,
+          pagoEm: movFatura.pago_em, formaPagamento: "credito",
+          cartaoId: movFatura.cartao_id, faturaMes: movFatura.fatura_mes
         });
-        faturaMsg = ` Fatura de ${fmtMoeda(faturaAtual)} registrada para pagar.`;
+        faturaMsg = ` Fatura de ${fmtMoeda(faturaAtual)} registrada no cartão.`;
       }
     }
 
@@ -9953,6 +9995,10 @@ function parseMultiplosLancamentos(texto) {
     fechar();
     renderGraficoEvolucao();
     renderResumoDashboard();
+    // "Saldo por conta" e "Cartões de crédito" também dependem do período
+    // (o widget de cartões mostra a fatura do mês escolhido) — antes disso
+    // aqui, essa seção nunca era re-renderizada ao trocar o filtro.
+    renderContasDashboard();
   }
 
   btn.addEventListener("click", (e) => { e.stopPropagation(); alternar(); });
@@ -9974,6 +10020,7 @@ function parseMultiplosLancamentos(texto) {
     fechar();
     renderGraficoEvolucao();
     renderResumoDashboard();
+    renderContasDashboard();
   });
 
   document.addEventListener("click", (e) => {
