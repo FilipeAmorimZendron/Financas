@@ -216,7 +216,7 @@ export default async function handler(req, res) {
       "- PREMIUM (R$ 25,90/mês ou R$ 264,00/ano): contas e metas ilimitadas, investimentos, gastos fixos, importar extrato, relatórios, exportar e assistente de IA.",
       "- MASTER (R$ 47,90/mês ou R$ 488,40/ano): tudo do Premium mais conexão bancária automática (quando disponível).",
       "- O pagamento é por cartão de crédito, com renovação automática mensal ou anual. Se o cartão falhar, o acesso é mantido por alguns dias antes de cair, e o app avisa. Para assinar ou trocar de plano, vá em Conta e toque no plano.",
-      "- Se perguntarem como cancelar, oriente a procurar o suporte pelo e-mail contato@fazfinancas.com.",
+      "- Se perguntarem como cancelar, oriente a procurar o suporte pelo e-mail suporte@fazfinancas.com.",
       "",
       "════ REGRAS IMPORTANTES ════",
       "- Você JÁ TEM os dados financeiros do usuário (abaixo). Nunca peça para ele enviar os dados. Use-os diretamente.",

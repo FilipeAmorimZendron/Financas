@@ -4167,6 +4167,8 @@ body.sem-internet .layout { padding-top: 34px; }
   color: #5A686E;
   font-size: 12px;
 }
+.lp-rodape-contato a { color: inherit; text-decoration: none; }
+.lp-rodape-contato a:hover { color: var(--lp-teal); }
 .lp-rodape-sep { color: var(--lp-line); }
 .lp-rodape-nota {
   font-size: 11.5px;
@@ -4971,6 +4973,13 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .conta-suporte-btn svg { width: 17px; height: 17px; }
 .conta-suporte-btn:hover { background: var(--teal-600); }
+.conta-suporte-acoes { display: flex; gap: 10px; flex-wrap: wrap; }
+.conta-suporte-btn-ghost {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-soft);
+}
+.conta-suporte-btn-ghost:hover { background: rgba(255,255,255,0.05); }
 
 .conta-sair {
   display: flex;
@@ -9611,6 +9620,15 @@ body.scroll-travado {
 }
 .lp-suporte-btn:hover { filter: brightness(1.06); }
 .lp-suporte-btn:active { transform: scale(0.97); }
+.lp-suporte-acoes { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+.lp-suporte-acoes .lp-suporte-btn { margin-top: 0; }
+.lp-suporte-btn-outline {
+  background: transparent;
+  color: var(--lp-text);
+  border: 1px solid var(--lp-line);
+  box-shadow: none;
+}
+.lp-suporte-btn-outline:hover { border-color: var(--lp-teal); color: var(--lp-teal); }
 @media (max-width: 760px) {
   .lp-suporte { padding: 60px 22px 34px; margin-top: 72px; }
   .lp-suporte-badge { width: 84px; height: 84px; }

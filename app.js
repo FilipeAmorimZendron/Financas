@@ -1047,7 +1047,7 @@ async function tratarRetornoAssinatura() {
     mostrarLoading(false);
     toast(
       "Recebemos seu pagamento. A liberação pode levar alguns minutos — recarregue a página em instantes. " +
-      "Se não ativar, escreva para contato@fazfinancas.com.",
+      "Se não ativar, escreva para suporte@fazfinancas.com.",
       "info"
     );
   } catch (e) {
@@ -7714,7 +7714,7 @@ const DOCUMENTOS = {
         <li><strong>Acesso e portabilidade:</strong> exporte seus dados quando quiser, em JSON ou CSV.</li>
         <li><strong>Correção:</strong> edite ou exclua qualquer registro dentro do próprio aplicativo.</li>
         <li><strong>Eliminação:</strong> exclua sua conta e todos os dados de forma permanente.</li>
-        <li><strong>Informação e revogação:</strong> fale com o suporte pelo Instagram.</li>
+        <li><strong>Informação e revogação:</strong> fale com o suporte pelo e-mail suporte@fazfinancas.com ou pelo Instagram.</li>
       </ul>
 
       <h4>7. Retenção e exclusão</h4>
@@ -7724,7 +7724,7 @@ const DOCUMENTOS = {
       <p>Podemos atualizar esta Política para refletir melhorias ou exigências legais. Alterações relevantes serão comunicadas dentro do aplicativo.</p>
 
       <h4>9. Contato</h4>
-      <p>Dúvidas sobre privacidade ou seus dados? Fale com o suporte pelo Instagram: <a href="https://www.instagram.com/fazfinancas/" target="_blank" rel="noopener">@fazfinancas</a>.</p>
+      <p>Dúvidas sobre privacidade ou seus dados? Fale com o suporte por e-mail em <a href="mailto:suporte@fazfinancas.com">suporte@fazfinancas.com</a> ou pelo Instagram: <a href="https://www.instagram.com/fazfinancas/" target="_blank" rel="noopener">@fazfinancas</a>.</p>
     `
   },
   assinatura: {
@@ -7791,7 +7791,7 @@ const DOCUMENTOS = {
       <p>Estes Termos podem ser atualizados. Mudanças relevantes serão comunicadas dentro do aplicativo.</p>
 
       <h4>10. Contato</h4>
-      <p>Dúvidas ou suporte? Fale com a gente pelo Instagram: <a href="https://www.instagram.com/fazfinancas/" target="_blank" rel="noopener">@fazfinancas</a>.</p>
+      <p>Dúvidas ou suporte? Fale com a gente por e-mail em <a href="mailto:suporte@fazfinancas.com">suporte@fazfinancas.com</a> ou pelo Instagram: <a href="https://www.instagram.com/fazfinancas/" target="_blank" rel="noopener">@fazfinancas</a>.</p>
     `
   }
 };
