@@ -10469,7 +10469,10 @@ function montarResumoFinanceiro() {
   linhas.push("");
 
   // ─── Gastos de HOJE ───
-  const movsHoje = state.movimentos.filter(m => (m.data || "").slice(0,10) === hoje && ehPago(m));
+  // Compras no crédito ficam de fora — igual ao card de Gastos do dashboard:
+  // elas só contam como saída de verdade quando a fatura é paga, não na hora
+  // da compra (mesmo já entrando no banco como status "pago").
+  const movsHoje = state.movimentos.filter(m => (m.data || "").slice(0,10) === hoje && ehPago(m) && m.formaPagamento !== "credito");
   const gastosHoje = movsHoje.filter(m => m.tipo === "gasto");
   const entradasHoje = movsHoje.filter(m => m.tipo === "entrada");
   const totalGastoHoje = gastosHoje.reduce((s,m) => s + m.valor, 0);
@@ -10489,7 +10492,10 @@ function montarResumoFinanceiro() {
   linhas.push("");
 
   // ─── Fluxo do mês atual ───
-  const movsMes = state.movimentos.filter(m => (m.data || "").slice(0,7) === mesAtual && ehPago(m));
+  // Mesma regra do card "Gastos" do dashboard: compra no crédito não é
+  // gasto realizado até a fatura ser paga (ela aparece à parte, na seção
+  // "Cartões de crédito" mais abaixo, com o valor da fatura em aberto).
+  const movsMes = state.movimentos.filter(m => (m.data || "").slice(0,7) === mesAtual && ehPago(m) && m.formaPagamento !== "credito");
   const entradas = movsMes.filter(m => m.tipo === "entrada").reduce((s,m) => s + m.valor, 0);
   const gastos = movsMes.filter(m => m.tipo === "gasto").reduce((s,m) => s + m.valor, 0);
   const qtdGastosMes = movsMes.filter(m => m.tipo === "gasto").length;
@@ -10518,7 +10524,7 @@ function montarResumoFinanceiro() {
   // Permite à IA responder "quanto gastei no dia 26", "e ontem?", etc.
   const limite30 = somarDias(hoje, -30);
   const movsRecentes = state.movimentos
-    .filter(m => ehPago(m) && (m.data || "").slice(0,10) >= limite30 && (m.data || "").slice(0,10) <= hoje)
+    .filter(m => ehPago(m) && m.formaPagamento !== "credito" && (m.data || "").slice(0,10) >= limite30 && (m.data || "").slice(0,10) <= hoje)
     .sort((a,b) => (b.data || "").localeCompare(a.data || ""));
   if (movsRecentes.length) {
     // Agrupa por dia
@@ -10560,7 +10566,7 @@ function montarResumoFinanceiro() {
     const mAno = d.getFullYear();
     const mMes = String(d.getMonth()+1).padStart(2,"0");
     const chave = `${mAno}-${mMes}`;
-    const movs = state.movimentos.filter(m => (m.data||"").slice(0,7) === chave && ehPago(m));
+    const movs = state.movimentos.filter(m => (m.data||"").slice(0,7) === chave && ehPago(m) && m.formaPagamento !== "credito");
     if (!movs.length) continue;
     const ent = movs.filter(m => m.tipo === "entrada").reduce((s,m)=>s+m.valor,0);
     const gas = movs.filter(m => m.tipo === "gasto").reduce((s,m)=>s+m.valor,0);
