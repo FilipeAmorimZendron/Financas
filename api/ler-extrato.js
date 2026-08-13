@@ -22,6 +22,11 @@ const CUSTO_ARQUIVO = 4;
 const LIMITES = { premium: 100, master: 100 };
 const HORAS_RECARGA = 3;
 
+// Mesma data de corte do plano único usada em app.js (usuarioAnteriorAoPlanoUnico)
+// e em api/chat-ia.js. Quem já tinha conta antes disso mantém acesso completo
+// de graça, mesmo com plano="basico"/assinatura inativa gravados no perfil.
+const CORTE_PLANO_UNICO = "2026-08-13T17:50:58Z";
+
 // Atualiza a contagem de uso no Supabase
 async function atualizarUso(userId, serviceKey, usos, resetEm) {
   await fetch(`${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${userId}`, {
@@ -36,14 +41,15 @@ async function atualizarUso(userId, serviceKey, usos, resetEm) {
   });
 }
 
-// Valida o token do usuário e devolve o id
+// Valida o token do usuário e devolve o id + data de criação da conta
 async function validarUsuario(token, anonKey) {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: { "apikey": anonKey, "Authorization": `Bearer ${token}` }
   });
   if (!res.ok) return null;
   const user = await res.json();
-  return user && user.id ? user.id : null;
+  if (!user || !user.id) return null;
+  return { id: user.id, createdAt: user.created_at || null };
 }
 
 // Lê o perfil (plano) do usuário
@@ -132,15 +138,20 @@ export default async function handler(req, res) {
       if (!token || typeof token !== "string") {
         return res.status(401).json({ erro: "Sessão inválida. Faça login para usar esta função." });
       }
-      const userId = await validarUsuario(token, anonKey);
-      if (!userId) {
+      const usuario = await validarUsuario(token, anonKey);
+      if (!usuario) {
         return res.status(401).json({ erro: "Sessão inválida. Faça login de novo." });
       }
+      const userId = usuario.id;
+      const antesDoPlanoUnico = !!usuario.createdAt &&
+        new Date(usuario.createdAt).getTime() < new Date(CORTE_PLANO_UNICO).getTime();
+
       const perfil = await lerPerfil(userId, serviceKey);
       if (!perfil) {
         return res.status(403).json({ erro: "Perfil não encontrado." });
       }
-      const plano = (perfil.assinatura_status === "ativa") ? perfil.plano : "basico";
+      let plano = (perfil.assinatura_status === "ativa") ? perfil.plano : "basico";
+      if (antesDoPlanoUnico) plano = "premium";
       if (plano !== "premium" && plano !== "master") {
         return res.status(403).json({
           erro: "upgrade",

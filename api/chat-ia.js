@@ -14,6 +14,11 @@ const LIMITES = {
 };
 const HORAS_RECARGA = 3;
 
+// Mesma data de corte do plano único usada em app.js (usuarioAnteriorAoPlanoUnico).
+// Quem já tinha conta antes disso mantém acesso completo de graça — inclusive
+// à IA — mesmo com plano="basico"/assinatura inativa gravados no perfil.
+const CORTE_PLANO_UNICO = "2026-08-13T17:50:58Z";
+
 // Lê o perfil do usuário no Supabase (usando a service key)
 async function lerPerfil(userId, serviceKey) {
   const res = await fetch(
@@ -44,7 +49,8 @@ async function atualizarUso(userId, serviceKey, usos, resetEm) {
   });
 }
 
-// Valida o token do usuário e retorna o ID dele (não dá pra falsificar)
+// Valida o token do usuário e devolve o id + data de criação da conta
+// (não dá pra falsificar — vem direto do Supabase Auth).
 async function validarUsuario(token, anonKey) {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: {
@@ -54,7 +60,8 @@ async function validarUsuario(token, anonKey) {
   });
   if (!res.ok) return null;
   const user = await res.json();
-  return user && user.id ? user.id : null;
+  if (!user || !user.id) return null;
+  return { id: user.id, createdAt: user.created_at || null };
 }
 
 export default async function handler(req, res) {
@@ -89,19 +96,25 @@ export default async function handler(req, res) {
       if (!token || typeof token !== "string") {
         return res.status(401).json({ erro: "Sessão inválida. Faça login para usar o assistente." });
       }
-      const userId = await validarUsuario(token, anonKey);
-      if (!userId) {
+      const usuario = await validarUsuario(token, anonKey);
+      if (!usuario) {
         return res.status(401).json({ erro: "Sessão inválida. Faça login de novo." });
       }
+      const userId = usuario.id;
+      const antesDoPlanoUnico = !!usuario.createdAt &&
+        new Date(usuario.createdAt).getTime() < new Date(CORTE_PLANO_UNICO).getTime();
 
       const perfil = await lerPerfil(userId, serviceKey);
       if (!perfil) {
         return res.status(403).json({ erro: "Perfil não encontrado." });
       }
 
-      const plano = (perfil.assinatura_status === "ativa") ? perfil.plano : "basico";
+      let plano = (perfil.assinatura_status === "ativa") ? perfil.plano : "basico";
+      // Conta de antes da virada pro plano único: acesso garantido, mesmo
+      // sem assinatura paga gravada no perfil.
+      if (antesDoPlanoUnico) plano = "premium";
 
-      // Básico (sem assinatura ativa) não tem acesso
+      // Básico (sem assinatura ativa, e não é conta anterior ao plano único)
       if (plano !== "premium" && plano !== "master") {
         return res.status(403).json({ erro: "upgrade", motivo: "O assistente de IA está disponível pra quem assina o FAZ Finanças." });
       }
