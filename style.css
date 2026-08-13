@@ -4547,40 +4547,46 @@ body.sem-internet .layout { padding-top: 34px; }
 .assinar-logo { height: 26px; margin-bottom: 20px; }
 .assinar-titulo {
   font-family: 'Sora', sans-serif;
-  font-size: 23px;
+  font-size: 25px;
   font-weight: 700;
   color: #E6EEF5;
-  margin: 0 0 8px;
+  margin: 0 0 9px;
 }
-.assinar-sub { font-size: 14px; color: #93A5B8; margin: 0 0 26px; }
+.assinar-sub { font-size: 15px; color: #93A5B8; margin: 0 0 26px; line-height: 1.5; }
 .assinar-preco {
   display: flex;
   align-items: baseline;
   justify-content: center;
   gap: 3px;
-  margin-bottom: 28px;
+  margin-bottom: 8px;
 }
-.assinar-preco-moeda { font-size: 16px; font-weight: 700; color: #1EF6DD; }
-.assinar-preco-valor { font-size: 42px; font-weight: 800; color: #1EF6DD; line-height: 1; }
-.assinar-preco-ciclo { font-size: 14px; color: #93A5B8; margin-left: 2px; }
+.assinar-preco-moeda { font-size: 17px; font-weight: 700; color: #1EF6DD; }
+.assinar-preco-valor { font-size: 46px; font-weight: 800; color: #1EF6DD; line-height: 1; }
+.assinar-preco-ciclo { font-size: 15px; color: #93A5B8; margin-left: 2px; }
+.assinar-preco-nota {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #F5A524;
+  margin: 0 0 28px;
+}
 .assinar-lista {
   list-style: none;
   margin: 0 0 30px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 15px;
   text-align: left;
 }
 .assinar-lista li {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  font-size: 13.5px;
-  color: #C3D0DC;
-  line-height: 1.45;
+  font-size: 15px;
+  color: #E6EEF5;
+  line-height: 1.48;
 }
-.assinar-lista li svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; color: #1EF6DD; }
+.assinar-lista li svg { width: 17px; height: 17px; flex-shrink: 0; margin-top: 1px; color: #1EF6DD; }
 /* CTA em laranja/âmbar com um pulso sutil — o botão é o único elemento
    quente na tela, pra ficar óbvio onde clicar. */
 .assinar-btn {
@@ -4601,7 +4607,7 @@ body.sem-internet .layout { padding-top: 34px; }
 .assinar-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 38px rgba(245,165,36,0.55); }
 .assinar-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; animation: none; }
 @media (prefers-reduced-motion: reduce) { .assinar-btn { animation: none; } }
-.assinar-rodape { margin: 16px 0 0; font-size: 11.5px; color: #5A686E; line-height: 1.5; }
+.assinar-rodape { margin: 16px 0 0; font-size: 12.5px; font-weight: 600; color: #7C8FA3; line-height: 1.5; }
 .assinar-sair {
   margin-top: 20px;
   background: none;
@@ -8372,7 +8378,7 @@ body.sem-internet .layout { padding-top: 34px; }
   margin-bottom: 6px;
 }
 .planos-sub {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-muted);
   margin-bottom: 22px;
 }
@@ -8476,10 +8482,10 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .plano-nome {
   font-family: 'Sora', sans-serif;
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .plano-preco {
   display: flex;
@@ -8504,8 +8510,8 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .plano-preco-valor {
   font-family: 'Sora', sans-serif;
-  font-size: 30px;
-  font-weight: 700;
+  font-size: 38px;
+  font-weight: 800;
   color: var(--text-primary);
   line-height: 1;
 }
@@ -8514,9 +8520,10 @@ body.sem-internet .layout { padding-top: 34px; }
   color: var(--text-muted);
 }
 .plano-preco-nota {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin: 6px 0 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--amber);
+  margin: 7px 0 18px;
   min-height: 16px;
 }
 .plano-btn {
@@ -8564,8 +8571,8 @@ body.sem-internet .layout { padding-top: 34px; }
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 700;
   color: var(--teal-400);
 }
 .plano-ia-box-master .plano-ia-titulo {
@@ -8578,10 +8585,10 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .plano-ia-desc {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   color: var(--text-secondary);
-  margin-top: 4px;
-  line-height: 1.4;
+  margin-top: 5px;
+  line-height: 1.45;
 }
 .plano-tudo-premium {
   font-size: 0.75rem;
@@ -8610,10 +8617,10 @@ body.sem-internet .layout { padding-top: 34px; }
 .plano-lista li {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.4;
+  gap: 10px;
+  font-size: 14.5px;
+  color: var(--text-primary);
+  line-height: 1.45;
 }
 .plano-lista li svg {
   width: 16px;
@@ -8667,7 +8674,8 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .planos-rodape {
   text-align: center;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-muted);
   margin-top: 24px;
 }
@@ -8795,8 +8803,8 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-plano-selo-master { background: #b8842a; color: #fff; box-shadow: 0 4px 16px rgba(184,132,42,0.5); }
 .lp-plano-nome {
   font-family: 'Sora', sans-serif;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 21px;
+  font-weight: 700;
   color: var(--lp-text);
   margin-bottom: 14px;
 }
@@ -8808,16 +8816,17 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-plano-moeda { font-family: 'IBM Plex Mono', monospace; font-size: 16px; color: var(--lp-text-dim); }
 .lp-plano-valor {
   font-family: 'Sora', sans-serif;
-  font-size: 36px;
-  font-weight: 700;
+  font-size: 44px;
+  font-weight: 800;
   color: var(--lp-text);
   line-height: 1;
 }
 .lp-plano-ciclo { font-size: 14px; color: var(--lp-text-dim); }
 .lp-plano-nota {
-  font-size: 12.5px;
-  color: var(--lp-text-dim);
-  margin: 8px 0 26px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lp-amber);
+  margin: 9px 0 26px;
   min-height: 16px;
 }
 .lp-plano-btn {
@@ -8837,9 +8846,9 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-plano-btn-primary {
   background: linear-gradient(135deg, #FDB750, var(--lp-amber));
   color: #1a1205;
-  font-size: 15.5px;
+  font-size: 17px;
   font-weight: 800;
-  padding: 15px;
+  padding: 17px;
   box-shadow: 0 10px 28px rgba(245,165,36,0.4);
   animation: lp-btn-respira 2.6s ease-in-out infinite;
 }
@@ -8866,17 +8875,17 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-plano-ia-master { background: rgba(184, 132, 42, 0.1); }
 .lp-plano-ia-titulo {
   display: block;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15.5px;
+  font-weight: 700;
   color: var(--lp-teal);
 }
 .lp-plano-ia-master .lp-plano-ia-titulo { color: #c9962f; }
 .lp-plano-ia-desc {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--lp-text-dim);
-  margin-top: 4px;
-  line-height: 1.4;
+  margin-top: 5px;
+  line-height: 1.45;
 }
 /* Item "não incluso" (com X) */
 .lp-plano-off {
@@ -8913,16 +8922,16 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .lp-plano-lista li {
   position: relative;
-  padding-left: 24px;
-  font-size: 13.5px;
-  color: var(--lp-text-dim);
-  line-height: 1.4;
+  padding-left: 26px;
+  font-size: 15px;
+  color: var(--lp-text);
+  line-height: 1.45;
 }
 .lp-plano-lista li::before {
   content: "";
   position: absolute;
-  left: 0; top: 4px;
-  width: 15px; height: 15px;
+  left: 0; top: 5px;
+  width: 17px; height: 17px;
   background: no-repeat center / contain
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2319D1BB' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
 }
@@ -8932,11 +8941,23 @@ body.sem-internet .layout { padding-top: 34px; }
   padding-left: 0 !important;
 }
 .lp-plano-tudo::before { display: none; }
+.lp-planos-garantia { text-align: center; margin-top: 32px; }
+.lp-planos-garantia-titulo {
+  font-family: 'Sora', sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--lp-text);
+  margin: 0 0 10px;
+}
 .lp-planos-rodape {
-  text-align: center;
-  font-size: 13px;
+  font-size: 13.5px;
+  font-weight: 600;
   color: var(--lp-text-dim);
-  margin-top: 28px;
+  margin: 0;
+}
+.lp-planos-sub {
+  margin-top: 18px !important;
+  font-size: 16px;
 }
 
 @media (max-width: 900px) {
