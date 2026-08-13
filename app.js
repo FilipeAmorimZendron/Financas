@@ -621,6 +621,72 @@ async function sbCadastro(email, senha) {
   return data;
 }
 
+/* ─── Login social (Google, via OAuth do Supabase) ───────────
+   Não usamos a biblioteca supabase-js (o app inteiro fala com o Supabase
+   por fetch puro) — então fazemos o fluxo "na mão": manda pra tela de
+   login do Google através do endpoint /authorize do Supabase; ele volta
+   pro app com os tokens no PEDAÇO da URL (#access_token=...), que a
+   verificarLoginOAuth() abaixo lê assim que a página carrega de novo. */
+function loginComGoogle() {
+  const redirectTo = window.location.origin + window.location.pathname;
+  window.location.href =
+    `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
+}
+
+/* Roda no início do app: fomos redirecionados de volta pelo Google/Supabase
+   com um login pronto? Se sim, finaliza a sessão igual ao login por senha
+   e devolve true (quem chamou não deve seguir o fluxo normal de checar
+   sessão salva). Se não, devolve false sem fazer nada. */
+async function verificarLoginOAuth() {
+  const hash = window.location.hash;
+  if (!hash || !hash.includes("access_token") || hash.includes("type=recovery")) return false;
+
+  const params = new URLSearchParams(hash.slice(1));
+  const erro = params.get("error_description");
+  history.replaceState(null, "", window.location.pathname + window.location.search); // limpa o hash
+
+  if (erro) {
+    toast(decodeURIComponent(erro.replace(/\+/g, " ")), "error");
+    return false;
+  }
+
+  const accessToken = params.get("access_token");
+  if (!accessToken) return false;
+
+  mostrarSplash();
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}` }
+    });
+    if (!res.ok) throw new Error("Não foi possível confirmar o login com Google.");
+    const user = await res.json();
+
+    localStorage.setItem("fp_token", accessToken);
+    localStorage.setItem("fp_user", JSON.stringify({ email: user.email, id: user.id }));
+    state.user = { email: user.email, id: user.id };
+    document.getElementById("userEmail").textContent = state.user.email;
+
+    await carregarDadosNuvem();
+    esconderSplash();
+    mostrarTelaApp();
+    renderTudo();
+    injetarBotoesGuia();
+    trocarTela("dashboard");
+    await tratarRetornoAssinatura();
+    toast(`Bem-vindo, ${state.user.email}! 👋`, "success");
+    atualizarCDI().then(() => renderTudo()).catch(() => {});
+    if (!localStorage.getItem("fp_onboarding_done")) {
+      setTimeout(() => mostrarOnboarding(), 600);
+    }
+  } catch (e) {
+    esconderSplash();
+    toast(e.message || "Erro ao entrar com Google.", "error");
+    mostrarTelaLogin();
+    abrirAuth("login");
+  }
+  return true;
+}
+
 async function sbLogout() {
   const token = localStorage.getItem("fp_token");
   if (token) {
@@ -10210,6 +10276,12 @@ async function iniciar() {
   // Se sim, mostra a tela de nova senha e não tenta restaurar a sessão.
   if (verificarLinkRecuperacao()) {
     esconderSplash();
+    return;
+  }
+
+  // O usuário acabou de voltar de um login social (Google)? Se sim, a
+  // própria função já termina o login — não segue pro fluxo normal abaixo.
+  if (await verificarLoginOAuth()) {
     return;
   }
 
