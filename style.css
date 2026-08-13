@@ -3308,9 +3308,9 @@ body.sem-internet .layout { padding-top: 34px; }
   color: var(--lp-teal);
 }
 
-.lp-btn-grande { padding: 17px 42px; font-size: 15.5px; }
+.lp-btn-grande { padding: 17px 42px; font-size: 15.5px; margin-bottom: 20px; }
 
-.lp-nota { font-size: 12.5px; color: var(--lp-text-dim); margin: 0; }
+.lp-nota { font-size: 13.5px; font-weight: 500; color: var(--lp-text-dim); margin: 0; letter-spacing: 0.01em; }
 
 /* ─── SIGNATURE: o painel que se recalcula ───────────────── */
 .lp-painel {
