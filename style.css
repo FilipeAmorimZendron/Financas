@@ -3233,7 +3233,9 @@ body.sem-internet .layout { padding-top: 34px; }
   display: inline-flex;
   align-items: center;
   gap: 46px;
-  animation: lp-marquee-scroll 42s linear infinite;
+  /* 10 itens agora (eram 6) — duração aumentada na mesma proporção pra
+     manter o ritmo de leitura de cada frase, sem passar rápido demais. */
+  animation: lp-marquee-scroll 70s linear infinite;
 }
 /* Pausa a rolagem ao passar o mouse — dá tempo de ler */
 .lp-marquee:hover .lp-marquee-track { animation-play-state: paused; }
