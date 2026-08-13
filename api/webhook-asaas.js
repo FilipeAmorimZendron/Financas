@@ -192,13 +192,18 @@ async function userIdPeloEmail(email) {
 }
 
 /* Descobre o plano a partir do valor pago, quando não sabemos pela referência.
-   Precisa bater com os preços de criar-checkout.js. */
+   Precisa bater com os preços de criar-checkout.js.
+   Desde a virada pro plano único (R$ 27,90/mês), só existe uma venda nova
+   possível — "premium" — mas os limites continuam aqui porque assinantes
+   antigos (Premium R$25,90, Master R$47,90/mês, e os dois com desconto
+   anual) continuam renovando nesses valores até cancelarem. R$ 27,90 já
+   cai certinho no último "return premium" (é menor que 40). */
 function planoPeloValor(valor) {
   const v = Number(valor) || 0;
-  if (v >= 400) return "master";   // anual master (488,40)
-  if (v >= 200) return "premium";  // anual premium (264,00)
-  if (v >= 40)  return "master";   // mensal master (47,90)
-  return "premium";                // mensal premium (25,90)
+  if (v >= 400) return "master";   // anual master antigo (488,40)
+  if (v >= 200) return "premium";  // anual premium antigo (264,00)
+  if (v >= 40)  return "master";   // mensal master antigo (47,90)
+  return "premium";                // mensal premium antigo (25,90) e plano único novo (27,90)
 }
 
 // Eventos que significam "pagou / assinatura ativa"

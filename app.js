@@ -662,21 +662,22 @@ async function verificarLoginOAuth() {
     const user = await res.json();
 
     localStorage.setItem("fp_token", accessToken);
-    localStorage.setItem("fp_user", JSON.stringify({ email: user.email, id: user.id }));
-    state.user = { email: user.email, id: user.id };
+    localStorage.setItem("fp_user", JSON.stringify({ email: user.email, id: user.id, createdAt: user.created_at || null }));
+    state.user = { email: user.email, id: user.id, createdAt: user.created_at || null };
     document.getElementById("userEmail").textContent = state.user.email;
 
     await carregarDadosNuvem();
-    esconderSplash();
-    mostrarTelaApp();
-    renderTudo();
-    injetarBotoesGuia();
-    trocarTela("dashboard");
     await tratarRetornoAssinatura();
-    toast(`Bem-vindo, ${state.user.email}! 👋`, "success");
-    atualizarCDI().then(() => renderTudo()).catch(() => {});
-    if (!localStorage.getItem("fp_onboarding_done")) {
-      setTimeout(() => mostrarOnboarding(), 600);
+    esconderSplash();
+    if (mostrarAppOuPaywall()) {
+      renderTudo();
+      injetarBotoesGuia();
+      trocarTela("dashboard");
+      toast(`Bem-vindo, ${state.user.email}! 👋`, "success");
+      atualizarCDI().then(() => renderTudo()).catch(() => {});
+      if (!localStorage.getItem("fp_onboarding_done")) {
+        setTimeout(() => mostrarOnboarding(), 600);
+      }
     }
   } catch (e) {
     esconderSplash();
@@ -944,34 +945,78 @@ function mostrarTelaLogin() {
 function mostrarTelaApp() {
   document.getElementById("landing").style.display = "none";
   document.getElementById("telaLogin").style.display = "none";
+  const telaAssinar = document.getElementById("telaAssinar");
+  if (telaAssinar) telaAssinar.style.display = "none";
   document.getElementById("appLayout").style.display = "flex";
   document.body.style.overflow = "";
+}
 
-  // Se a pessoa clicou em "Assinar Premium/Master" na landing antes de
-  // criar a conta, levamos ela direto para a tela de Planos com o plano
-  // escolhido em destaque — para não perder a intenção de compra.
-  let planoPendente = null;
-  try { planoPendente = localStorage.getItem("fp_plano_pendente"); } catch (e) {}
-  if (planoPendente === "premium" || planoPendente === "master") {
-    try { localStorage.removeItem("fp_plano_pendente"); } catch (e) {}
-    // Espera o app montar antes de navegar e destacar.
-    setTimeout(() => destacarPlanoEscolhido(planoPendente), 600);
+/* Tela de assinatura obrigatória. Não existe mais conta grátis: quem não
+   tem assinatura ativa (e não é um usuário de antes do plano único, ver
+   usuarioAnteriorAoPlanoUnico) cai aqui em vez de ver o app. */
+function mostrarTelaAssinar() {
+  document.getElementById("landing").style.display = "none";
+  document.getElementById("telaLogin").style.display = "none";
+  document.getElementById("appLayout").style.display = "none";
+  const tela = document.getElementById("telaAssinar");
+  if (tela) tela.style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+/* Chamada depois que os dados da nuvem (e um eventual retorno do checkout)
+   já foram processados: decide se libera o app ou manda pra tela de
+   assinar. Devolve true se liberou — usada nos três lugares onde uma
+   sessão termina de ser estabelecida (login por senha, login social e
+   restauração de sessão salva) para só rodar o resto do fluxo (render,
+   onboarding, etc.) quando o app realmente vai aparecer. */
+function mostrarAppOuPaywall() {
+  if (planoAtual() === "basico") {
+    mostrarTelaAssinar();
+    return false;
+  }
+  mostrarTelaApp();
+  return true;
+}
+
+/* Inicia o checkout do plano único — usada na tela de assinatura
+   obrigatória, no cadastro fundido e na landing. */
+async function assinarPlanoUnico() {
+  if (!state.user || !state.user.id) {
+    toast("Faça login para assinar.", "error");
+    return;
+  }
+  const btn = document.getElementById("btnAssinarAgora");
+  if (btn) { btn.disabled = true; btn.textContent = "Preparando pagamento..."; }
+  else toast("Preparando pagamento...", "info");
+  try {
+    const resp = await fetch("/api/criar-checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: state.user.email,
+        nome: state.perfil?.nome || null,
+        token: localStorage.getItem("fp_token") || ""
+      })
+    });
+    const dados = await resp.json();
+    if (!resp.ok || !dados.url) {
+      toast(dados.erro || "Não foi possível iniciar o pagamento. Tente de novo.", "error");
+      return;
+    }
+    if (typeof fbq === "function") {
+      try { fbq("track", "InitiateCheckout", { value: 27.90, currency: "BRL", content_name: "faz_unico" }); } catch(e){}
+    }
+    window.location.href = dados.url;
+  } catch (e) {
+    toast("Erro de conexão. Tente novamente.", "error");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Assinar agora"; }
   }
 }
 
-/* Abre a tela de Planos e destaca o plano que a pessoa escolheu na landing */
-function destacarPlanoEscolhido(plano) {
-  trocarTela("planos");
-  const id = plano === "master" ? "planoCardMaster" : "planoCardPremium";
-  const card = document.getElementById(id);
-  if (!card) return;
-  setTimeout(() => {
-    card.scrollIntoView({ behavior: "smooth", block: "center" });
-    card.classList.add("plano-card-escolhido");
-    // Remove o realce depois de um tempo para não ficar permanente
-    setTimeout(() => card.classList.remove("plano-card-escolhido"), 3200);
-  }, 250);
-}
+/* Sair a partir da tela de assinatura obrigatória, sem confirmação extra
+   (quem está aqui ainda não é cliente de verdade — não tem nada "a perder"). */
+function sairDaAssinatura() { fazerLogout(false); }
 
 /* ============================================================
    RETORNO DO CHECKOUT (Asaas)
@@ -1009,7 +1054,7 @@ async function tratarRetornoAssinatura() {
       if (plano === "premium" || plano === "master") {
         renderTudo();
         mostrarLoading(false);
-        toast(`Pagamento confirmado! Seu plano ${plano === "master" ? "Master" : "Premium"} já está ativo. 🎉`, "success");
+        toast("Pagamento confirmado! Sua assinatura já está ativa. 🎉", "success");
         return;
       }
       // Na metade do caminho, pergunta direto ao Asaas em vez de só esperar.
@@ -1035,7 +1080,7 @@ async function tratarRetornoAssinatura() {
             await carregarDadosNuvem();
             renderTudo();
             mostrarLoading(false);
-            toast(`Pagamento confirmado! Seu plano ${dados.plano === "master" ? "Master" : "Premium"} já está ativo. 🎉`, "success");
+            toast("Pagamento confirmado! Sua assinatura já está ativa. 🎉", "success");
             return;
           }
         } catch (e) {
@@ -1085,18 +1130,20 @@ document.getElementById("formLogin")?.addEventListener("submit", async e => {
   try {
     const data = await sbLogin(email, senha);
     localStorage.setItem("fp_token", data.access_token);
-    localStorage.setItem("fp_user",  JSON.stringify({ email: data.user.email, id: data.user.id }));
-    state.user = { email: data.user.email, id: data.user.id };
+    localStorage.setItem("fp_user",  JSON.stringify({ email: data.user.email, id: data.user.id, createdAt: data.user.created_at || null }));
+    state.user = { email: data.user.email, id: data.user.id, createdAt: data.user.created_at || null };
     document.getElementById("userEmail").textContent = state.user.email;
     await carregarDadosNuvem();
-    mostrarTelaApp();
-    renderTudo();
-    trocarTela("dashboard");
-    toast(`Bem-vindo, ${email}! 👋`, "success");
-    atualizarCDI().then(() => renderTudo()).catch(() => {});
-    // Onboarding para novo usuário
-    if (!localStorage.getItem("fp_onboarding_done")) {
-      setTimeout(() => mostrarOnboarding(), 600);
+    await tratarRetornoAssinatura();
+    if (mostrarAppOuPaywall()) {
+      renderTudo();
+      trocarTela("dashboard");
+      toast(`Bem-vindo, ${email}! 👋`, "success");
+      atualizarCDI().then(() => renderTudo()).catch(() => {});
+      // Onboarding para novo usuário
+      if (!localStorage.getItem("fp_onboarding_done")) {
+        setTimeout(() => mostrarOnboarding(), 600);
+      }
     }
   } catch(err) {
     tratarErro(err);
@@ -1105,7 +1152,11 @@ document.getElementById("formLogin")?.addEventListener("submit", async e => {
   }
 });
 
-/* Cadastro */
+/* Cadastro — fundido com a assinatura: não existe mais plano grátis, então
+   criar a conta já leva direto pro pagamento, sem passar pelo app antes.
+   Só funciona sem esperar confirmação de e-mail porque o Supabase deste
+   projeto está com autoconfirmação ligada (senão o /auth/v1/signup não
+   devolveria sessão nenhuma aqui). */
 document.getElementById("formCadastro")?.addEventListener("submit", async e => {
   e.preventDefault();
   const email = document.getElementById("cadEmail").value.trim();
@@ -1120,33 +1171,48 @@ document.getElementById("formCadastro")?.addEventListener("submit", async e => {
   if (senha !== conf) { toast("As senhas não coincidem.", "error"); return; }
   if (senha.length < 6) { toast("A senha deve ter pelo menos 6 caracteres.", "error"); return; }
   const btn = e.target.querySelector("button[type=submit]");
-  btn.disabled = true; btn.textContent = "Cadastrando...";
+  btn.disabled = true; btn.textContent = "Criando conta...";
   try {
-    await sbCadastro(email, senha);
+    const data = await sbCadastro(email, senha);
     // Registra o consentimento (data e versão dos termos aceitos)
     localStorage.setItem("fp_consentimento", JSON.stringify({
       email, aceitoEm: new Date().toISOString(), versaoTermos: "1.0"
     }));
-    toast("Conta criada! Verifique seu e-mail para confirmar, depois faça login.", "success");
-    mostrarTela("login");
-    document.getElementById("loginEmail").value = email;
+
+    if (data?.access_token && data?.user) {
+      // Conta já vem confirmada e logada: manda direto pro checkout.
+      localStorage.setItem("fp_token", data.access_token);
+      localStorage.setItem("fp_user", JSON.stringify({ email: data.user.email, id: data.user.id, createdAt: data.user.created_at || null }));
+      state.user = { email: data.user.email, id: data.user.id, createdAt: data.user.created_at || null };
+      fecharAuth();
+      await assinarPlanoUnico();
+    } else {
+      // Extremamente improvável com autoconfirmação ligada, mas cobre o
+      // caso de ela ser desligada no futuro sem alguém lembrar de ajustar aqui.
+      toast("Conta criada! Verifique seu e-mail para confirmar, depois faça login.", "success");
+      mostrarTela("login");
+      document.getElementById("loginEmail").value = email;
+    }
   } catch(err) {
     tratarErro(err);
   } finally {
-    btn.disabled = false; btn.textContent = "Criar conta";
+    btn.disabled = false; btn.textContent = "Criar conta e assinar";
   }
 });
 
-/* Logout */
-document.getElementById("btnLogout")?.addEventListener("click", async () => {
-  const ok = await confirmar("Sair da sua conta?", { tipo: "neutro", descricao: "Você pode entrar de novo quando quiser.", okLabel: "Sair" });
-  if (!ok) return;
+/* Logout — compartilhado entre o menu da conta e a tela de assinatura obrigatória */
+async function fazerLogout(pedirConfirmacao = true) {
+  if (pedirConfirmacao) {
+    const ok = await confirmar("Sair da sua conta?", { tipo: "neutro", descricao: "Você pode entrar de novo quando quiser.", okLabel: "Sair" });
+    if (!ok) return;
+  }
   await sbLogout();
   state.bancos = state.movimentos = state.transferencias = state.recorrencias = state.metas = [];
   state.objetivos = state.investimentos = [];
   state.user = null;
   mostrarTelaLogin();
-});
+}
+document.getElementById("btnLogout")?.addEventListener("click", () => fazerLogout(true));
 
 /* ─── DOM refs ───────────────────────────────────────────── */
 const menuItems = document.querySelectorAll(".menu-item");
@@ -1626,7 +1692,7 @@ function calcularAvisos() {
       avisos.push({
         tipo: "cartao",
         titulo: "Assinatura cancelada",
-        texto: `Seu plano ${nomePlanoAviso || "pago"} segue ativo até ${dataBonita}. Depois dessa data, sua conta volta para o plano grátis. Você pode assinar de novo quando quiser.`,
+        texto: `Sua assinatura segue ativa até ${dataBonita}. Depois dessa data, o acesso é bloqueado até você assinar de novo.`,
         prioridade: 2,
         acao: "trocarTela('planos')"
       });
@@ -3745,7 +3811,7 @@ formBanco?.addEventListener("submit", async e => {
   // Bloqueio de plano: básico pode ter no máximo N contas
   const limiteContas = limitesAtuais().contas;
   if ((state.bancos?.length || 0) >= limiteContas) {
-    pedirUpgrade(`O plano gratuito permite até ${limiteContas} contas. Nos planos pagos não há limite.`, "Limite de contas");
+    pedirUpgrade("Cadastrar contas é um recurso de quem assina o FAZ Finanças.", "Assine para continuar");
     return;
   }
   try {
@@ -4110,9 +4176,9 @@ formImportarExtrato?.addEventListener("submit", async e => {
     return;
   }
 
-  // Recurso pago: importar extrato é do Premium e Master
+  // Recurso pago: importar extrato exige assinatura ativa
   if (!podeUsar("importarExtrato")) {
-    pedirUpgrade("A leitura de extrato está disponível nos planos Premium e Master.", "Importar extrato");
+    pedirUpgrade("A leitura de extrato está disponível pra quem assina o FAZ Finanças.", "Importar extrato");
     return;
   }
 
@@ -4288,7 +4354,7 @@ async function enviarExtratoNoChat(arquivo) {
   };
 
   if (!podeUsar("importarExtrato")) {
-    addChat("A leitura de extrato está disponível nos planos Premium e Master.", "ia");
+    addChat("A leitura de extrato está disponível pra quem assina o FAZ Finanças.", "ia");
     return;
   }
   if (arquivo.size > 5 * 1024 * 1024) {
@@ -5290,7 +5356,7 @@ formMeta?.addEventListener("submit", async e => {
       // Bloqueio de plano: básico pode ter no máximo N metas
       const limiteMetas = limitesAtuais().metas;
       if ((state.metas?.length || 0) >= limiteMetas) {
-        pedirUpgrade(`O plano gratuito permite até ${limiteMetas} metas. Nos planos pagos não há limite.`, "Limite de metas");
+        pedirUpgrade("Criar metas é um recurso de quem assina o FAZ Finanças.", "Assine para continuar");
         return;
       }
       const novo = await dbInsert("metas", { categoria:cat, limite });
@@ -7731,23 +7797,24 @@ const DOCUMENTOS = {
     titulo: "Assinatura",
     corpo: `
       <div class="doc-plano">
-        <div class="doc-plano-tag">Plano atual</div>
-        <div class="doc-plano-nome">Grátis</div>
-        <p class="doc-plano-desc">Você tem acesso completo a todas as funcionalidades, sem custo.</p>
+        <div class="doc-plano-tag">Plano único</div>
+        <div class="doc-plano-nome">R$ 27,90/mês</div>
+        <p class="doc-plano-desc">Um plano só, com acesso completo a todas as funcionalidades. Cancele quando quiser.</p>
       </div>
 
       <h4>O que está incluído</h4>
       <ul>
         <li>Contas, lançamentos e transferências ilimitados</li>
         <li>Contas a pagar e receber, com recorrências</li>
+        <li>Assistente de IA financeiro</li>
         <li>Investimentos e simulador de rendimento</li>
         <li>Metas e objetivos de economia</li>
+        <li>Importar extrato e exportar relatórios</li>
         <li>Sincronização entre dispositivos</li>
-        <li>Exportação dos seus dados a qualquer momento</li>
       </ul>
 
-      <h4>E no futuro?</h4>
-      <p>Se planos pagos forem lançados, quem já usa o FAZ será avisado com antecedência — e nunca perderá acesso aos próprios dados.</p>
+      <h4>Cobrança</h4>
+      <p>A cobrança é mensal, no cartão de crédito, com renovação automática. Cancele quando quiser dentro do app — o acesso continua valendo até o fim do período já pago.</p>
     `
   },
   termos: {
@@ -8298,12 +8365,9 @@ function abrirAuth(qual) {
   }, 120);
 }
 
-/* Clicou em "Assinar Premium/Master" na landing:
-   guarda o plano escolhido e abre o cadastro. Quando a pessoa
-   terminar de entrar no app, cai direto na tela de Planos com
-   o plano dela em destaque (ver mostrarTelaApp). */
-function assinarNaLanding(plano) {
-  try { localStorage.setItem("fp_plano_pendente", plano); } catch (e) {}
+/* Clicou em "Assinar" na landing: abre o cadastro. Plano único agora —
+   criar a conta já leva direto pro pagamento (ver o listener do formCadastro). */
+function assinarNaLanding() {
   abrirAuth("cadastro");
 }
 
@@ -8657,10 +8721,15 @@ function mapPerfil(p) {
    Lê o plano do usuário (de state.perfil) e diz o que ele pode.
    ============================================================ */
 
-/* Limites de cada plano. Ajustável com o tempo. */
+/* Limites de cada plano. Desde a virada pro plano único, não existe mais
+   conta grátis: "basico" (sem assinatura ativa) não libera nada — nem
+   contas nem metas. "premium" é o único plano à venda hoje (R$ 27,90/mês,
+   com tudo incluso); "master" continua valendo do mesmo jeito só porque
+   ainda existem assinantes antigos com esse valor gravado no perfil —
+   não precisou migrar ninguém no banco, os dois viram o mesmo acesso aqui. */
 const LIMITES_PLANO = {
-  basico:  { contas: 2,        metas: 5,        investimentos: false, recorrencias: false, relatorios: false, exportar: false, ia: false, importarExtrato: false, conectarBanco: false },
-  premium: { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true,  ia: true,  importarExtrato: true,  conectarBanco: false },
+  basico:  { contas: 0,        metas: 0,        investimentos: false, recorrencias: false, relatorios: false, exportar: false, ia: false, importarExtrato: false, conectarBanco: false },
+  premium: { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true,  ia: true,  importarExtrato: true,  conectarBanco: true },
   master:  { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true,  ia: true,  importarExtrato: true,  conectarBanco: true }
 };
 
@@ -8669,11 +8738,27 @@ const LIMITES_PLANO = {
    Precisa bater com o DIAS_TOLERANCIA do webhook. */
 const DIAS_TOLERANCIA_PLANO = 5;
 
+/* Data/hora em que o plano único (sem conta grátis) entrou em vigor.
+   Quem já tinha conta ANTES disso é "da casa": mantém acesso completo de
+   graça, sem precisar assinar — foi o combinado ao tirar o plano Básico
+   do ar. Ninguém que já usava de graça perde acesso do dia pra noite.
+   Não precisa mexer no banco pra isso: compara com a data de criação da
+   conta no Supabase Auth (state.user.createdAt), guardada no login. */
+const CORTE_PLANO_UNICO = "2026-08-13T17:50:58Z";
+function usuarioAnteriorAoPlanoUnico() {
+  const criada = state.user?.createdAt;
+  if (!criada) return false;   // sem a data (ex: sessão antiga sem cache) -> não arrisca, trata como novo
+  return new Date(criada).getTime() < new Date(CORTE_PLANO_UNICO).getTime();
+}
+
 /* Retorna o plano ATIVO do usuário.
    "ativa"    -> acesso liberado
    "atrasada" -> acesso mantido durante a tolerância, depois cai
-   qualquer outro -> básico */
+   qualquer outro -> básico (sem acesso — precisa assinar) */
 function planoAtual() {
+  // Usuário de antes do plano único: acesso completo garantido, sempre.
+  if (usuarioAnteriorAoPlanoUnico()) return "premium";
+
   const p = state.perfil || {};
   const status = p.assinaturaStatus || "inativa";
   const plano  = p.plano || "basico";
@@ -8698,7 +8783,7 @@ function planoAtual() {
     if (aindaVale) return plano;
   }
 
-  // cancelada_falta_pagamento, inativa e qualquer outro: sem acesso pago
+  // cancelada_falta_pagamento, inativa e qualquer outro: sem acesso — precisa assinar
   return "basico";
 }
 
@@ -8864,12 +8949,12 @@ const SECOES_PREMIUM = {
   investimentos: {
     recurso: "investimentos",
     titulo: "Investimentos",
-    desc: "Este recurso está disponível a partir do plano Premium."
+    desc: "Este recurso é exclusivo de quem assina o FAZ Finanças."
   },
   recorrencias: {
     recurso: "recorrencias",
     titulo: "Contas recorrentes",
-    desc: "Este recurso está disponível a partir do plano Premium."
+    desc: "Este recurso é exclusivo de quem assina o FAZ Finanças."
   }
 };
 
@@ -10294,18 +10379,34 @@ async function iniciar() {
   if (tokenSalvo && userSalvo) {
     try {
       state.user = JSON.parse(userSalvo);
+      // Sessões salvas antes do login guardar createdAt (versões antigas do
+      // app) não têm essa data em cache — busca uma vez e completa o cache,
+      // senão usuarioAnteriorAoPlanoUnico() nunca reconheceria essa conta.
+      if (!state.user.createdAt) {
+        try {
+          const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${tokenSalvo}` }
+          });
+          if (res.ok) {
+            const u = await res.json();
+            state.user.createdAt = u.created_at || null;
+            localStorage.setItem("fp_user", JSON.stringify(state.user));
+          }
+        } catch (e) { /* segue sem — cai no caminho conservador (trata como novo) */ }
+      }
       document.getElementById("userEmail").textContent = state.user.email;
       await carregarDadosNuvem();
-      esconderSplash();
-      mostrarTelaApp();
-      renderTudo();
-      injetarBotoesGuia();
-      trocarTela("dashboard");
       await tratarRetornoAssinatura();
+      esconderSplash();
+      if (mostrarAppOuPaywall()) {
+        renderTudo();
+        injetarBotoesGuia();
+        trocarTela("dashboard");
 
-      // Busca a taxa CDI atual em segundo plano (não trava a tela).
-      // Sem isso, os rendimentos de CDB/LCI/Tesouro usariam o valor fixo do código.
-      atualizarCDI().then(() => renderTudo()).catch(() => {});
+        // Busca a taxa CDI atual em segundo plano (não trava a tela).
+        // Sem isso, os rendimentos de CDB/LCI/Tesouro usariam o valor fixo do código.
+        atualizarCDI().then(() => renderTudo()).catch(() => {});
+      }
     } catch(e) {
       localStorage.removeItem("fp_token");
       localStorage.removeItem("fp_user");
@@ -10325,89 +10426,8 @@ async function iniciar() {
 }
 
 iniciar();
-/* ============================================================
-   TELA DE PLANOS (v40)
-   Toggle mensal/anual troca os valores via data-attributes.
-   A cobrança real (Asaas) será ligada depois.
-   ============================================================ */
-(function initPlanos() {
-  const toggle = document.getElementById("planosToggle");
-  if (!toggle) return;
-
-  function aplicarCiclo(ciclo) {
-    // Atualiza cada elemento que tem data-mensal / data-anual
-    document.querySelectorAll("#screen-planos [data-mensal]").forEach(el => {
-      const val = el.dataset[ciclo];
-      if (val !== undefined) el.textContent = val;
-    });
-    // Marca o botão ativo
-    toggle.querySelectorAll(".planos-toggle-opt").forEach(b =>
-      b.classList.toggle("ativo", b.dataset.ciclo === ciclo));
-  }
-
-  toggle.addEventListener("click", e => {
-    const btn = e.target.closest(".planos-toggle-opt");
-    if (!btn) return;
-    aplicarCiclo(btn.dataset.ciclo);
-  });
-})();
-
-/* Chamada ao assinar — placeholder até integrar o Asaas */
-async function assinarPlano(plano) {
-  const ciclo = document.querySelector("#planosToggle .planos-toggle-opt.ativo")?.dataset.ciclo || "mensal";
-
-  // Precisa estar logado
-  if (!state.user || !state.user.id) {
-    toast("Faça login para assinar.", "error");
-    return;
-  }
-
-  toast("Preparando pagamento...", "info");
-
-  try {
-    const resp = await fetch("/api/criar-checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        plano: plano,
-        ciclo: ciclo,
-        email: state.user.email,
-        nome: state.perfil?.nome || null,
-        token: localStorage.getItem("fp_token") || ""
-      })
-    });
-
-    const dados = await resp.json();
-
-    if (!resp.ok || !dados.url) {
-      toast(dados.erro || "Não foi possível iniciar o pagamento. Tente de novo.", "error");
-      return;
-    }
-
-    // Pixel: iniciou o checkout (clicou para assinar). Manda o valor para o
-    // Facebook conseguir otimizar por quem tem mais chance de pagar.
-    if (typeof fbq === "function") {
-      try {
-        const precos = {
-          premium: { mensal: 25.90, anual: 264.00 },
-          master:  { mensal: 47.90, anual: 488.40 }
-        };
-        const valor = (precos[plano] && precos[plano][ciclo]) || 0;
-        fbq("track", "InitiateCheckout", {
-          value: valor,
-          currency: "BRL",
-          content_name: `${plano}_${ciclo}`
-        });
-      } catch(e){}
-    }
-
-    // Redireciona para a página de pagamento do Asaas
-    window.location.href = dados.url;
-
-  } catch (e) {
-    toast("Erro de conexão. Tente novamente.", "error");
-  }
-}
+/* Tela de Planos e checkout do plano único: ver assinarPlanoUnico(),
+   mostrarTelaAssinar() e mostrarAppOuPaywall(), definidas mais acima. */
 
 // Liga o sino de notificações ao carregar
 /* Monta um resumo compacto das finanças do usuário para enviar à IA.
@@ -11423,7 +11443,7 @@ const ACOES_IA = {
         return { erro: "O usuário não tem conta cadastrada, então não dá para criar um gasto fixo. Explique que ele precisa cadastrar o banco primeiro, em Adicionar Banco." };
       }
       if (typeof podeUsar === "function" && !podeUsar("recorrencias")) {
-        return { erro: "Gastos fixos são um recurso dos planos pagos e o usuário está no plano gratuito. Explique que cadastrando uma vez o app cuida dos vencimentos, e que isso está no Premium e no Master." };
+        return { erro: "Gastos fixos são um recurso exclusivo de quem assina o FAZ Finanças. Explique que cadastrando uma vez o app cuida dos vencimentos sozinho." };
       }
 
       const p = {};
@@ -12168,21 +12188,10 @@ async function executarAcaoIA(acao) {
 
         if (!resp.ok) {
           tirarCarregando();
-          // Limite atingido
+          // Limite atingido (mesmo limite pra todo mundo agora — plano único,
+          // sem upgrade pra oferecer, então só avisa e explica quando recarrega)
           if (dados.erro === "limite") {
-            const div = addMsg(dados.motivo || "Você atingiu o limite de perguntas.", "ia");
-            // Não tira o usuário do chat: oferece o caminho, ele decide
-            if (dados.plano === "premium" && div) {
-              const btn = document.createElement("button");
-              btn.type = "button";
-              btn.className = "ia-btn-planos";
-              btn.textContent = "Ver planos";
-              btn.onclick = function () {
-                minimizar();
-                irParaPlanos("Limite de perguntas", "No Master você tem 100 perguntas por mês.");
-              };
-              div.appendChild(btn);
-            }
+            addMsg(dados.motivo || "Você atingiu o limite de perguntas por agora.", "ia");
             return;
           }
           // Precisa de upgrade (básico)
@@ -12275,7 +12284,7 @@ async function executarAcaoIA(acao) {
       if (e.target.closest("#iaFab") || e.target.closest("#iaFabMobile")) {
         e.preventDefault();
         if (typeof ehPremium === "function" && !ehPremium()) {
-          pedirUpgrade("O assistente de IA está disponível nos planos Premium e Master.", "Assistente de IA");
+          pedirUpgrade("O assistente de IA está disponível pra quem assina o FAZ Finanças.", "Assistente de IA");
           return;
         }
         abrir();

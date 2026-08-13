@@ -1421,78 +1421,33 @@
           <div class="planos-motivo" id="planosMotivo" hidden></div>
 
           <div class="planos-topo">
-            <h2 class="planos-titulo">Escolha seu plano</h2>
-            <p class="planos-sub">Comece grátis. Suba de nível quando quiser.</p>
-
-            <div class="planos-toggle" id="planosToggle">
-              <button type="button" class="planos-toggle-opt ativo" data-ciclo="mensal">Mensal</button>
-              <button type="button" class="planos-toggle-opt" data-ciclo="anual">Anual <span class="planos-toggle-badge">economize</span></button>
-            </div>
+            <h2 class="planos-titulo">Assine o FAZ Finanças</h2>
+            <p class="planos-sub">Um plano só, com tudo incluso. Sem pegadinha.</p>
           </div>
 
-          <div class="planos-grid">
+          <div class="planos-grid planos-grid-unico">
 
-            <!-- Básico -->
-            <div class="plano-card">
-              <div class="plano-nome">Básico</div>
-              <div class="plano-preco"><span class="plano-preco-valor">Grátis</span></div>
-              <div class="plano-preco-nota">para sempre</div>
-              <button class="plano-btn plano-btn-atual" disabled>Plano atual</button>
-              <ul class="plano-lista">
-                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Até 2 contas</li>
-                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Lançamentos e dashboard</li>
-                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Até 5 metas</li>
-                <li class="plano-item-off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Assistente de IA</li>
-                <li class="plano-item-off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Investimentos e recorrências</li>
-                <li class="plano-item-off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Conexão bancária automática</li>
-              </ul>
-            </div>
-
-            <!-- Premium -->
-            <div class="plano-card plano-card-destaque" id="planoCardPremium">
-              <div class="plano-selo">Mais popular</div>
-              <div class="plano-nome">Premium</div>
+            <!-- Plano único -->
+            <div class="plano-card plano-card-destaque" id="planoCardUnico">
+              <div class="plano-selo">Plano único</div>
+              <div class="plano-nome">FAZ Finanças</div>
               <div class="plano-preco">
                 <span class="plano-preco-moeda">R$</span>
-                <span class="plano-preco-valor" data-mensal="25,90" data-anual="22,00">25,90</span>
+                <span class="plano-preco-valor">27,90</span>
                 <span class="plano-preco-ciclo">/mês</span>
               </div>
-              <div class="plano-preco-nota" data-mensal="cobrado mensalmente" data-anual="R$ 264,00/ano, economize R$ 46,80">cobrado mensalmente</div>
-              <button class="plano-btn plano-btn-primario" onclick="assinarPlano('premium')">Assinar Premium</button>
+              <div class="plano-preco-nota">cobrado mensalmente</div>
+              <button class="plano-btn plano-btn-primario" onclick="assinarPlanoUnico()">Assinar agora</button>
               <div class="plano-ia-box">
                 <span class="plano-ia-titulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></svg> IA completa</span>
-                <span class="plano-ia-desc">Seu assistente financeiro, com 25 perguntas por mês</span>
+                <span class="plano-ia-desc">Seu assistente financeiro, com 100 perguntas (recarrega a cada 3h)</span>
               </div>
               <ul class="plano-lista">
-                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Contas ilimitadas</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Contas, metas e lançamentos ilimitados</li>
                 <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Investimentos e cripto ao vivo</li>
-                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Metas e recorrências ilimitadas</li>
-                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Importar extrato (CSV/OFX) e exportar relatórios</li>
-              </ul>
-            </div>
-
-            <!-- Master -->
-            <div class="plano-card plano-card-master" id="planoCardMaster">
-              <div class="plano-selo plano-selo-master">Completo</div>
-              <div class="plano-nome">Master</div>
-              <div class="plano-preco">
-                <span class="plano-preco-moeda">R$</span>
-                <span class="plano-preco-valor" data-mensal="47,90" data-anual="40,70">47,90</span>
-                <span class="plano-preco-ciclo">/mês</span>
-              </div>
-              <div class="plano-preco-nota" data-mensal="cobrado mensalmente" data-anual="R$ 488,40/ano, economize R$ 86,40">cobrado mensalmente</div>
-              <button class="plano-btn plano-btn-master" onclick="assinarPlano('master')">Assinar Master</button>
-              <div class="plano-ia-box plano-ia-box-master">
-                <span class="plano-ia-titulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></svg> IA completa e ilimitada</span>
-                <span class="plano-ia-desc">Seu consultor pessoal, sempre disponível</span>
-              </div>
-              <div class="plano-tudo-premium">Tudo do Premium, e mais:</div>
-              <ul class="plano-lista">
-                <li class="plano-item-destaque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Conexão bancária automática <span class="plano-badge-breve">em breve</span></li>
-                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Seus gastos entram sozinhos, sem digitar</li>
-                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Perguntas ilimitadas à IA</li>
-                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Análise financeira aprofundada</li>
-                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Suporte prioritário</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Gastos fixos e recorrências</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Importar extrato (CSV/OFX/PDF/foto)</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Relatórios e exportação</li>
               </ul>
             </div>
 
@@ -2080,8 +2035,8 @@
     </div>
 
     <div class="lp-ia-cta reveal">
-      <button class="lp-btn-primary" onclick="rolarPara('planos')">Ver planos com IA</button>
-      <p class="lp-ia-nota">Disponível nos planos Premium e Master</p>
+      <button class="lp-btn-primary" onclick="rolarPara('planos')">Ver o plano com IA</button>
+      <p class="lp-ia-nota">Incluído no plano do FAZ Finanças</p>
     </div>
   </section>
 
@@ -2231,7 +2186,7 @@
             <div class="lp-depo-avatar">MS</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Marina Sampaio</div>
-              <div class="lp-depo-meta">Plano Master</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2242,7 +2197,7 @@
             <div class="lp-depo-avatar">RM</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Rafael Monteiro</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2253,7 +2208,7 @@
             <div class="lp-depo-avatar">CR</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Camila Ribeiro</div>
-              <div class="lp-depo-meta">Plano Master</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2264,7 +2219,7 @@
             <div class="lp-depo-avatar">DA</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Diego Almeida</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2275,7 +2230,7 @@
             <div class="lp-depo-avatar">PL</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Patrícia Lourenço</div>
-              <div class="lp-depo-meta">Plano Master</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2286,7 +2241,7 @@
             <div class="lp-depo-avatar">LF</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Lucas Fernandes</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2297,7 +2252,7 @@
             <div class="lp-depo-avatar">BC</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Bruna Carvalho</div>
-              <div class="lp-depo-meta">Plano Grátis</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2308,7 +2263,7 @@
             <div class="lp-depo-avatar">TN</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Thiago Nunes</div>
-              <div class="lp-depo-meta">Plano Master</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2319,7 +2274,7 @@
             <div class="lp-depo-avatar">AR</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Aline Rocha</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2330,7 +2285,7 @@
             <div class="lp-depo-avatar">GP</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Gustavo Pereira</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2341,7 +2296,7 @@
             <div class="lp-depo-avatar">FD</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Fernanda Dias</div>
-              <div class="lp-depo-meta">Plano Master</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2352,7 +2307,7 @@
             <div class="lp-depo-avatar">RA</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Ricardo Alves</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2363,7 +2318,7 @@
             <div class="lp-depo-avatar">JC</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Juliana Castro</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2374,7 +2329,7 @@
             <div class="lp-depo-avatar">PH</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Pedro Henrique</div>
-              <div class="lp-depo-meta">Plano Grátis</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2385,7 +2340,7 @@
             <div class="lp-depo-avatar">LM</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Larissa Moura</div>
-              <div class="lp-depo-meta">Plano Master</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2396,7 +2351,7 @@
             <div class="lp-depo-avatar">MS</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Marina Sampaio</div>
-              <div class="lp-depo-meta">Plano Master</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2407,7 +2362,7 @@
             <div class="lp-depo-avatar">RM</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Rafael Monteiro</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2418,7 +2373,7 @@
             <div class="lp-depo-avatar">CR</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Camila Ribeiro</div>
-              <div class="lp-depo-meta">Plano Master</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2429,7 +2384,7 @@
             <div class="lp-depo-avatar">DA</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Diego Almeida</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2440,7 +2395,7 @@
             <div class="lp-depo-avatar">PL</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Patrícia Lourenço</div>
-              <div class="lp-depo-meta">Plano Master</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2451,7 +2406,7 @@
             <div class="lp-depo-avatar">LF</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Lucas Fernandes</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2462,7 +2417,7 @@
             <div class="lp-depo-avatar">BC</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Bruna Carvalho</div>
-              <div class="lp-depo-meta">Plano Grátis</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2473,7 +2428,7 @@
             <div class="lp-depo-avatar">TN</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Thiago Nunes</div>
-              <div class="lp-depo-meta">Plano Master</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2484,7 +2439,7 @@
             <div class="lp-depo-avatar">AR</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Aline Rocha</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2495,7 +2450,7 @@
             <div class="lp-depo-avatar">GP</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Gustavo Pereira</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2506,7 +2461,7 @@
             <div class="lp-depo-avatar">FD</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Fernanda Dias</div>
-              <div class="lp-depo-meta">Plano Master</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2517,7 +2472,7 @@
             <div class="lp-depo-avatar">RA</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Ricardo Alves</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2528,7 +2483,7 @@
             <div class="lp-depo-avatar">JC</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Juliana Castro</div>
-              <div class="lp-depo-meta">Plano Premium</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2539,7 +2494,7 @@
             <div class="lp-depo-avatar">PH</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Pedro Henrique</div>
-              <div class="lp-depo-meta">Plano Grátis</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2550,7 +2505,7 @@
             <div class="lp-depo-avatar">LM</div>
             <div class="lp-depo-info">
               <div class="lp-depo-autor">Larissa Moura</div>
-              <div class="lp-depo-meta">Plano Master</div>
+              <div class="lp-depo-meta">Cliente FAZ Finanças</div>
             </div>
           </div>
         </div>
@@ -2561,69 +2516,31 @@
   <!-- COMO FUNCIONA -->
   <section class="lp-secao lp-planos-secao lp-band-clara" id="planos">
     <div class="lp-secao-head reveal">
-      <p class="lp-eyebrow">Planos</p>
-      <h2 class="lp-h2">Comece de graça.<br>Cresça quando quiser.</h2>
-      <div class="lp-planos-toggle" id="lpPlanosToggle">
-        <button type="button" class="lp-toggle-opt ativo" data-ciclo="mensal">Mensal</button>
-        <button type="button" class="lp-toggle-opt" data-ciclo="anual">Anual <span class="lp-toggle-badge">-15%</span></button>
-      </div>
+      <p class="lp-eyebrow">Plano</p>
+      <h2 class="lp-h2">Um plano só.<br>Tudo incluso.</h2>
     </div>
 
-    <div class="lp-planos-grid">
-      <div class="lp-plano reveal">
-        <div class="lp-plano-nome">Básico</div>
-        <div class="lp-plano-preco"><span class="lp-plano-valor">Grátis</span></div>
-        <div class="lp-plano-nota">para sempre</div>
-        <button class="lp-plano-btn lp-plano-btn-ghost" onclick="abrirAuth('cadastro')">Criar conta grátis</button>
-        <ul class="lp-plano-lista">
-          <li>Até 2 contas</li>
-          <li>Lançamentos e dashboard</li>
-          <li>Até 5 metas</li>
-          <li class="lp-plano-off">Assistente de IA</li>
-          <li class="lp-plano-off">Investimentos e gastos fixos</li>
-          <li class="lp-plano-off">Conexão bancária automática</li>
-        </ul>
-      </div>
-
+    <div class="lp-planos-grid lp-planos-grid-unico">
       <div class="lp-plano lp-plano-destaque reveal">
-        <div class="lp-plano-selo">O mais escolhido</div>
-        <div class="lp-plano-nome">Premium</div>
-        <div class="lp-plano-preco"><span class="lp-plano-moeda">R$</span><span class="lp-plano-valor" data-mensal="25,90" data-anual="22,00">25,90</span><span class="lp-plano-ciclo">/mês</span></div>
-        <div class="lp-plano-nota" data-mensal="cobrado mensalmente" data-anual="R$ 264,00/ano, economize R$ 46,80">cobrado mensalmente</div>
-        <button class="lp-plano-btn lp-plano-btn-primary" onclick="assinarNaLanding('premium')">Assinar Premium</button>
+        <div class="lp-plano-selo">Plano único</div>
+        <div class="lp-plano-nome">FAZ Finanças</div>
+        <div class="lp-plano-preco"><span class="lp-plano-moeda">R$</span><span class="lp-plano-valor">27,90</span><span class="lp-plano-ciclo">/mês</span></div>
+        <div class="lp-plano-nota">cobrado mensalmente</div>
+        <button class="lp-plano-btn lp-plano-btn-primary" onclick="assinarNaLanding()">Assinar agora</button>
         <div class="lp-plano-ia">
           <span class="lp-plano-ia-titulo">IA completa</span>
-          <span class="lp-plano-ia-desc">Seu assistente financeiro, com 25 perguntas por mês</span>
+          <span class="lp-plano-ia-desc">Seu assistente financeiro, com 100 perguntas (recarrega a cada 3h)</span>
         </div>
         <ul class="lp-plano-lista">
-          <li>Contas ilimitadas</li>
+          <li>Contas, metas e lançamentos ilimitados</li>
           <li>Investimentos e cripto ao vivo</li>
-          <li>Metas e gastos fixos ilimitados</li>
-          <li>Importar extrato (CSV/OFX) e exportar relatórios</li>
-        </ul>
-      </div>
-
-      <div class="lp-plano lp-plano-master reveal">
-        <div class="lp-plano-selo lp-plano-selo-master">Sem limites</div>
-        <div class="lp-plano-nome">Master</div>
-        <div class="lp-plano-preco"><span class="lp-plano-moeda">R$</span><span class="lp-plano-valor" data-mensal="47,90" data-anual="40,70">47,90</span><span class="lp-plano-ciclo">/mês</span></div>
-        <div class="lp-plano-nota" data-mensal="cobrado mensalmente" data-anual="R$ 488,40/ano, economize R$ 86,40">cobrado mensalmente</div>
-        <button class="lp-plano-btn lp-plano-btn-master" onclick="assinarNaLanding('master')">Assinar Master</button>
-        <div class="lp-plano-ia lp-plano-ia-master">
-          <span class="lp-plano-ia-titulo">IA completa e ilimitada</span>
-          <span class="lp-plano-ia-desc">Seu consultor pessoal, sempre disponível</span>
-        </div>
-        <div class="lp-plano-tudo">Tudo do Premium, e mais:</div>
-        <ul class="lp-plano-lista">
-          <li class="lp-plano-destaque-item">Conexão bancária automática <span class="lp-plano-breve">em breve</span></li>
-          <li>Seus gastos entram sozinhos, sem digitar</li>
-          <li>Perguntas ilimitadas à IA</li>
-          <li>Análise financeira aprofundada</li>
-          <li>Suporte prioritário</li>
+          <li>Gastos fixos e recorrências</li>
+          <li>Importar extrato (CSV/OFX/PDF/foto)</li>
+          <li>Relatórios e exportação</li>
         </ul>
       </div>
     </div>
-    <p class="lp-planos-rodape">Todos os planos começam com a conta grátis. Você faz o upgrade dentro do app quando quiser.</p>
+    <p class="lp-planos-rodape">Cancele quando quiser. Pagamento seguro processado pelo Asaas.</p>
   </section>
 
   <!-- FAQ -->
@@ -2666,7 +2583,7 @@
 
       <details class="lp-faq-item reveal">
         <summary>Posso cancelar quando quiser?</summary>
-        <p>Pode, sem burocracia. Cancela o plano pago dentro do app quando quiser e continua na conta Básica, grátis pra sempre. Sem multa, sem ligação, sem letra miúda.</p>
+        <p>Pode, sem burocracia. Cancela dentro do app quando quiser — o acesso continua valendo até o fim do período que você já pagou. Sem multa, sem ligação, sem letra miúda.</p>
       </details>
     </div>
   </section>
@@ -2689,11 +2606,11 @@
   <!-- CTA FINAL -->
   <section class="lp-final reveal lp-band-forte">
     <div class="lp-final-card">
-      <span class="lp-final-badge">Comece grátis</span>
+      <span class="lp-final-badge">R$ 27,90/mês</span>
       <h2 class="lp-final-titulo">Pare de descobrir<br>no fim do mês.</h2>
       <p class="lp-final-sub">O <strong>FAZ</strong> mostra o que sobra antes de você gastar.</p>
-      <button class="lp-btn-primary lp-btn-grande" onclick="abrirAuth('cadastro')">Criar conta grátis <span class="lp-final-seta">→</span></button>
-      <p class="lp-nota">Leva 2 minutos · Sem cartão · Grátis pra sempre</p>
+      <button class="lp-btn-primary lp-btn-grande" onclick="abrirAuth('cadastro')">Assinar agora <span class="lp-final-seta">→</span></button>
+      <p class="lp-nota">Leva 2 minutos · Cancele quando quiser</p>
     </div>
   </section>
 
@@ -2780,14 +2697,14 @@
 
           <p class="auth-rodape">
             Ainda não tem conta?
-            <button class="auth-link" onclick="mostrarTela('cadastro')">Criar grátis</button>
+            <button class="auth-link" onclick="mostrarTela('cadastro')">Assinar agora</button>
           </p>
         </div>
 
         <!-- CADASTRO -->
         <div id="formCadastroWrap" class="auth-painel" style="display:none">
-          <h2 class="auth-titulo">Criar conta</h2>
-          <p class="auth-sub">Grátis. Sem cartão de crédito.</p>
+          <h2 class="auth-titulo">Assine o FAZ Finanças</h2>
+          <p class="auth-sub">R$ 27,90/mês, com tudo incluso. Cancele quando quiser.</p>
 
           <button type="button" class="auth-btn-google" onclick="loginComGoogle()">
             <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
@@ -2823,7 +2740,7 @@
               </span>
             </label>
 
-            <button type="submit" class="auth-btn">Criar conta</button>
+            <button type="submit" class="auth-btn">Criar conta e assinar</button>
           </form>
 
           <p class="auth-rodape">
@@ -2903,6 +2820,35 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- TELA DE ASSINATURA OBRIGATÓRIA
+       Não existe mais conta grátis: quem loga sem assinatura ativa (e não é
+       um usuário de antes do plano único) cai aqui, sem ver o resto do app. -->
+  <div id="telaAssinar" class="auth-modal" style="display:none">
+    <div class="assinar-shell">
+      <img src="logofaz.png" alt="FAZ Finanças" class="assinar-logo" />
+      <h2 class="assinar-titulo">Assine para continuar</h2>
+      <p class="assinar-sub">Um plano só, com tudo incluso.</p>
+
+      <div class="assinar-preco">
+        <span class="assinar-preco-moeda">R$</span>
+        <span class="assinar-preco-valor">27,90</span>
+        <span class="assinar-preco-ciclo">/mês</span>
+      </div>
+
+      <ul class="assinar-lista">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Contas, metas e lançamentos ilimitados</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Assistente de IA financeiro</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Investimentos e cripto ao vivo</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Gastos fixos, recorrências e importar extrato</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Relatórios e exportação</li>
+      </ul>
+
+      <button type="button" class="assinar-btn" id="btnAssinarAgora" onclick="assinarPlanoUnico()">Assinar agora</button>
+      <p class="assinar-rodape">Cancele quando quiser. Pagamento seguro processado pelo Asaas.</p>
+      <button type="button" class="assinar-sair" onclick="sairDaAssinatura()">Sair da conta</button>
     </div>
   </div>
 

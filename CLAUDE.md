@@ -19,8 +19,10 @@ App web de finanças pessoais 100% em português (fazfinancas.com), com IA que:
 - Navy de fundo: #011025
 
 ## Preços atuais
-- Premium: R$25,90/mês ou R$264,00/ano
-- Master: R$47,90/mês ou R$488,40/ano
+- Plano único: R$27,90/mês, com todos os benefícios. Não existe mais plano grátis (Básico) nem cadastro sem assinar — o cadastro já leva direto pro checkout.
+- Sem opção anual por enquanto (só mensal).
+- Assinantes antigos dos planos Premium (R$25,90/mês ou R$264,00/ano) e Master (R$47,90/mês ou R$488,40/ano) continuam pagando esses valores normalmente — não foram migrados, só não são mais vendidos pra gente nova.
+- Quem já tinha conta antes da virada pro plano único (13/08/2026) manteve acesso completo de graça — ver `CORTE_PLANO_UNICO` em app.js.
 
 ## Como trabalhar neste projeto (regras fixas)
 

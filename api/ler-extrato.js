@@ -2,7 +2,7 @@
 // Recebe um extrato (texto de CSV/OFX, ou PDF/imagem em base64), manda para a IA
 // e devolve os lançamentos já organizados e categorizados.
 // O que a IA não conseguir resolver sozinha vira uma "dúvida" para o usuário responder.
-// Disponível nos planos Premium e Master.
+// Disponível pra quem assina o FAZ Finanças.
 
 const SUPABASE_URL = "https://yuvhkrwksdnajfautkru.supabase.co";
 
@@ -16,8 +16,11 @@ const CATEGORIAS = [
 const CUSTO_TEXTO = 2;
 const CUSTO_ARQUIVO = 4;
 
-const LIMITES = { premium: 25, master: 100 };
-const HORAS_RECARGA_MASTER = 3;
+// Plano único: mesmo limite pra "premium" e "master" — os dois nomes só
+// continuam existindo por causa de assinantes antigos com esses valores
+// gravados no perfil (ver a mesma observação em api/chat-ia.js).
+const LIMITES = { premium: 100, master: 100 };
+const HORAS_RECARGA = 3;
 
 // Atualiza a contagem de uso no Supabase
 async function atualizarUso(userId, serviceKey, usos, resetEm) {
@@ -141,7 +144,7 @@ export default async function handler(req, res) {
       if (plano !== "premium" && plano !== "master") {
         return res.status(403).json({
           erro: "upgrade",
-          motivo: "A leitura de extrato com IA está disponível nos planos Premium e Master."
+          motivo: "A leitura de extrato com IA está disponível pra quem assina o FAZ Finanças."
         });
       }
 
@@ -150,25 +153,18 @@ export default async function handler(req, res) {
       let resetEm = perfil.ia_reset_em ? new Date(perfil.ia_reset_em) : new Date();
       const agora = new Date();
 
-      if (plano === "master") {
-        // Master: recarrega tudo depois de 3h quando zera
-        if (usos >= limite) {
-          const horasPassadas = (agora - resetEm) / (1000 * 60 * 60);
-          if (horasPassadas >= HORAS_RECARGA_MASTER) {
-            usos = 0; resetEm = agora;
-          } else {
-            const faltam = Math.ceil(HORAS_RECARGA_MASTER - horasPassadas);
-            return res.status(429).json({
-              erro: "limite", plano: "master",
-              motivo: `Você atingiu o limite de ${limite} usos. Serão liberados em aproximadamente ${faltam} hora(s).`
-            });
-          }
+      // Cota zerou: só libera de novo depois de HORAS_RECARGA horas
+      if (usos >= limite) {
+        const horasPassadas = (agora - resetEm) / (1000 * 60 * 60);
+        if (horasPassadas >= HORAS_RECARGA) {
+          usos = 0; resetEm = agora;
+        } else {
+          const faltam = Math.ceil(HORAS_RECARGA - horasPassadas);
+          return res.status(429).json({
+            erro: "limite", plano,
+            motivo: `Você atingiu o limite de ${limite} usos. Serão liberados em aproximadamente ${faltam} hora(s).`
+          });
         }
-      } else {
-        // Premium: limite mensal
-        const mesReset = resetEm.getFullYear() * 100 + resetEm.getMonth();
-        const mesAgora = agora.getFullYear() * 100 + agora.getMonth();
-        if (mesAgora > mesReset) { usos = 0; resetEm = agora; }
       }
 
       // Precisa ter saldo suficiente para o custo desta leitura

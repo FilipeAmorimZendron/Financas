@@ -8,11 +8,14 @@
 
 import { limitar, chaveDoIP } from "./_ratelimit.js";
 
-// ---- Configuração dos planos (valores em reais) ----
-const PLANOS = {
-  premium: { mensal: 25.9, anual: 264.0, nome: "FAZ Finanças Premium", desc: "IA financeira, contas ilimitadas, relatórios e importação de extrato. Cancele quando quiser." },
-  master:  { mensal: 47.9, anual: 488.4, nome: "FAZ Finanças Master",  desc: "IA ilimitada, conexão bancária, análise aprofundada e suporte prioritário. Cancele quando quiser." },
-};
+// ---- Plano único (valor em reais) ----
+// Não existe mais escolha de plano nem ciclo anual — um preço só, cobrado
+// todo mês. "premium" segue sendo o valor gravado em perfil.plano (e no
+// externalReference do Asaas) só por compatibilidade com o resto do
+// código — não precisou renomear nada no banco pra fazer essa mudança.
+const PLANO_UNICO = { valor: 27.9, nome: "FAZ Finanças", desc: "Todos os recursos: IA financeira, contas ilimitadas, investimentos, relatórios e importação de extrato. Cancele quando quiser." };
+const PLANO_ID = "premium";
+const CICLO = "mensal";
 
 // Sandbox por padrão. Em produção troque para https://api.asaas.com/v3
 const ASAAS_URL = process.env.ASAAS_URL || "https://api-sandbox.asaas.com/v3";
@@ -61,16 +64,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Dados que o app manda
-    const { plano, ciclo, email, nome, token } = req.body || {};
+    // Dados que o app manda (não existe mais plano/ciclo pra escolher)
+    const { email, nome, token } = req.body || {};
 
-    // Validação básica
-    if (!PLANOS[plano]) {
-      return res.status(400).json({ erro: "Plano inválido" });
-    }
-    if (ciclo !== "mensal" && ciclo !== "anual") {
-      return res.status(400).json({ erro: "Ciclo inválido" });
-    }
     if (!email) {
       return res.status(400).json({ erro: "Dados do usuário faltando" });
     }
@@ -87,8 +83,10 @@ export default async function handler(req, res) {
       return res.status(401).json({ erro: "Sessão expirada. Faça login novamente." });
     }
 
-    const config = PLANOS[plano];
-    const valor = config[ciclo];
+    const config = PLANO_UNICO;
+    const plano = PLANO_ID;
+    const ciclo = CICLO;
+    const valor = config.valor;
 
     // Garante que o e-mail esteja gravado no perfil ANTES do pagamento.
     // O webhook usa o e-mail para identificar o usuário quando o Asaas
@@ -201,7 +199,7 @@ export default async function handler(req, res) {
       },
       items: [
         {
-          name: `${config.nome} (${ciclo})`,
+          name: config.nome,
           description: config.desc,
           quantity: 1,
           value: valor,
@@ -209,7 +207,7 @@ export default async function handler(req, res) {
         },
       ],
       subscription: {
-        cycle: ciclo === "anual" ? "YEARLY" : "MONTHLY",
+        cycle: "MONTHLY",
         nextDueDate: nextDueDate,
         endDate: endDate,
         externalReference: `${userId}|${plano}|${ciclo}`,

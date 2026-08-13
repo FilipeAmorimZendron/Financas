@@ -1,16 +1,18 @@
 // api/chat-ia.js
 // Função serverless que conversa com a API da Anthropic (Claude).
 // Faz o controle de limite de uso da IA por plano (verificação no servidor):
-//   - Premium: 25 perguntas por mês (ao acabar, pede upgrade)
-//   - Master:  100 perguntas; ao zerar, recarrega tudo após 3 horas
+//   - Plano único: 100 perguntas; ao zerar, recarrega tudo após 3 horas.
+//   - "premium" e "master" valem o mesmo limite — não existe mais
+//     diferença de plano, os dois nomes só continuam por causa de
+//     assinantes antigos que já têm um desses valores gravados no perfil.
 
 const SUPABASE_URL = "https://yuvhkrwksdnajfautkru.supabase.co";
 
 const LIMITES = {
-  premium: 25,
+  premium: 100,
   master: 100
 };
-const HORAS_RECARGA_MASTER = 3;
+const HORAS_RECARGA = 3;
 
 // Lê o perfil do usuário no Supabase (usando a service key)
 async function lerPerfil(userId, serviceKey) {
@@ -99,9 +101,9 @@ export default async function handler(req, res) {
 
       const plano = (perfil.assinatura_status === "ativa") ? perfil.plano : "basico";
 
-      // Básico não tem acesso
+      // Básico (sem assinatura ativa) não tem acesso
       if (plano !== "premium" && plano !== "master") {
-        return res.status(403).json({ erro: "upgrade", motivo: "O assistente de IA está disponível nos planos Premium e Master." });
+        return res.status(403).json({ erro: "upgrade", motivo: "O assistente de IA está disponível pra quem assina o FAZ Finanças." });
       }
 
       const limite = LIMITES[plano];
@@ -114,35 +116,18 @@ export default async function handler(req, res) {
         // da mesma pergunta, que já foi cobrada. Não conta de novo e não pode
         // esbarrar no limite, senão a ação aconteceria sem a IA confirmar.
         usosInfo = { usados: usos, limite: limite, plano: plano };
-      } else if (plano === "master") {
-        // Master: se a cota zerou e já passaram 3h desde o reset, recarrega
-        if (usos >= limite) {
-          const horasPassadas = (agora - resetEm) / (1000 * 60 * 60);
-          if (horasPassadas >= HORAS_RECARGA_MASTER) {
-            usos = 0;
-            resetEm = agora;
-          } else {
-            const faltam = Math.ceil(HORAS_RECARGA_MASTER - horasPassadas);
-            return res.status(429).json({
-              erro: "limite",
-              plano: "master",
-              motivo: `Você atingiu o limite de ${limite} perguntas. Suas perguntas serão liberadas em aproximadamente ${faltam} hora(s).`
-            });
-          }
-        }
-      } else {
-        // Premium: limite mensal. Se o mês virou, zera.
-        const mesReset = resetEm.getFullYear() * 100 + resetEm.getMonth();
-        const mesAgora = agora.getFullYear() * 100 + agora.getMonth();
-        if (mesAgora > mesReset) {
+      } else if (usos >= limite) {
+        // Cota zerou: só libera de novo depois de HORAS_RECARGA horas
+        const horasPassadas = (agora - resetEm) / (1000 * 60 * 60);
+        if (horasPassadas >= HORAS_RECARGA) {
           usos = 0;
           resetEm = agora;
-        }
-        if (usos >= limite) {
+        } else {
+          const faltam = Math.ceil(HORAS_RECARGA - horasPassadas);
           return res.status(429).json({
             erro: "limite",
-            plano: "premium",
-            motivo: `Você usou suas ${limite} perguntas do mês. Faça upgrade para o plano Master e tenha muito mais.`
+            plano: plano,
+            motivo: `Você atingiu o limite de ${limite} perguntas. Suas próximas perguntas são liberadas em aproximadamente ${faltam} hora(s).`
           });
         }
       }
@@ -211,18 +196,15 @@ export default async function handler(req, res) {
       "",
       "CONTA: perfil, avatar, plano e configurações.",
       "",
-      "════ PLANOS E PAGAMENTO ════",
-      "- BÁSICO (grátis): até 2 contas e 5 metas. Não inclui investimentos, gastos fixos, importar extrato, relatórios, exportar nem este assistente de IA.",
-      "- PREMIUM (R$ 25,90/mês ou R$ 264,00/ano): contas e metas ilimitadas, investimentos, gastos fixos, importar extrato, relatórios, exportar e assistente de IA.",
-      "- MASTER (R$ 47,90/mês ou R$ 488,40/ano): tudo do Premium mais conexão bancária automática (quando disponível).",
-      "- O pagamento é por cartão de crédito, com renovação automática mensal ou anual. Se o cartão falhar, o acesso é mantido por alguns dias antes de cair, e o app avisa. Para assinar ou trocar de plano, vá em Conta e toque no plano.",
-      "- Se perguntarem como cancelar, oriente a procurar o suporte pelo e-mail suporte@fazfinancas.com.",
+      "════ PLANO E PAGAMENTO ════",
+      "- O FAZ Finanças tem um plano único: R$ 27,90/mês, com tudo incluso — contas, metas e lançamentos ilimitados, investimentos, gastos fixos, importar extrato, relatórios, exportar e este assistente de IA.",
+      "- O pagamento é por cartão de crédito, com renovação automática mensal. Se o cartão falhar, o acesso é mantido por alguns dias antes de cair, e o app avisa.",
+      "- Se perguntarem como cancelar, explique que é dentro do app (em Conta) e que o acesso continua até o fim do período já pago. Se precisarem de ajuda, oriente a procurar o suporte pelo e-mail suporte@fazfinancas.com.",
       "",
       "════ REGRAS IMPORTANTES ════",
       "- Você JÁ TEM os dados financeiros do usuário (abaixo). Nunca peça para ele enviar os dados. Use-os diretamente.",
       "- Os dados são uma fotografia do momento. Se ele disser que acabou de adicionar algo e você não vê, oriente-o a fechar e reabrir o chat para atualizar, em vez de dizer que não existe.",
       "- Nunca invente números que não estão nos dados. Se um dado não estiver lá, diga que ainda não foi registrado e explique como registrar.",
-      "- Se perguntarem algo que um recurso pago resolve e o usuário está no Básico, explique como funciona e mencione que está nos planos Premium ou Master.",
       "- Você não é consultor financeiro certificado; para decisões grandes (grandes investimentos, dívidas complexas), sugira procurar um profissional.",
       "- Não fale sobre assuntos fora de finanças e do uso do app. Se perguntarem outra coisa, redirecione gentilmente.",
       "",

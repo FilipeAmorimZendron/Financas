@@ -4513,6 +4513,94 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .auth-link:hover { opacity: 0.8; text-decoration: underline; }
 
+/* ─── Tela de assinatura obrigatória ────────────────────────
+   Card único e centralizado (sem a coluna de vídeo do login) —
+   usa o mesmo overlay .auth-modal por trás. */
+.assinar-shell {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #08152A;
+  border: 1px solid #2C384A;
+  border-radius: 22px;
+  padding: 40px 34px 32px;
+  text-align: center;
+  box-shadow: 0 50px 120px -40px rgba(0,0,0,0.9);
+  animation: authShell 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.assinar-logo { height: 28px; margin-bottom: 22px; }
+.assinar-titulo {
+  font-family: 'Sora', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #E6EEF5;
+  margin: 0 0 6px;
+}
+.assinar-sub { font-size: 14px; color: #93A5B8; margin: 0 0 20px; }
+.assinar-preco {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 3px;
+  margin-bottom: 22px;
+}
+.assinar-preco-moeda { font-size: 16px; font-weight: 700; color: #1EF6DD; }
+.assinar-preco-valor { font-size: 40px; font-weight: 800; color: #1EF6DD; line-height: 1; }
+.assinar-preco-ciclo { font-size: 14px; color: #93A5B8; margin-left: 2px; }
+.assinar-lista {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  text-align: left;
+}
+.assinar-lista li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13.5px;
+  color: #C3D0DC;
+  line-height: 1.4;
+}
+.assinar-lista li svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; color: #1EF6DD; }
+.assinar-btn {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, #1EF6DD, #12C9B4);
+  color: #01131f;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(30,246,221,0.22);
+  transition: transform 0.15s, box-shadow 0.25s, opacity 0.2s;
+}
+.assinar-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 30px rgba(30,246,221,0.3); }
+.assinar-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+.assinar-rodape { margin: 14px 0 0; font-size: 11.5px; color: #5A686E; line-height: 1.5; }
+.assinar-sair {
+  margin-top: 18px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #7C8FA3;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.assinar-sair:hover { color: #E6EEF5; text-decoration: underline; }
+@media (max-width: 480px) {
+  .assinar-shell { padding: 32px 22px 26px; }
+}
+
 .auth-ok {
   margin-top: 18px;
   padding: 14px 16px;
@@ -8322,6 +8410,11 @@ body.sem-internet .layout { padding-top: 34px; }
   gap: 16px;
   align-items: start;
 }
+/* Plano único: um card só, centralizado, com uma largura confortável de leitura */
+.planos-grid-unico {
+  grid-template-columns: minmax(0, 380px);
+  justify-content: center;
+}
 .plano-card {
   position: relative;
   padding: 24px 22px;
@@ -8613,6 +8706,11 @@ body.sem-internet .layout { padding-top: 34px; }
   max-width: 1000px;
   margin: 0 auto;
   align-items: start;
+}
+/* Plano único: um card só, centralizado */
+.lp-planos-grid-unico {
+  grid-template-columns: minmax(0, 380px);
+  justify-content: center;
 }
 .lp-plano {
   position: relative;
