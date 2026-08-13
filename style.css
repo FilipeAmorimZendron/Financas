@@ -2824,14 +2824,16 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 
 /* Orbs de luz com profundidade — flutuam devagar, dão sensação 3D atrás do conteúdo.
-   O inset precisa sobrar bastante espaço além da própria bola (desfoque de 60px +
-   o quanto ela anda na animação), senão o overflow:hidden corta o brilho numa
-   linha reta em vez de deixar ele sumir suave — foi o que estava acontecendo
-   no topo da página. */
+   As bolas (.lp-orb-1/2/3) usam posições negativas de propósito, pra vazar um
+   pouco além da borda do hero — com overflow:hidden aqui, esse pedaço negativo
+   sempre seria cortado numa linha reta (o corte que aparecia no topo da
+   página), não importa o tamanho do inset. Sem clip nenhum aqui: o body já
+   tem overflow-x:hidden como rede de segurança contra barra de rolagem, e
+   embaixo do hero vem uma seção com fundo próprio que cobre a sobra. */
 .lp-hero-orbs {
   position: absolute;
-  inset: -260px -140px -220px -200px;
-  overflow: hidden;
+  inset: -80px 0 -60px 0;
+  overflow: visible;
   pointer-events: none;
   z-index: 0;
 }
