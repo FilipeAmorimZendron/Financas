@@ -4719,23 +4719,22 @@ function renderRevisao() {
       <div class="rev-lista">`;
 
     revisaoDados.itens.forEach((it, i) => {
-      html += `<div class="rev-item">
-        <span class="rev-item-data">${esc((it.data || "").slice(8, 10))}/${esc((it.data || "").slice(5, 7))}</span>
-        <span class="rev-item-desc">${esc(it.descricao || "")}</span>
-        <select class="rev-item-cat" data-item="${i}">
-          ${(() => {
-            const opcoes = categoriasRevisao().concat(it.tipo === "entrada" ? ["Entrada"] : []);
-            // Se a IA devolveu uma categoria fora da lista, inclui para não perder o valor
-            if (it.categoria && !opcoes.includes(it.categoria)) opcoes.unshift(it.categoria);
-            return opcoes.map(c =>
-              `<option value="${esc(c)}" ${it.categoria === c ? "selected" : ""}>${esc(c)}</option>`
-            ).join("");
-          })()}
-        </select>
-        <span class="rev-item-val ${it.tipo === "entrada" ? "rev-val-entrada" : "rev-val-saida"}">
-          ${it.tipo === "entrada" ? "+" : "−"}${fmtMoeda(Number(it.valor) || 0)}
-        </span>
-        <button type="button" class="rev-item-remover" onclick="removerItemRevisao(${i})" aria-label="Remover">✕</button>
+      const cat = it.categoria || "Outros";
+      const cor = corDaCategoria(cat);
+      html += `<div class="rev-item" id="rev-item-${i}">
+        <div class="rev-item-linha">
+          <span class="rev-item-data">${esc((it.data || "").slice(8, 10))}/${esc((it.data || "").slice(5, 7))}</span>
+          <span class="rev-item-desc">${esc(it.descricao || "")}</span>
+          <button type="button" class="rev-item-cat-botao${cor ? " rev-item-cat-custom" : ""}"${cor ? ` style="--cat-cor:${esc(cor)}"` : ""} data-item-cat="${i}" aria-label="Trocar categoria">
+            ${ICONE_CAT[cat] ?? ICONE_CAT_FALLBACK}
+            <span class="rev-item-cat-nome">${esc(cat)}</span>
+            <svg class="rev-item-cat-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <span class="rev-item-val ${it.tipo === "entrada" ? "rev-val-entrada" : "rev-val-saida"}">
+            ${it.tipo === "entrada" ? "+" : "−"}${fmtMoeda(Number(it.valor) || 0)}
+          </span>
+          <button type="button" class="rev-item-remover" onclick="removerItemRevisao(${i})" aria-label="Remover">✕</button>
+        </div>
       </div>`;
     });
 
@@ -4764,20 +4763,37 @@ function renderRevisao() {
         if (!Number.isNaN(iDuvida)) escolherContaTransferencia(iDuvida);
         return;
       }
+      // Botão de categoria de um lançamento já confirmado: abre/fecha o seletor
+      const btnCatItem = e.target.closest(".rev-item-cat-botao");
+      if (btnCatItem) {
+        const iItem = Number(btnCatItem.dataset.itemCat);
+        if (!Number.isNaN(iItem)) abrirCategoriaItem(iItem);
+        return;
+      }
+      // Escolheu uma categoria no seletor do lançamento já confirmado
+      const btnCatEscolha = e.target.closest("[data-item-cat-escolha]");
+      if (btnCatEscolha) {
+        const iItem = Number(btnCatEscolha.dataset.itemCatEscolha);
+        if (!Number.isNaN(iItem)) {
+          trocarCategoriaItem(iItem, btnCatEscolha.dataset.cat);
+          renderRevisao();
+        }
+        return;
+      }
+      // Botão "Criar categoria" dentro do seletor do lançamento já confirmado
+      const btnCatCriar = e.target.closest(".rev-item-cat-criar");
+      if (btnCatCriar) {
+        const iItem = Number(btnCatCriar.dataset.itemCatCriar);
+        const painel = btnCatCriar.closest(".rev-item-cat-painel");
+        if (!Number.isNaN(iItem) && painel) abrirCriarCategoriaItem(iItem, painel);
+        return;
+      }
       const btn = e.target.closest(".rev-opcao");
       if (!btn) return;
       const iDuvida = Number(btn.dataset.duvida);
       const iOpcao = Number(btn.dataset.opcao);
       if (Number.isNaN(iDuvida)) return;
       responderDuvida(iDuvida, iOpcao);
-    });
-    // Troca de categoria nos itens já resolvidos (selects)
-    corpo.addEventListener("change", (e) => {
-      const sel = e.target.closest(".rev-item-cat");
-      if (!sel) return;
-      const iItem = Number(sel.dataset.item);
-      if (Number.isNaN(iItem)) return;
-      trocarCategoriaItem(iItem, sel.value);
     });
     corpo.dataset.ligado = "1";
   }
@@ -4952,6 +4968,73 @@ function abrirCriarCategoria(indice) {
   btnOk.addEventListener("click", confirmar);
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); confirmar(); } });
   alvo.appendChild(box);
+  input.focus();
+}
+
+/* Abre/fecha o seletor de categoria de um lançamento JÁ categorizado pela
+   IA (a lista "confirmados"). Mesmo espírito de abrirTodasCategorias: só
+   mexe no DOM (não toca revisaoDados), então não dispara re-render — o
+   painel some sozinho quando o usuário realmente escolhe algo. */
+function abrirCategoriaItem(indice) {
+  const it = revisaoDados.itens[indice];
+  if (!it) return;
+  const alvo = document.getElementById(`rev-item-${indice}`);
+  if (!alvo) return;
+  const existente = alvo.querySelector(".rev-item-cat-painel");
+  if (existente) { existente.remove(); return; }  // toggle
+
+  const opcoes = todasCategorias();
+  if (it.tipo === "entrada") opcoes.push("Entrada");
+  // Categoria fora da lista (ex: veio assim da IA) — preserva para não perder o valor
+  if (it.categoria && !opcoes.includes(it.categoria)) opcoes.unshift(it.categoria);
+
+  const box = document.createElement("div");
+  box.className = "rev-item-cat-painel";
+  box.innerHTML = `<div class="rev-todas-lista">
+    ${opcoes.map(c => `<button type="button" class="rev-opcao rev-opcao-comicone ${it.categoria === c ? "rev-opcao-ativa" : ""}" data-item-cat-escolha="${indice}" data-cat="${esc(c)}">${ICONE_CAT[c] ?? ICONE_CAT_FALLBACK}<span>${esc(c)}</span></button>`).join("")}
+    <button type="button" class="rev-opcao rev-item-cat-criar" data-item-cat-criar="${indice}">➕ Criar categoria</button>
+  </div>`;
+  alvo.appendChild(box);
+}
+
+/* Campo para criar categoria na hora, aberto a partir do seletor de um
+   lançamento já confirmado (espelha abrirCriarCategoria, que faz o mesmo
+   para as dúvidas). */
+function abrirCriarCategoriaItem(indice, painel) {
+  const existente = painel.querySelector(".rev-criar-cat");
+  if (existente) { existente.remove(); return; }  // toggle
+
+  const box = document.createElement("div");
+  box.className = "rev-criar-cat";
+  box.innerHTML = `
+    <div class="rev-criar-rotulo">Nome da nova categoria:</div>
+    <div class="rev-criar-linha">
+      <input type="text" class="rev-criar-input" maxlength="40" placeholder="Ex: Pets, Assinaturas, Viagem" />
+      <button type="button" class="rev-criar-ok">Criar e usar</button>
+    </div>`;
+
+  const input = box.querySelector(".rev-criar-input");
+  const btnOk = box.querySelector(".rev-criar-ok");
+
+  async function confirmar() {
+    const nome = (input.value || "").trim();
+    if (!nome) { input.focus(); return; }
+    btnOk.disabled = true;
+    btnOk.textContent = "Criando…";
+    const criada = await criarCategoriaIA(nome);
+    if (criada) {
+      trocarCategoriaItem(indice, criada);
+      renderRevisao();
+    } else {
+      btnOk.disabled = false;
+      btnOk.textContent = "Criar e usar";
+      alert("Não consegui criar a categoria. Tente outro nome.");
+    }
+  }
+
+  btnOk.addEventListener("click", confirmar);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); confirmar(); } });
+  painel.appendChild(box);
   input.focus();
 }
 

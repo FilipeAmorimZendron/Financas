@@ -10140,13 +10140,15 @@ body.scroll-travado {
   overflow: hidden;
 }
 .rev-item {
+  border-bottom: 1px solid var(--border-soft);
+}
+.rev-item:last-child { border-bottom: none; }
+.rev-item-linha {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 13px;
-  border-bottom: 1px solid var(--border-soft);
 }
-.rev-item:last-child { border-bottom: none; }
 .rev-item-data {
   font-size: 12px;
   color: var(--text-secondary);
@@ -10161,17 +10163,50 @@ body.scroll-travado {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.rev-item-cat {
+
+/* Botão de categoria de um lançamento já confirmado (abre o seletor abaixo) */
+.rev-item-cat-botao {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-family: inherit;
   font-size: 12px;
-  padding: 4px 8px;
+  font-weight: 600;
+  padding: 5px 9px;
   border: 1px solid var(--border-soft);
-  border-radius: 8px;
-  background: var(--surface);
+  border-radius: 999px;
+  background: var(--surface2);
   color: var(--text-secondary);
   cursor: pointer;
-  max-width: 130px;
+  max-width: 150px;
+  flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
+.rev-item-cat-botao:hover {
+  border-color: var(--teal-glow, #2C4A4A);
+  background: var(--surface3);
+  transform: translateY(-1px);
+}
+.rev-item-cat-botao .cat-icone { flex-shrink: 0; }
+.rev-item-cat-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rev-item-cat-seta { width: 11px; height: 11px; flex-shrink: 0; color: var(--text-muted); }
+/* Categoria personalizada: usa a cor escolhida pelo usuário, igual ao badge do resto do app */
+.rev-item-cat-custom {
+  color: var(--cat-cor);
+  border-color: color-mix(in srgb, var(--cat-cor) 35%, transparent);
+  background: color-mix(in srgb, var(--cat-cor) 12%, transparent);
+}
+
+/* Painel do seletor, abre logo abaixo do lançamento clicado */
+.rev-item-cat-painel {
+  padding: 4px 13px 14px;
+  background: var(--surface2);
+}
+.rev-opcao-comicone { display: inline-flex; align-items: center; gap: 6px; }
+/* Botão "Criar categoria" dentro do seletor de um lançamento já confirmado */
+.rev-item-cat-criar { border-style: dashed; color: var(--accent); }
+.rev-item-cat-criar:hover { background: var(--accent-dim); }
+
 .rev-item-val {
   font-size: 13.5px;
   font-variant-numeric: tabular-nums;
@@ -10190,7 +10225,7 @@ body.scroll-travado {
 
 @media (max-width: 640px) {
   .revisao-panel { max-height: 92vh; }
-  .rev-item { flex-wrap: wrap; }
+  .rev-item-linha { flex-wrap: wrap; }
   .rev-item-desc { width: 100%; white-space: normal; }
 }
 
