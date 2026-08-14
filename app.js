@@ -667,9 +667,9 @@ async function verificarLoginOAuth() {
     document.getElementById("userEmail").textContent = state.user.email;
 
     await carregarDadosNuvem();
-    await tratarRetornoAssinatura();
+    const retornoJaDecidiuTela = await tratarRetornoAssinatura();
     esconderSplash();
-    if (mostrarAppOuPaywall()) {
+    if (!retornoJaDecidiuTela && mostrarAppOuPaywall()) {
       renderTudo();
       injetarBotoesGuia();
       trocarTela("dashboard");
@@ -1027,18 +1027,26 @@ function sairDaAssinatura() { fazerLogout(false); }
 async function tratarRetornoAssinatura() {
   const params = new URLSearchParams(window.location.search);
   const status = params.get("assinatura");
-  if (!status) return;
+  if (!status) return false;
 
   // Limpa a URL para não repetir a mensagem se a pessoa recarregar a página
   window.history.replaceState({}, document.title, window.location.pathname);
 
+  // Cancelou ou o checkout expirou: como não existe mais plano grátis, a
+  // pessoa não tem "acesso pra continuar usando" — mandar pra tela de
+  // assinatura obrigatória de novo seria só bater de frente com a mesma
+  // trava. Volta pra landing (ela continua logada; clicar em "Assinar
+  // agora" lá vai direto pro checkout de novo, sem precisar logar).
+  // Devolve true pra avisar o boot que a tela já foi decidida aqui.
   if (status === "cancelada") {
-    toast("Pagamento cancelado. Você continua no plano atual.", "info");
-    return;
+    toast("Pagamento cancelado. Você pode assinar quando quiser.", "info");
+    mostrarTelaLogin();
+    return true;
   }
   if (status === "expirada") {
     toast("O tempo do checkout expirou. Tente assinar novamente.", "warning");
-    return;
+    mostrarTelaLogin();
+    return true;
   }
   if (status !== "sucesso") return;
 
@@ -1134,8 +1142,8 @@ document.getElementById("formLogin")?.addEventListener("submit", async e => {
     state.user = { email: data.user.email, id: data.user.id, createdAt: data.user.created_at || null };
     document.getElementById("userEmail").textContent = state.user.email;
     await carregarDadosNuvem();
-    await tratarRetornoAssinatura();
-    if (mostrarAppOuPaywall()) {
+    const retornoJaDecidiuTela = await tratarRetornoAssinatura();
+    if (!retornoJaDecidiuTela && mostrarAppOuPaywall()) {
       renderTudo();
       trocarTela("dashboard");
       toast(`Bem-vindo, ${email}! 👋`, "success");
@@ -10479,9 +10487,11 @@ async function iniciar() {
       }
       document.getElementById("userEmail").textContent = state.user.email;
       await carregarDadosNuvem();
-      await tratarRetornoAssinatura();
+      // Cancelou/expirou o checkout: tratarRetornoAssinatura() já decidiu a
+      // tela (manda pra landing) — não deixa o paywall sobrescrever.
+      const retornoJaDecidiuTela = await tratarRetornoAssinatura();
       esconderSplash();
-      if (mostrarAppOuPaywall()) {
+      if (!retornoJaDecidiuTela && mostrarAppOuPaywall()) {
         renderTudo();
         injetarBotoesGuia();
         trocarTela("dashboard");

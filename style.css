@@ -8737,7 +8737,7 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 /* Plano único: um card só, centralizado */
 .lp-planos-grid-unico {
-  grid-template-columns: minmax(0, 380px);
+  grid-template-columns: minmax(0, 440px);
   justify-content: center;
 }
 .lp-plano {
@@ -8943,6 +8943,104 @@ body.sem-internet .layout { padding-top: 34px; }
   padding-left: 0 !important;
 }
 .lp-plano-tudo::before { display: none; }
+
+/* Card de plano da landing — mesmo desenho do card da tela de assinatura
+   obrigatória (#telaAssinar, ver .assinar-shell), que ficou mais elegante
+   que o card antigo daqui. Classes próprias (lp-assinar-*) pra não
+   depender do modal nem herdar seu max-height/overflow/animação de
+   entrada, que fazem sentido num modal mas não numa seção da página. */
+.lp-assinar-shell {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  background: #08152A;
+  border: 2px solid rgba(245,165,36,0.55);
+  border-radius: 24px;
+  padding: 48px 38px 40px;
+  text-align: center;
+  box-shadow: 0 0 0 4px rgba(245,165,36,0.12), 0 50px 120px -30px rgba(0,0,0,0.4);
+}
+.lp-assinar-badge {
+  display: block;
+  width: fit-content;
+  padding: 4px 15px;
+  margin: 0 auto 18px;
+  border-radius: 100px;
+  background: linear-gradient(135deg, #FDB750, var(--lp-amber));
+  color: #1a1205;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  box-shadow: 0 4px 18px rgba(245,165,36,0.45);
+}
+.lp-assinar-logo { height: 26px; margin-bottom: 20px; }
+.lp-assinar-titulo {
+  font-family: 'Sora', sans-serif;
+  font-size: 25px;
+  font-weight: 700;
+  color: var(--lp-text);
+  margin: 0 0 9px;
+}
+.lp-assinar-sub { font-size: 15px; color: var(--lp-text-dim); margin: 0 0 26px; line-height: 1.5; }
+.lp-assinar-preco {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+.lp-assinar-preco-moeda { font-size: 17px; font-weight: 700; color: var(--lp-teal); }
+.lp-assinar-preco-valor { font-size: 46px; font-weight: 800; color: var(--lp-teal); line-height: 1; }
+.lp-assinar-preco-ciclo { font-size: 15px; color: var(--lp-text-dim); margin-left: 2px; }
+.lp-assinar-preco-nota {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lp-amber);
+  margin: 0 0 28px;
+}
+.lp-assinar-lista {
+  list-style: none;
+  margin: 0 0 30px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  text-align: left;
+}
+.lp-assinar-lista li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--lp-text);
+  line-height: 1.48;
+}
+.lp-assinar-lista li svg { width: 17px; height: 17px; flex-shrink: 0; margin-top: 1px; color: var(--lp-teal); }
+.lp-assinar-btn {
+  width: 100%;
+  padding: 17px;
+  background: linear-gradient(135deg, #FDB750, var(--lp-amber));
+  color: #1a1205;
+  border: none;
+  border-radius: 13px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(245,165,36,0.4);
+  transition: transform 0.15s, box-shadow 0.25s;
+  animation: lp-btn-respira 2.6s ease-in-out infinite;
+}
+.lp-assinar-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 38px rgba(245,165,36,0.55); }
+@media (hover: none) { .lp-assinar-btn:hover { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .lp-assinar-btn { animation: none; } }
+.lp-assinar-rodape { margin: 16px 0 0; font-size: 12.5px; font-weight: 600; color: var(--lp-text-dim); line-height: 1.5; }
+@media (max-width: 480px) {
+  .lp-assinar-shell { padding: 36px 24px 28px; }
+}
+
 .lp-planos-garantia { text-align: center; margin-top: 32px; }
 .lp-planos-garantia-titulo {
   font-family: 'Sora', sans-serif;
