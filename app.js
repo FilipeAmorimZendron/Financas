@@ -11770,9 +11770,414 @@ const ACOES_IA = {
                   `Agora ele pode lançar gastos e entradas nela. Se essa conta tiver cartão de crédito, ele pode ativar isso editando o banco na tela Adicionar Banco (informando limite, fechamento e vencimento) — isso o app ainda não faz pelo chat.`
       };
     }
+  },
+
+  editar_lancamento: {
+    descricao:
+      "Corrige um lançamento (gasto ou entrada) que já existe: valor, descrição, categoria ou data. Use quando o usuário disser para mudar, corrigir, trocar ou ajustar algo de um gasto/entrada já lançado. NÃO serve pra trocar a conta nem a forma de pagamento — para isso, oriente a editar pela tela (Lançamentos, no ícone de lápis do item).",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id do lançamento, só quando veio de uma escolha em botões. Deixe vazio na primeira tentativa." },
+        busca: { type: "string", description: "Nome ou parte do nome do lançamento a editar, como o usuário descreveu (ex: 'uber', 'mercado')." },
+        valorAtual: { type: "number", description: "Valor atual do lançamento, se ele mencionar — ajuda a achar o certo entre vários parecidos." },
+        novoValor: { type: "number", description: "Novo valor em reais, só se o usuário quer mudar o valor." },
+        novaDescricao: { type: "string", description: "Nova descrição, só se ele quer mudar o texto do lançamento." },
+        novaCategoria: { type: "string", description: "Nova categoria, só se ele quer trocar a categoria." },
+        novaData: { type: "string", description: "Nova data (AAAA-MM-DD, ou hoje/ontem), só se ele quer mudar a data." }
+      },
+      required: ["busca"]
+    },
+
+    preparar(d) {
+      const semMudanca = d.novoValor == null && !d.novaDescricao && !d.novaCategoria && !d.novaData;
+      if (semMudanca) {
+        return { erro: "Não veio o que mudar nesse lançamento. Pergunte a ele o que quer corrigir: valor, descrição, categoria ou data." };
+      }
+      return _acharLancamentoIA(
+        Object.assign({}, d, { valor: d.valorAtual }),
+        "Qual lançamento você quer corrigir?"
+      );
+    },
+
+    async executar(p) {
+      const m = (state.movimentos || []).find(x => String(x.id) === String(p.id));
+      if (!m) return { ok: false, mensagem: "Esse lançamento não está mais na lista." };
+
+      const dados = {};
+      const mudou = [];
+      if (p.novoValor != null) {
+        const v = valorIA(p.novoValor);
+        if (v) { dados.valor = v; mudou.push({ rotulo: "Valor", valor: fmtMoeda(v) }); }
+      }
+      if (p.novaDescricao) {
+        dados.descricao = String(p.novaDescricao).trim().slice(0, 120);
+        mudou.push({ rotulo: "Descrição", valor: dados.descricao });
+      }
+      if (p.novaCategoria) {
+        const cat = acharCategoriaIA(p.novaCategoria) || String(p.novaCategoria).trim().slice(0, 40);
+        dados.categoria = cat;
+        mudou.push({ rotulo: "Categoria", valor: cat });
+      }
+      if (p.novaData) {
+        const data = resolverDataIA(p.novaData);
+        dados.data = data;
+        mudou.push({ rotulo: "Data", valor: formatarDataBR(data) });
+      }
+
+      if (!Object.keys(dados).length) {
+        return { ok: false, mensagem: "Nenhuma das mudanças pedidas era válida — nada foi alterado." };
+      }
+
+      const att = await dbUpdate("movimentos", m.id, dados);
+      m.descricao = att.descricao;
+      m.valor = Number(att.valor);
+      m.categoria = att.categoria;
+      m.data = att.data;
+      renderTudo();
+
+      return {
+        ok: true,
+        titulo: "Lançamento atualizado",
+        recibo: [{ rotulo: m.tipo === "entrada" ? "Entrada" : "Gasto", valor: m.descricao }].concat(mudou),
+        mensagem: `Atualizei "${m.descricao}": ` + mudou.map(x => `${x.rotulo.toLowerCase()} ${x.valor}`).join(", ") + "."
+      };
+    }
+  },
+
+  excluir_lancamento: {
+    descricao:
+      "Apaga um lançamento (gasto ou entrada) que já existe. Use quando o usuário pedir para apagar, excluir, remover ou desfazer algo que já foi lançado. NÃO use para dar baixa numa conta agendada (isso é marcar_como_pago).",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id do lançamento, só quando veio de uma escolha em botões. Deixe vazio na primeira tentativa." },
+        busca: { type: "string", description: "Nome ou parte do nome do lançamento a apagar, como o usuário descreveu." },
+        valor: { type: "number", description: "Valor do lançamento, se ele mencionar — ajuda a achar o certo entre vários parecidos." }
+      },
+      required: ["busca"]
+    },
+
+    preparar(d) {
+      return _acharLancamentoIA(d, "Qual lançamento você quer apagar?");
+    },
+
+    async executar(p) {
+      const m = (state.movimentos || []).find(x => String(x.id) === String(p.id));
+      if (!m) return { ok: false, mensagem: "Esse lançamento não está mais na lista." };
+
+      await dbDelete("movimentos", m.id);
+      state.movimentos = state.movimentos.filter(x => x.id !== m.id);
+      renderTudo();
+
+      return {
+        ok: true,
+        titulo: "Lançamento apagado",
+        recibo: [
+          { rotulo: m.tipo === "entrada" ? "Entrada" : "Gasto", valor: m.descricao },
+          { rotulo: "Valor", valor: fmtMoeda(m.valor) },
+          { rotulo: "Data", valor: formatarDataBR(m.data) }
+        ],
+        mensagem: `Apaguei "${m.descricao}" (${fmtMoeda(m.valor)}, ${formatarDataBR(m.data)}).`
+      };
+    }
+  },
+
+  pagar_fatura_cartao: {
+    descricao:
+      "Paga a fatura em aberto de um cartão de crédito, debitando o valor total da própria conta do cartão. Use quando o usuário pedir para pagar, quitar ou dar baixa na fatura do cartão.",
+    parametros: {
+      type: "object",
+      properties: {
+        cartao: { type: "string", description: "Nome do cartão/banco cuja fatura será paga. Deixe vazio se ele só tem um cartão cadastrado." }
+      },
+      required: []
+    },
+
+    preparar(d) {
+      const cartoes = (state.bancos || []).filter(b => b.temCartao);
+      if (!cartoes.length) {
+        return { erro: "O usuário não tem nenhum cartão de crédito cadastrado." };
+      }
+
+      // Prioridade: escolha vinda dos botões (d.cartaoId) > nome dito (d.cartao) >
+      // único cartão cadastrado. Checar o id primeiro é o que fecha o loop de
+      // pergunta — senão a resposta do botão nunca seria reconhecida na volta.
+      let alvo = d.cartaoId ? cartoes.find(c => c.id === d.cartaoId) : null;
+      if (!alvo) alvo = acharContaIA(d.cartao, cartoes);
+      if (!alvo) {
+        if (cartoes.length === 1) {
+          alvo = cartoes[0];
+        } else {
+          return {
+            dados: {},
+            perguntas: [{
+              campo: "cartaoId",
+              texto: "De qual cartão é a fatura?",
+              opcoes: cartoes.map(c => ({ v: c.id, t: c.nome }))
+            }]
+          };
+        }
+      }
+
+      const faturaMes = proximaFaturaAberta(alvo.id);
+      const total = totalFatura(alvo.id, faturaMes);
+      if (!(total > 0)) {
+        return { erro: `A fatura de ${alvo.nome} está zerada ou já paga — não há o que pagar agora.` };
+      }
+
+      return { dados: { cartaoId: alvo.id, faturaMes, valor: total }, perguntas: [] };
+    },
+
+    async executar(p) {
+      const cartao = (state.bancos || []).find(b => b.id === p.cartaoId);
+      if (!cartao) return { ok: false, mensagem: "Não encontrei esse cartão." };
+      if (faturaEstaPaga(p.cartaoId, p.faturaMes)) {
+        return { ok: false, mensagem: `A fatura de ${cartao.nome} já estava paga.` };
+      }
+
+      const saldo = calcularSaldoBanco(p.cartaoId);
+      if (p.valor > saldo + 0.005) {
+        return { ok: false, mensagem: `Saldo insuficiente em ${cartao.nome}: o saldo é ${fmtMoeda(saldo)} e a fatura é de ${fmtMoeda(p.valor)}. Sugira transferir de outra conta antes de pagar.` };
+      }
+
+      const mov = await dbInsert("movimentos", {
+        descricao: `Pagamento fatura ${cartao.nome}`,
+        conta_id: p.cartaoId, data: hojeISO(),
+        valor: p.valor, tipo: "gasto", categoria: "Serviços",
+        status: "pago", pago_em: hojeISO(),
+        forma_pagamento: "pagamento_fatura"
+      });
+      state.movimentos.push({
+        id: mov.id, descricao: mov.descricao, bancoId: mov.conta_id, data: mov.data,
+        valor: Number(mov.valor), tipo: mov.tipo, categoria: mov.categoria,
+        status: mov.status, vencimento: null, pagoEm: mov.pago_em,
+        formaPagamento: "pagamento_fatura"
+      });
+
+      const nova = await dbInsert("faturas_pagas", {
+        user_id: state.user.id,
+        cartao_id: p.cartaoId, fatura_mes: p.faturaMes,
+        conta_id: p.cartaoId, valor: p.valor, pago_em: hojeISO()
+      });
+      state.faturasPagas.push({
+        id: nova.id, cartaoId: p.cartaoId, faturaMes: p.faturaMes,
+        contaId: p.cartaoId, valor: Number(nova.valor), pagoEm: nova.pago_em
+      });
+
+      renderTudo();
+
+      return {
+        ok: true,
+        titulo: "Fatura paga",
+        recibo: [
+          { rotulo: "Cartão", valor: cartao.nome },
+          { rotulo: "Valor", valor: fmtMoeda(p.valor) },
+          { rotulo: "Data", valor: formatarDataBR(hojeISO()) }
+        ],
+        mensagem: `Fatura de ${cartao.nome} paga: ${fmtMoeda(p.valor)} debitado. Saldo dessa conta agora: ${fmtMoeda(calcularSaldoBanco(p.cartaoId))}.`
+      };
+    }
+  },
+
+  registrar_investimento: {
+    descricao:
+      "Registra uma aplicação financeira do usuário — renda fixa, ações, fundos, imóvel, ouro ou cripto — na carteira de Investimentos. Use quando ele disser que investiu, aplicou, comprou ações/cripto ou guardou dinheiro num investimento. O valor NÃO sai do saldo de nenhuma conta — é só um registro pra acompanhar o rendimento.",
+    parametros: {
+      type: "object",
+      properties: {
+        tipo: { type: "string", description: "O tipo: CDB, LCI/LCA, Fundo DI, Tesouro Selic, CDB Prefixado, Tesouro Prefixado, Tesouro IPCA, Poupança, Ações, FII, ETF, BDR, Cripto, Fundo Multi, Ouro, Imóvel — ou o nome livre se for outra coisa. Se não der pra saber com segurança, deixe vazio; o app pergunta em botões." },
+        valor: { type: "number", description: "Valor aplicado, em reais. Se ele não disse o valor e não é cripto só com quantidade, NÃO chame a ferramenta: pergunte antes numa mensagem normal." },
+        apelido: { type: "string", description: "Nome pra identificar, tipo 'Reserva de emergência'. Opcional, deixe vazio se ele não deu um nome." },
+        taxa: { type: "number", description: "Percentual de rendimento contratado — ex: 110 para '110% do CDI', ou 12 para '12% ao ano'. Só relevante pra renda fixa (exceto Poupança, que já tem taxa conhecida). Se for renda fixa e ele não disse a taxa, NÃO chame a ferramenta: pergunte antes." },
+        taxaPeriodo: { type: "string", enum: ["ano", "mes"], description: "Período da taxa informada. Padrão: ano." },
+        criptoMoeda: { type: "string", description: "Nome ou sigla da criptomoeda (bitcoin, ethereum, solana...), só quando tipo é Cripto." },
+        criptoQtd: { type: "number", description: "Quantidade da moeda, só quando tipo é Cripto. Se ele só disse a quantidade (não o valor em reais), tudo bem — deixe valor vazio, o app calcula pelo preço de hoje." }
+      },
+      required: []
+    },
+
+    preparar(d) {
+      const p = {};
+      const tiposConhecidos = Object.keys(CATEGORIAS_INV).filter(t => t !== "Outro");
+
+      let tipoBruto = String(d.tipo == null ? "" : d.tipo).trim();
+      const ehOutraDigitada = tipoBruto.indexOf("outra:") === 0;
+      if (ehOutraDigitada) tipoBruto = tipoBruto.slice(6).trim();
+
+      const tipo = tiposConhecidos.find(t => normIA(t) === normIA(tipoBruto));
+      if (tipo) {
+        p.tipo = tipo;
+      } else if (tipoBruto && ehOutraDigitada) {
+        p.tipo = "Outro";
+        p.nomeOutro = tipoBruto.slice(0, 60);
+      } else {
+        return {
+          dados: {},
+          perguntas: [{
+            campo: "tipo",
+            texto: "Que tipo de investimento é esse?",
+            opcoes: [
+              { v: "CDB", t: "CDB" },
+              { v: "Tesouro Selic", t: "Tesouro Selic" },
+              { v: "Poupança", t: "Poupança" },
+              { v: "Ações", t: "Ações" },
+              { v: "Cripto", t: "Cripto" },
+              { v: "FII", t: "FII" }
+            ],
+            permiteOutra: true,
+            rotuloOutra: "Outro..."
+          }]
+        };
+      }
+
+      const cfg = configTipo(p.tipo);
+      p.apelido = String(d.apelido == null ? "" : d.apelido).trim().slice(0, 60);
+
+      if (cfg.modo === "cripto") {
+        const moedaBruta = String(d.criptoMoeda == null ? "" : d.criptoMoeda).trim();
+        const cripto = CRIPTOS.find(c =>
+          normIA(c.nome) === normIA(moedaBruta) || normIA(c.sigla) === normIA(moedaBruta) || normIA(c.id) === normIA(moedaBruta)
+        );
+        if (!cripto) {
+          return {
+            dados: {},
+            perguntas: [{
+              campo: "criptoMoeda",
+              texto: "Qual moeda?",
+              opcoes: CRIPTOS.map(c => ({ v: c.id, t: `${c.nome} (${c.sigla})` }))
+            }]
+          };
+        }
+        p.criptoId = cripto.id;
+        p.criptoQtd = Number(d.criptoQtd) || null;
+        p.valor = valorIA(d.valor);
+        if (!p.valor && !p.criptoQtd) {
+          return { erro: "Não veio nem o valor em reais nem a quantidade da moeda. Pergunte quanto ele investiu (em reais) ou quantas moedas comprou." };
+        }
+      } else {
+        p.valor = valorIA(d.valor);
+        if (!p.valor) {
+          return { erro: "Não veio o valor investido, e você NUNCA deve inventar um. Pergunte quanto ele aplicou, numa frase curta." };
+        }
+      }
+
+      if (cfg.cat === "rf" && cfg.modo !== "poupanca") {
+        p.taxa = Number(d.taxa) || 0;
+        if (!p.taxa) {
+          return { erro: `Não veio a taxa de rendimento do ${p.tipo}, e você não deve inventar uma. Pergunte a taxa contratada numa frase curta (ex: "110% do CDI" ou "12% ao ano").` };
+        }
+        p.taxaPeriodo = cfg.modo === "cdi" ? "ano" : (d.taxaPeriodo === "mes" ? "mes" : "ano");
+        p.regime = "composto";
+      } else {
+        p.taxa = 0;
+        p.taxaPeriodo = "ano";
+        p.regime = "composto";
+      }
+
+      return { dados: p, perguntas: [] };
+    },
+
+    async executar(p) {
+      const tipoFinal = p.tipo === "Outro" ? (p.nomeOutro || "Outro") : p.tipo;
+      let valor = p.valor;
+      let criptoQtd = p.criptoQtd || null;
+
+      // Cripto: busca o preço fresco pra calcular o que faltou (valor ou quantidade)
+      if (p.criptoId) {
+        try { await atualizarPrecosCripto(true); } catch (e) {}
+        const preco = _precosCripto[p.criptoId] && _precosCripto[p.criptoId].brl;
+        if (preco) {
+          if (!valor && criptoQtd) valor = criptoQtd * preco;
+          else if (!criptoQtd && valor) criptoQtd = valor / preco;
+        }
+        if (!valor) {
+          return { ok: false, mensagem: "Não consegui buscar o preço da moeda agora pra calcular o valor. Peça pra ele informar o valor em reais também." };
+        }
+      }
+
+      const novo = await dbInsert("investimentos", {
+        nome: p.apelido || "",
+        tipo: tipoFinal,
+        valor: valor,
+        taxa: p.taxa || 0,
+        taxa_periodo: p.taxaPeriodo || "ano",
+        regime: p.regime || "composto",
+        valor_atual: null,
+        renda_passiva: 0,
+        valor_atual_em: null,
+        conta_id: null,
+        data_inicio: hojeISO(),
+        cripto_id: p.criptoId || null,
+        cripto_qtd: criptoQtd
+      });
+      state.investimentos.push(mapInvestimento(novo));
+      renderTudo();
+      if (p.criptoId) atualizarPrecosCripto(true).then(() => renderInvestimentos()).catch(() => {});
+
+      const recibo = [{ rotulo: "Tipo", valor: tipoFinal }, { rotulo: "Valor", valor: fmtMoeda(valor) }];
+      if (p.apelido) recibo.unshift({ rotulo: "Nome", valor: p.apelido });
+      if (p.taxa) recibo.push({ rotulo: "Rendimento", valor: `${fmtNum(p.taxa)}% ao ${p.taxaPeriodo === "mes" ? "mês" : "ano"}` });
+      if (criptoQtd) recibo.push({ rotulo: "Quantidade", valor: `${fmtNum(criptoQtd)} ${(criptoPorId(p.criptoId) || {}).sigla || ""}` });
+
+      return {
+        ok: true,
+        titulo: "Investimento adicionado",
+        recibo,
+        mensagem: `Investimento em ${tipoFinal} registrado: ${fmtMoeda(valor)}` +
+                  (p.taxa ? `, rendendo ${fmtNum(p.taxa)}% ao ${p.taxaPeriodo === "mes" ? "mês" : "ano"}` : "") + "."
+      };
+    }
   }
 
 };
+
+/* Acha UM lançamento (gasto/entrada) pela descrição digitada — mesma
+   lógica de desambiguação usada em marcar_como_pago: bate substring (dos
+   dois lados), afunila por valor se ainda sobrar mais de um, e devolve
+   direto quando sobra exatamente um. Usada por editar_lancamento e
+   excluir_lancamento. */
+function _acharLancamentoIA(d, textoPergunta) {
+  const todos = state.movimentos || [];
+  if (!todos.length) {
+    return { erro: "Não há nenhum lançamento registrado ainda." };
+  }
+
+  const escolhido = d.id ? todos.find(m => String(m.id) === String(d.id)) : null;
+  if (escolhido) return { dados: { id: escolhido.id }, perguntas: [] };
+
+  const alvo = normIA(d.busca);
+  let cand = todos;
+  if (alvo) {
+    cand = todos.filter(m => {
+      const n = normIA(m.descricao);
+      return n.includes(alvo) || (alvo.length >= 3 && alvo.includes(n));
+    });
+  }
+
+  const v = valorIA(d.valor);
+  if (v && cand.length > 1) {
+    const porValor = cand.filter(m => Math.abs(Number(m.valor) - v) < 0.005);
+    if (porValor.length) cand = porValor;
+  }
+
+  if (!cand.length) {
+    return { erro: "Não achei nenhum lançamento com essa descrição. Pergunte a ele o nome exato ou o valor, pra ajudar a achar." };
+  }
+
+  if (cand.length === 1) return { dados: { id: cand[0].id }, perguntas: [] };
+
+  // Mais recentes primeiro, e no máximo 8 opções pra não virar uma parede de botões
+  const ordenados = cand.slice().sort((a, b) => (b.data || "").localeCompare(a.data || "")).slice(0, 8);
+  return {
+    dados: { id: "" },
+    perguntas: [{
+      campo: "id",
+      texto: textoPergunta,
+      opcoes: ordenados.map(m => ({ v: m.id, t: m.descricao, extra: `${fmtMoeda(m.valor)} · ${formatarDataBR(m.data)}` }))
+    }]
+  };
+}
 
 /* Deduz o tipo da conta pelo nome. Devolve "" quando não tem certeza,
    para o app perguntar em botões. */
