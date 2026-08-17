@@ -929,7 +929,14 @@ function mostrarTelaLogin() {
   // O login abre como modal quando a pessoa clica em "Entrar".
   document.getElementById("landing").style.display = "block";
   document.getElementById("telaLogin").style.display = "none";
-  document.getElementById("appLayout").style.display = "none";
+  // Faltava esconder a tela de assinatura obrigatória: quem clicava em
+  // "Sair da conta" voltava pra landing, mas o cartão de assinar
+  // continuava por cima (ficou visível quando o fundo virou translúcido).
+  const telaAssinar = document.getElementById("telaAssinar");
+  if (telaAssinar) telaAssinar.style.display = "none";
+  const appLayout = document.getElementById("appLayout");
+  appLayout.style.display = "none";
+  appLayout.classList.remove("app-bloqueado");
   document.body.style.overflow = "";
 
   // Só inicia as animações depois que a landing está no fluxo,
