@@ -12231,21 +12231,36 @@ async function executarAcaoIA(acao) {
       const retomou = restaurarChat();
       if (!retomou) {
         const nome = primeiroNome();
-        const abertura = nome ? "Olá, " + nome + "! 👋" : "Olá! 👋";
-        const saudacao = abertura + " Sou o Assistente FAZ. Posso cuidar de quase tudo por aqui pra você — é só me pedir com suas palavras. Por exemplo:\n\n" +
-          "• \"gastei 200 de gasolina no nubank\" — lanço o gasto e já categorizo\n" +
-          "• \"recebi 3500 de salário\" — registro a entrada\n" +
-          "• \"cadastra minha conta do Itaú com 1200\" — crio a conta\n" +
-          "• \"passa 500 da poupança pro nubank\" — faço a transferência\n" +
-          "• \"meu aluguel é 1500 todo dia 10\" — crio o gasto fixo que se repete\n" +
-          "• \"quero juntar 6000 pra uma viagem até dezembro\" — monto o objetivo\n" +
-          "• \"quero gastar no máximo 800 com alimentação\" — defino o limite\n\n" +
-          "Também respondo dúvidas como \"quanto posso gastar esse mês?\". Como posso te ajudar?";
+        const abertura = nome ? "Oi, " + nome + "! 👋" : "Oi! 👋";
+        const saudacao = abertura + " Sou o Assistente FAZ — registro gastos, contas, metas e mais, do jeito que você falar.\n\n" +
+          "Ex: \"gastei 50 no mercado\" ou \"meu aluguel é 1500 todo dia 10\".\n\n" +
+          "O que você precisa?";
         addMsg(saudacao, "ia");
         conversaIniciada = true;
       }
     }
     setTimeout(function () { if (campo) campo.focus(); }, 100);
+  }
+
+  // Apaga a conversa (mensagens + memória) e volta pra saudação inicial.
+  // Pede confirmação porque não tem como desfazer — mas nunca desfaz
+  // lançamentos já salvos, só o histórico do chat.
+  async function limparConversa() {
+    const lista = document.getElementById("iaChatMensagens");
+    if (!lista || !lista.children.length) return;
+    const ok = await confirmar("Apagar esta conversa?", {
+      tipo: "perigo",
+      descricao: "O histórico do chat some. Isso não desfaz nenhum lançamento que a IA já salvou.",
+      okLabel: "Apagar"
+    });
+    if (!ok) return;
+
+    lista.innerHTML = "";
+    historicoConversa.length = 0;
+    conversaIniciada = false;
+    const dono = donoAtual();
+    if (dono) localStorage.removeItem(CHAVE_CHAT);
+    abrir();  // mostra a saudação de novo, como se fosse a primeira vez
   }
 
   // Minimiza o chat (mantém a conversa; o botão fica sempre na sidebar)
@@ -12414,6 +12429,12 @@ async function executarAcaoIA(acao) {
       if (e.target.closest("#iaChatFechar")) {
         e.preventDefault();
         minimizar();
+        return;
+      }
+      // Apagar conversa (clicou na lixeira)
+      if (e.target.closest("#iaChatLimpar")) {
+        e.preventDefault();
+        limparConversa();
         return;
       }
       // Enviar (clicou na seta)

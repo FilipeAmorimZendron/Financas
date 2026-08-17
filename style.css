@@ -9500,7 +9500,7 @@ body.scroll-travado {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
-.ia-chat-fechar {
+.ia-chat-fechar, .ia-chat-limpar {
   width: 30px;
   height: 30px;
   border-radius: 8px;
@@ -9511,10 +9511,12 @@ body.scroll-travado {
   justify-content: center;
   cursor: pointer;
   color: var(--text-secondary);
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
 }
 .ia-chat-fechar:hover { background: var(--surface2); }
-.ia-chat-fechar svg { width: 18px; height: 18px; }
+.ia-chat-limpar:hover { background: var(--red-dim); color: var(--red); }
+.ia-chat-fechar svg, .ia-chat-limpar svg { width: 18px; height: 18px; }
 
 .ia-chat-mensagens {
   flex: 1;
