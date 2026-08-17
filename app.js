@@ -947,17 +947,31 @@ function mostrarTelaApp() {
   document.getElementById("telaLogin").style.display = "none";
   const telaAssinar = document.getElementById("telaAssinar");
   if (telaAssinar) telaAssinar.style.display = "none";
-  document.getElementById("appLayout").style.display = "flex";
+  const appLayout = document.getElementById("appLayout");
+  appLayout.style.display = "flex";
+  appLayout.classList.remove("app-bloqueado");
   document.body.style.overflow = "";
 }
 
 /* Tela de assinatura obrigatória. Não existe mais conta grátis: quem não
    tem assinatura ativa (e não é um usuário de antes do plano único, ver
-   usuarioAnteriorAoPlanoUnico) cai aqui em vez de ver o app. */
+   usuarioAnteriorAoPlanoUnico) cai aqui em vez de ver o app.
+   O app de verdade fica visível (borrado) atrás do cartão: mostra que é
+   um produto de verdade sem soltar acesso — o cadeado cobre a tela
+   inteira (pointer-events: none no .app-bloqueado) e quem trava de
+   verdade é o servidor, nas APIs que exigem assinatura ativa. Os dados
+   já estavam carregados na memória de qualquer forma (carregarDadosNuvem
+   roda antes da decisão de mostrar o paywall), então renderizar aqui não
+   expõe nada que um F12 já não expusesse. */
 function mostrarTelaAssinar() {
   document.getElementById("landing").style.display = "none";
   document.getElementById("telaLogin").style.display = "none";
-  document.getElementById("appLayout").style.display = "none";
+
+  const appLayout = document.getElementById("appLayout");
+  appLayout.style.display = "flex";
+  appLayout.classList.add("app-bloqueado");
+  try { renderTudo(); trocarTela("dashboard"); } catch (e) { console.error("Falha ao renderizar o fundo da tela de assinatura:", e); }
+
   const tela = document.getElementById("telaAssinar");
   if (tela) tela.style.display = "flex";
   document.body.style.overflow = "hidden";

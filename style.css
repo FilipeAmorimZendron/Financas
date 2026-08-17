@@ -170,6 +170,17 @@ button, input, textarea, select {
 /* Recolhida: a COLUNA do grid encolhe (não só a largura da sidebar) */
 .sidebar-recolhida .layout { grid-template-columns: 74px 1fr; }
 
+/* App de verdade, borrado atrás da tela de assinatura obrigatória
+   (#telaAssinar) — mesma ideia do .screen.secao-desfocada (bloqueio de
+   uma seção premium), só que pro app inteiro. Mostra que é um produto
+   de verdade sem dar pra ler nada nem clicar em nada por trás do véu. */
+.layout.app-bloqueado {
+  filter: blur(9px) brightness(0.6) saturate(0.85);
+  pointer-events: none;
+  user-select: none;
+  transition: filter 0.25s;
+}
+
 /* ============================================================
    SIDEBAR
    ============================================================ */
@@ -4517,7 +4528,15 @@ body.sem-internet .layout { padding-top: 34px; }
 
 /* ─── Tela de assinatura obrigatória ────────────────────────
    Card único e centralizado (sem a coluna de vídeo do login) —
-   usa o mesmo overlay .auth-modal por trás. */
+   usa o mesmo overlay .auth-modal por trás, mas com o app de verdade
+   (embaçado) no fundo em vez da decoração de grade do login/cadastro —
+   ver #telaAssinar e .app-bloqueado mais abaixo. */
+#telaAssinar {
+  background: rgba(1, 16, 37, 0.6);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#telaAssinar::before { content: none; }
 .assinar-shell {
   position: relative;
   width: 100%;
