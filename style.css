@@ -7614,7 +7614,22 @@ body.sem-internet .layout { padding-top: 34px; }
   background: linear-gradient(135deg, var(--accent-dim), var(--surface));
   border-color: var(--accent-glow);
 }
+/* Entrou/Saiu ganham o mesmo tratamento (fundo com leve tingimento na cor),
+   pra não ficarem "cards mortos" iguais aos outros — cor SEMPRE junto com
+   o ícone no rótulo (ver .card-label-green/red mais abaixo), nunca só a
+   cor sozinha, porque o usuário é daltônico. */
+.plan-card-entrou {
+  background: linear-gradient(135deg, var(--green-dim), var(--surface));
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+}
+.plan-card-saiu {
+  background: linear-gradient(135deg, var(--red-dim), var(--surface));
+  border-color: color-mix(in srgb, var(--red) 35%, transparent);
+}
 .plan-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -7622,6 +7637,10 @@ body.sem-internet .layout { padding-top: 34px; }
   color: var(--text-muted);
   margin-bottom: 8px;
 }
+/* Compostas (2 classes) pra vencer .plan-card-label de qualquer jeito,
+   sem depender de qual das duas vem depois no arquivo. */
+.plan-card-label.card-label-green { color: var(--green); }
+.plan-card-label.card-label-red   { color: var(--red); }
 .plan-card-valor {
   font-family: 'IBM Plex Mono', monospace;
   font-size: clamp(18px, 2.2vw, 24px);
@@ -7632,6 +7651,11 @@ body.sem-internet .layout { padding-top: 34px; }
   margin-bottom: 6px;
   overflow-wrap: anywhere;
 }
+/* Idem: .valor-positivo/.valor-negativo (usadas em vários lugares do app)
+   perdiam pro color:var(--text-primary) do .plan-card-valor por causa da
+   ordem no arquivo — a cor do "Entrou"/"Saiu" nunca aparecia. */
+.plan-card-valor.valor-positivo { color: var(--green); }
+.plan-card-valor.valor-negativo { color: var(--red); }
 .plan-card-valor-sm { font-size: clamp(14px, 1.6vw, 17px); }
 .plan-card-sub {
   font-size: 11px;
@@ -11524,25 +11548,32 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
     align-self: flex-start;
     margin-bottom: 4px;
   }
+  /* Era um botão de largura total, com o mesmo peso visual de um card de
+     dado — ficava maior e mais chamativo que o próprio Saldo Total
+     embaixo, o que é o contrário do que devia. Vira um controle mais
+     discreto (largura pelo conteúdo, menos negrito), do tamanho de um
+     filtro, não de um destaque. */
   .dash-header-direita {
     margin-top: 0;
-    align-items: stretch;
+    align-items: flex-start;
     width: 100%;
   }
   .dash-periodo {
-    align-items: stretch;
+    align-items: flex-start;
     width: 100%;
   }
   .dash-periodo-btn {
-    width: 100%;
-    min-width: 0;
+    width: auto;
+    min-width: 132px;
     justify-content: space-between;
-    font-size: 15px;
-    padding: 13px 16px;
+    font-size: 13.5px;
+    font-weight: 500;
+    padding: 9px 13px;
+    background: var(--surface);
   }
   .dash-periodo-datas {
     align-self: flex-start;
-    font-size: 12px;
+    font-size: 11.5px;
   }
   .dash-periodo-menu {
     right: 0;

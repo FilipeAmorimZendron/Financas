@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202608181256" />
+  <link rel="stylesheet" href="style.css?v=202608181319" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -1168,13 +1168,19 @@
             <div class="plan-card-valor" id="saldoTotalPlanilha">R$ 0,00</div>
             <div class="plan-card-sub" id="saldoPlanilhaSub">Com base no filtro aplicado</div>
           </div>
-          <div class="plan-card">
-            <div class="plan-card-label">Entrou</div>
+          <div class="plan-card plan-card-entrou">
+            <div class="plan-card-label card-label-green">
+              <svg class="card-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>
+              Entrou
+            </div>
             <div class="plan-card-valor valor-positivo" id="entrouPlanilha">R$ 0,00</div>
             <div class="plan-card-sub" id="entrouPlanilhaSub">—</div>
           </div>
-          <div class="plan-card">
-            <div class="plan-card-label">Saiu</div>
+          <div class="plan-card plan-card-saiu">
+            <div class="plan-card-label card-label-red">
+              <svg class="card-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="6 13 12 19 18 13"/></svg>
+              Saiu
+            </div>
             <div class="plan-card-valor valor-negativo" id="saiuPlanilha">R$ 0,00</div>
             <div class="plan-card-sub" id="saiuPlanilhaSub">—</div>
           </div>
@@ -2888,6 +2894,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202608181256"></script>
+  <script src="app.js?v=202608181319"></script>
 </body>
 </html>
