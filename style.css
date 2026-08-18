@@ -4713,6 +4713,18 @@ body.sem-internet .layout { padding-top: 34px; }
 .cupom-msg:empty { margin: 0; }
 .cupom-msg-ok { color: #1EF6DD; font-weight: 600; }
 .cupom-msg-erro { color: #d9635d; font-weight: 600; }
+
+/* Preço cheio riscado ao lado do preço com cupom (dentro de .preco-plano-valor).
+   clamp() dá um teto mínimo de legibilidade nas menções pequenas (frase do
+   cadastro, badge da CTA final) sem ficar gigante nos preços grandes dos
+   cards (que são font-size ~44-46px, então 0.5em já vira ~22-23px sozinho). */
+.preco-riscado {
+  font-size: clamp(11px, 0.5em, 22px);
+  font-weight: 600;
+  color: #7C8FA3;
+  text-decoration: line-through;
+  margin-right: 4px;
+}
 .assinar-sair {
   margin-top: 20px;
   background: none;

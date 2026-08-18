@@ -1016,10 +1016,18 @@ function _fmtPrecoBR(v) { return v.toFixed(2).replace(".", ","); }
 
 /* Atualiza todo mundo que mostra o preço do plano na página (landing,
    cadastro, tela de assinatura, tela de planos), de acordo com o cupom
-   aplicado no momento. */
+   aplicado no momento. Com cupom, mostra o preço cheio riscado do lado
+   do novo — não só troca o número, deixa claro que houve desconto. */
 function atualizarPrecoNaTela() {
-  const valor = (_cupomAplicado && CUPONS_PREVIA[_cupomAplicado]) ? CUPONS_PREVIA[_cupomAplicado] : PRECO_PLANO_CHEIO;
-  document.querySelectorAll(".preco-plano-valor").forEach(el => { el.textContent = _fmtPrecoBR(valor); });
+  const temCupom = !!(_cupomAplicado && CUPONS_PREVIA[_cupomAplicado]);
+  const valor = temCupom ? CUPONS_PREVIA[_cupomAplicado] : PRECO_PLANO_CHEIO;
+  document.querySelectorAll(".preco-plano-valor").forEach(el => {
+    if (temCupom) {
+      el.innerHTML = `<s class="preco-riscado">${_fmtPrecoBR(PRECO_PLANO_CHEIO)}</s> ${_fmtPrecoBR(valor)}`;
+    } else {
+      el.textContent = _fmtPrecoBR(valor);
+    }
+  });
 }
 atualizarPrecoNaTela();
 
