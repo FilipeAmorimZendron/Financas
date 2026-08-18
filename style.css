@@ -1562,7 +1562,7 @@ textarea { resize: vertical; }
   .sidebar {
     display: flex;
     position: fixed; top: 0; left: 0;
-    height: 100dvh; width: min(80vw, 300px);
+    height: 100dvh; width: min(76vw, 280px);
     transform: translateX(-100%);
     transition: transform 0.25s var(--ease);
     z-index: 300;
@@ -1770,8 +1770,11 @@ textarea { resize: vertical; }
   .bnav-item { min-height: 56px; }
   .bnav-item svg { width: 18px; height: 18px; }
 
-  /* Header mobile: marca à esquerda, ações à direita, alinhadas ao centro */
-  .sidebar { align-items: center; }
+  /* Regra antiga (de quando a sidebar ficava display:none no celular —
+     nunca chegava a aparecer). Agora que ela é a gaveta do menu, isso
+     encolhia o .menu inteiro pra largura do conteúdo e centralizava
+     tudo, em vez de cada item ocupar a largura toda alinhado à
+     esquerda. Removida — o padrão do flex (stretch) é o certo aqui. */
   .user-info { align-items: center; }
 
   /* Form no mobile: botão ocupa largura toda e fica após os campos */
