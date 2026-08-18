@@ -1294,6 +1294,10 @@ document.getElementById("formLogin")?.addEventListener("submit", async e => {
    devolveria sessão nenhuma aqui). */
 document.getElementById("formCadastro")?.addEventListener("submit", async e => {
   e.preventDefault();
+  // Pixel: tentou criar conta (sinal de interesse, antes de saber se deu
+  // certo — ajuda a ver quem chega até aqui mesmo se travar na validação
+  // ou na criação da conta em si).
+  if (typeof fbq === "function") { try { fbq("track", "Lead", { content_name: "cadastro_iniciado" }); } catch(e){} }
   const email = document.getElementById("cadEmail").value.trim();
   const senha = document.getElementById("cadSenha").value;
   const conf  = document.getElementById("cadConfirmar").value;
