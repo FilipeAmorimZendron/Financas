@@ -2685,9 +2685,14 @@ function renderCartoesDashboard() {
 
   const cards = cartoes.map(c => {
     const faturaMes = alvo || proximaFaturaAberta(c.id);
-    const aPagar = totalFatura(c.id, faturaMes);
-    const disponivel = limiteDisponivel(c.id);
     const paga = faturaEstaPaga(c.id, faturaMes);
+    // totalFatura() soma as compras daquele mês, pagas ou não — é o
+    // histórico da fatura, não quanto falta pagar. Quando "alvo" força um
+    // mês específico (filtro "Este mês"/"mês anterior" do dashboard), ele
+    // pode cair numa fatura que já foi quitada; sem esse "paga ? 0 :",
+    // o card continuava mostrando o valor todo como "A pagar" mesmo paga.
+    const aPagar = paga ? 0 : totalFatura(c.id, faturaMes);
+    const disponivel = limiteDisponivel(c.id);
     const pctUsado = (c.limite && c.limite > 0)
       ? Math.min(100, Math.max(0, ((c.limite - (disponivel ?? c.limite)) / c.limite) * 100))
       : 0;
@@ -2699,6 +2704,7 @@ function renderCartoesDashboard() {
          : dVenc === 0 ? "vence hoje"
          : dVenc === 1 ? "vence amanhã"
          : `vence ${vencCard.slice(8,10)}/${vencCard.slice(5,7)}`)
+      : paga ? "fatura paga"
       : (() => {
           const [fa, fm] = faturaMes.split("-");
           const nm = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
