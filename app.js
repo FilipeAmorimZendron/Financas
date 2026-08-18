@@ -12930,6 +12930,136 @@ async function executarAcaoIA(acao) {
     if (el) el.textContent = (limite - usados) + " de " + limite + " perguntas disponíveis";
   }
 
+  // ─── Mensagem de voz (grava, transcreve e manda pro mesmo fluxo do texto) ───
+  let mediaRecorderIA = null;
+  let audioChunksIA = [];
+  let streamMicIA = null;
+  let gravandoAudio = false;
+
+  function suportaGravacaoAudio() {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+  }
+
+  function atualizarUIGravacao(ligado) {
+    const btn = document.getElementById("iaChatMic");
+    const wrap = document.querySelector(".ia-chat-input");
+    const campo = document.getElementById("iaChatCampo");
+    if (btn) btn.classList.toggle("ia-mic-gravando", ligado);
+    if (wrap) wrap.classList.toggle("ia-input-gravando", ligado);
+    if (campo) {
+      campo.placeholder = ligado ? "Gravando... toque no microfone pra enviar" : "Pergunte algo...";
+      campo.disabled = ligado;
+    }
+  }
+
+  function blobParaBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const leitor = new FileReader();
+      leitor.onload = () => resolve(String(leitor.result).split(",")[1] || "");
+      leitor.onerror = reject;
+      leitor.readAsDataURL(blob);
+    });
+  }
+
+  // Quando o áudio não dá pra entender, oferece opções em vez de travar a conversa
+  function mostrarFalhaAudio(motivo) {
+    const lista = document.getElementById("iaChatMensagens");
+    const div = addMsg(motivo + " O que você quer fazer?", "ia");
+    if (!div || !lista) return;
+    const caixa = document.createElement("div");
+    caixa.className = "ia-pergunta-opcoes";
+    const opcoes = [
+      { rotulo: "🔁 Gravar de novo", acao: () => alternarGravacaoAudio() },
+      { rotulo: "⌨️ Escrever a mensagem", acao: () => { const c = document.getElementById("iaChatCampo"); if (c) c.focus(); } },
+      { rotulo: "Deixa pra lá", acao: () => {} }
+    ];
+    opcoes.forEach(o => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "ia-opcao";
+      btn.textContent = o.rotulo;
+      btn.addEventListener("click", function () { caixa.remove(); o.acao(); });
+      caixa.appendChild(btn);
+    });
+    div.appendChild(caixa);
+    lista.scrollTop = lista.scrollHeight;
+  }
+
+  async function enviarAudioIA(blob) {
+    const pensando = addMsg("🎤 Transcrevendo o áudio...", "ia", true);
+    try {
+      const audioBase64 = await blobParaBase64(blob);
+      const token = localStorage.getItem("fp_token") || "";
+      const resp = await fetch("/api/transcrever-audio", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ audioBase64, tipoAudio: blob.type || "audio/webm", token })
+      });
+      const dados = await resp.json();
+      if (pensando) pensando.remove();
+
+      if (!resp.ok) {
+        mostrarFalhaAudio(dados.motivo || dados.erro || "Não consegui entender esse áudio.");
+        return;
+      }
+      const texto = (dados.texto || "").trim();
+      if (!texto || texto.length < 2) {
+        mostrarFalhaAudio("Não consegui entender esse áudio.");
+        return;
+      }
+      perguntar(texto);
+    } catch (e) {
+      if (pensando) pensando.remove();
+      mostrarFalhaAudio("Deu erro de conexão ao processar o áudio.");
+    }
+  }
+
+  function pararGravacaoAudio() {
+    gravandoAudio = false;
+    atualizarUIGravacao(false);
+    try { if (mediaRecorderIA && mediaRecorderIA.state !== "inactive") mediaRecorderIA.stop(); } catch (e) {}
+  }
+
+  async function alternarGravacaoAudio() {
+    if (gravandoAudio) { pararGravacaoAudio(); return; }
+    if (typeof ehPremium === "function" && !ehPremium()) {
+      pedirUpgrade("O assistente de IA está disponível pra quem assina o FAZ Finanças.", "Assistente de IA");
+      return;
+    }
+    if (!suportaGravacaoAudio()) {
+      addMsg("Seu navegador não permite gravar áudio aqui. Tente digitar a mensagem.", "ia");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamMicIA = stream;
+      audioChunksIA = [];
+      const mimeEscolhido = MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : (MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "");
+      mediaRecorderIA = mimeEscolhido ? new MediaRecorder(stream, { mimeType: mimeEscolhido }) : new MediaRecorder(stream);
+
+      mediaRecorderIA.addEventListener("dataavailable", function (e) {
+        if (e.data && e.data.size > 0) audioChunksIA.push(e.data);
+      });
+      mediaRecorderIA.addEventListener("stop", function () {
+        if (streamMicIA) { streamMicIA.getTracks().forEach(t => t.stop()); streamMicIA = null; }
+        const blob = new Blob(audioChunksIA, { type: mediaRecorderIA.mimeType || "audio/webm" });
+        audioChunksIA = [];
+        if (blob.size < 800) { mostrarFalhaAudio("Não peguei nenhum som nessa gravação."); return; }
+        enviarAudioIA(blob);
+      });
+
+      mediaRecorderIA.start();
+      gravandoAudio = true;
+      atualizarUIGravacao(true);
+    } catch (e) {
+      gravandoAudio = false;
+      atualizarUIGravacao(false);
+      addMsg("Não consegui acessar o microfone. Verifique a permissão do navegador e tente de novo.", "ia");
+    }
+  }
+
   // Liga tudo. Usa delegação no documento — funciona mesmo que os
   // elementos sejam recriados ou o clique caia num filho (SVG).
   function ligar() {
@@ -12968,6 +13098,12 @@ async function executarAcaoIA(acao) {
       if (e.target.closest("#iaChatAnexo")) {
         e.preventDefault();
         document.getElementById("iaChatArquivo")?.click();
+        return;
+      }
+      // Gravar/parar mensagem de voz (clicou no microfone)
+      if (e.target.closest("#iaChatMic")) {
+        e.preventDefault();
+        alternarGravacaoAudio();
         return;
       }
     });

@@ -2,7 +2,7 @@
 
 ## Sobre o projeto
 App web de finanças pessoais 100% em português (fazfinancas.com), com IA que:
-- Registra gastos por conversa
+- Registra gastos por conversa (texto ou áudio)
 - Organiza contas e cartões
 - Responde dúvidas financeiras
 - Acompanha metas do usuário
@@ -11,6 +11,7 @@ App web de finanças pessoais 100% em português (fazfinancas.com), com IA que:
 - HTML + CSS + JS puro (vanilla) — sem frameworks
 - Supabase (backend/banco de dados)
 - Vercel (deploy via GitHub, plano Hobby — migrar para Pro antes de cobrar)
+- Anthropic (Claude) para o chat de IA; Groq (Whisper) para transcrever mensagens de voz do chat — ver `api/transcrever-audio.js`
 - Repositório: github.com/FilipeAmorimZendron/Financas (branch main)
 - Pasta de dev local: ~/Desktop/FINANCAS2
 
@@ -53,6 +54,7 @@ App web de finanças pessoais 100% em português (fazfinancas.com), com IA que:
 - Checkout real via Asaas: produção já aprovada, mas chave de produção ainda não gerada
 - Migrar Vercel do plano Hobby para Pro antes de habilitar cobrança
 - Registro de gastos via WhatsApp (futuro, pós-checkout) — preferência por intermediário oficial (Twilio ou Z-API), não caminho não-oficial
+- **Mensagem de voz no chat da IA**: precisa da variável de ambiente `GROQ_API_KEY` configurada no Vercel (Project Settings → Environment Variables) para funcionar — sem ela, o botão de microfone aparece mas a transcrição falha com "ainda não está configurada". Conta grátis em console.groq.com.
 
 ## O que NUNCA fazer
 - Não preencher formulários de verificação empresarial com dados de empresas que não são do Filipin
