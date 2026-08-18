@@ -1580,12 +1580,13 @@ textarea { resize: vertical; }
     padding-bottom: env(safe-area-inset-bottom);
   }
   .bnav-item {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 4px; padding: 10px 4px;
+    flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; padding: 9px 1px;
     background: none; border: none; color: rgba(255,255,255,0.4);
     cursor: pointer; transition: color 0.15s; font-family: inherit;
   }
-  .bnav-item span { font-size: 10px; font-weight: 500; }
+  .bnav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .bnav-item span { font-size: 9px; font-weight: 500; white-space: nowrap; }
   .bnav-item.active { color: var(--teal-400); }
   .bnav-item:active { opacity: 0.7; }
 
@@ -1751,7 +1752,7 @@ textarea { resize: vertical; }
 /* Bottom nav: ícones e textos centralizados com altura uniforme */
 @media (max-width: 768px) {
   .bnav-item { min-height: 56px; }
-  .bnav-item svg { width: 20px; height: 20px; }
+  .bnav-item svg { width: 18px; height: 18px; }
 
   /* Header mobile: marca à esquerda, ações à direita, alinhadas ao centro */
   .sidebar { align-items: center; }
