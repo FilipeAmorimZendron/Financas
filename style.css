@@ -336,6 +336,15 @@ button, input, textarea, select {
   flex-wrap: wrap;
 }
 
+/* Envolve o eyebrow + título quando o page-header não tem mais nada ao
+   lado (Bancos, Lançamentos, Transferências, Gastos Fixos, Metas,
+   Investimentos). Sem isso os dois viravam itens soltos do flex row do
+   .page-header — no mobile, quando não cabiam lado a lado, cada um
+   ficava sozinho numa "célula" do space-between e podia sobrar pouco
+   espaço pro texto, cortando ou empurrando pro centro. Mesmo papel de
+   .dash-header-titulo, que o Dashboard já fazia certo. */
+.page-header-titulo { flex: 1; min-width: 0; }
+
 .page-eyebrow {
   font-size: 11px;
   font-weight: 600;
