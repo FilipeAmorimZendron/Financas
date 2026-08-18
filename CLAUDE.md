@@ -41,6 +41,8 @@ App web de finanças pessoais 100% em português (fazfinancas.com), com IA que:
 3. `git add` / `git commit` / `git push`
 4. Hard refresh no navegador (Cmd+Shift+R) para conferir
 
+**Cache-busting obrigatório:** `style.css` e `app.js` são carregados no `index.html` com `?v=AAAAMMDDHHmm` (ex: `style.css?v=202608181237`). Sempre que qualquer um dos dois for alterado, atualizar esse `?v=` nos dois `<link>`/`<script>` do `index.html` (mesmo valor nos dois, não precisa ser exato por arquivo) — sem isso, o celular do usuário (principalmente Safari) pode continuar servindo a versão antiga em cache mesmo depois do deploy, mesmo com hard refresh no desktop.
+
 ## Ambiente de teste
 - macOS + Chrome, com duas contas Google
 - Bugs são testados no navegador e reportados com print
