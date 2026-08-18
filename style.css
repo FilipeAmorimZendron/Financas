@@ -1532,13 +1532,14 @@ textarea { resize: vertical; }
 .ob-pular:hover { color: var(--text-secondary); }
 
 /* ============================================================
-   BOTTOM NAV — MOBILE
+   MENU LATERAL EM GAVETA — MOBILE
+   (botão hambúrguer + fundo escurecido; a sidebar em si vira gaveta
+   dentro do @media (max-width: 900px) mais abaixo, junto do resto do
+   ajuste de mobile — pra não competir em especificidade com a regra
+   .sidebar de lá.)
    ============================================================ */
-.bottom-nav { display: none; }
-.bnav-item-config { display: none; }
-@media (max-width: 900px) {
-  .bnav-item-config { display: flex; }
-}
+.mobile-menu-toggle { display: none; }
+.sidebar-backdrop { display: none; }
 
 @media (max-width: 900px) {
   /* CRÍTICO: qualquer campo com fonte < 16px faz o iOS dar zoom ao focar
@@ -1548,11 +1549,26 @@ textarea { resize: vertical; }
   .auth-campo input, .busca-input, .cor-hex-input {
     font-size: 16px !important;
   }
-  .layout { grid-template-columns: minmax(0, 1fr); padding-bottom: 68px; overflow-x: hidden; max-width: 100vw; }
+  .layout { grid-template-columns: minmax(0, 1fr); padding-bottom: max(16px, env(safe-area-inset-bottom)); overflow-x: hidden; max-width: 100vw; }
   html, body { overflow-x: hidden; max-width: 100%; width: 100%; position: relative; }
   .content { min-width: 0; overflow-x: hidden; max-width: 100%; }
   .table-wrapper { max-width: 100%; }
-  .sidebar { display: none !important; }
+
+  /* Menu lateral vira gaveta: some por padrão, desliza da esquerda quando
+     o body ganha .menu-mobile-aberto (botão hambúrguer / item selecionado
+     fecha de novo). */
+  .sidebar {
+    display: flex;
+    position: fixed; top: 0; left: 0;
+    height: 100dvh; width: min(80vw, 300px);
+    transform: translateX(-100%);
+    transition: transform 0.25s var(--ease);
+    z-index: 300;
+    box-shadow: 10px 0 30px rgba(0,0,0,0.45);
+  }
+  body.menu-mobile-aberto .sidebar { transform: translateX(0); }
+  body.menu-mobile-aberto { overflow: hidden; }
+
   .content { padding: 16px; }
   .page-title { font-size: 23px; }
   .page-header {
@@ -1572,23 +1588,21 @@ textarea { resize: vertical; }
   .panel { padding: 16px; }
   .finance-table th, .finance-table td { padding: 9px 10px; font-size: 12px; }
 
-  .bottom-nav {
-    display: flex; position: fixed; bottom: 0; left: 0; right: 0;
-    background: var(--navy-900);
-    border-top: 1px solid rgba(255,255,255,0.07);
-    z-index: 200; padding: 0;
-    padding-bottom: env(safe-area-inset-bottom);
+  .mobile-menu-toggle {
+    display: flex; position: fixed; top: 14px; left: 14px; z-index: 250;
+    width: 40px; height: 40px; align-items: center; justify-content: center;
+    background: var(--sidebar-bg); border: 1px solid var(--sidebar-border);
+    border-radius: 10px; color: var(--text-primary);
+    cursor: pointer;
   }
-  .bnav-item {
-    flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 3px; padding: 9px 1px;
-    background: none; border: none; color: rgba(255,255,255,0.4);
-    cursor: pointer; transition: color 0.15s; font-family: inherit;
+  .mobile-menu-toggle svg { width: 20px; height: 20px; }
+  .mobile-menu-toggle:active { opacity: 0.7; }
+
+  .sidebar-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55); z-index: 290;
   }
-  .bnav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
-  .bnav-item span { font-size: 9px; font-weight: 500; white-space: nowrap; }
-  .bnav-item.active { color: var(--teal-400); }
-  .bnav-item:active { opacity: 0.7; }
+  body.menu-mobile-aberto .sidebar-backdrop { display: block; }
 
   .modal {
     width: 100%; max-width: 100%; margin: 0;
@@ -9512,12 +9526,12 @@ body.scroll-travado {
 .sidebar-recolhida .sidebar-ia-btn span { display: none; }
 .sidebar-recolhida .sidebar-ia-btn { padding: 11px 0; }
 
-/* Botão flutuante do Assistente FAZ — só no mobile (a sidebar some lá) */
+/* Botão flutuante do Assistente FAZ — só no mobile (a sidebar vira gaveta) */
 .ia-fab-mobile {
   display: none;
   position: fixed;
   right: 16px;
-  bottom: 84px;
+  bottom: max(20px, env(safe-area-inset-bottom));
   z-index: 90;
   width: 56px; height: 56px;
   border-radius: 50%;

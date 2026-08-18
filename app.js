@@ -10460,6 +10460,24 @@ document.getElementById("sidebarToggle")?.addEventListener("click", () => {
   }, 280);
 });
 
+/* ============================================================
+   MENU LATERAL EM GAVETA — CELULAR
+   O mesmo menu do computador, só que escondido por padrão e
+   deslizando da esquerda quando o botão hambúrguer é tocado. Fecha
+   sozinho ao tocar no fundo escurecido ou em qualquer botão dele
+   dentro (item de tela, "Ver conta", "Assistente FAZ"...).
+   ============================================================ */
+function abrirMenuMobile() { document.body.classList.add("menu-mobile-aberto"); }
+function fecharMenuMobile() { document.body.classList.remove("menu-mobile-aberto"); }
+
+document.getElementById("mobileMenuToggle")?.addEventListener("click", () => {
+  document.body.classList.contains("menu-mobile-aberto") ? fecharMenuMobile() : abrirMenuMobile();
+});
+document.getElementById("sidebarBackdrop")?.addEventListener("click", fecharMenuMobile);
+document.querySelector(".sidebar")?.addEventListener("click", (e) => {
+  if (e.target.closest("button")) fecharMenuMobile();
+});
+
 
 /* ============================================================
    TAXA CDI AO VIVO (v37) — API do Banco Central
