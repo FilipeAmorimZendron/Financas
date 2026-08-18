@@ -803,8 +803,9 @@ function tratarErro(err) {
 
   if (err instanceof ErroRede && err.tipo === "sessao") {
     toast(msg, "error");
-    // Dá tempo de ler antes de deslogar
-    setTimeout(() => { logout(); }, 2200);
+    // Dá tempo de ler antes de deslogar. fazerLogout(false) = sem pedir
+    // confirmação (a sessão já caiu, não tem o que confirmar).
+    setTimeout(() => { fazerLogout(false); }, 2200);
     return;
   }
 
@@ -912,7 +913,11 @@ async function carregarDadosNuvem() {
     state.objetivos      = (objetivos||[]).map(mapObjetivo);
     state.investimentos  = (investimentos||[]).map(mapInvestimento);
   } catch(e) {
-    toast("Erro ao carregar dados: " + e.message, "error");
+    // Antes só mostrava um toast e parava, deixando a tela com tudo
+    // zerado pra sempre se a sessão tivesse expirado (sem deslogar nem
+    // avisar direito). tratarErro já sabe fazer isso certo — inclusive
+    // detectar sessão expirada e mandar pra tela de login.
+    tratarErro(e);
   } finally {
     mostrarLoading(false);
   }
