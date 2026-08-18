@@ -13,9 +13,17 @@ import { limitar, chaveDoIP } from "./_ratelimit.js";
 // todo mês. "premium" segue sendo o valor gravado em perfil.plano (e no
 // externalReference do Asaas) só por compatibilidade com o resto do
 // código — não precisou renomear nada no banco pra fazer essa mudança.
-const PLANO_UNICO = { valor: 27.9, nome: "FAZ Finanças", desc: "Todos os recursos: IA financeira, contas ilimitadas, investimentos, relatórios e importação de extrato. Cancele quando quiser." };
+const PLANO_UNICO = { valor: 37.9, nome: "FAZ Finanças", desc: "Todos os recursos: IA financeira, contas ilimitadas, investimentos, relatórios e importação de extrato. Cancele quando quiser." };
 const PLANO_ID = "premium";
 const CICLO = "mensal";
+
+// Cupons de desconto: preço final com o código, em vez do preço de tabela.
+// A validação é sempre aqui no servidor — o valor que o navegador mostra é
+// só uma prévia; quem decide o valor cobrado de verdade é esta lista.
+// Chave em maiúsculas; a comparação abaixo ignora caixa e espaços nas bordas.
+const CUPONS = {
+  ORGANIZACAO: 26.9,
+};
 
 // Sandbox por padrão. Em produção troque para https://api.asaas.com/v3
 const ASAAS_URL = process.env.ASAAS_URL || "https://api-sandbox.asaas.com/v3";
@@ -65,7 +73,7 @@ export default async function handler(req, res) {
 
   try {
     // Dados que o app manda (não existe mais plano/ciclo pra escolher)
-    const { email, nome, token } = req.body || {};
+    const { email, nome, token, cupom } = req.body || {};
 
     if (!email) {
       return res.status(400).json({ erro: "Dados do usuário faltando" });
@@ -86,7 +94,12 @@ export default async function handler(req, res) {
     const config = PLANO_UNICO;
     const plano = PLANO_ID;
     const ciclo = CICLO;
-    const valor = config.valor;
+
+    // Cupom: só aceita o que está na lista CUPONS. O que o navegador manda
+    // é ignorado se não bater — nunca confiamos em valor vindo do cliente.
+    const cupomDigitado = String(cupom || "").trim().toUpperCase();
+    const cupomValido = Object.prototype.hasOwnProperty.call(CUPONS, cupomDigitado) ? cupomDigitado : null;
+    const valor = cupomValido ? CUPONS[cupomValido] : config.valor;
 
     // Garante que o e-mail esteja gravado no perfil ANTES do pagamento.
     // O webhook usa o e-mail para identificar o usuário quando o Asaas
@@ -210,9 +223,12 @@ export default async function handler(req, res) {
         cycle: "MONTHLY",
         nextDueDate: nextDueDate,
         endDate: endDate,
-        externalReference: `${userId}|${plano}|${ciclo}`,
+        // 4º campo (cupom) é só pra registro/relatório — o webhook continua
+        // lendo apenas os 3 primeiros (userId|plano|ciclo), então isto não
+        // quebra nada do que já existe.
+        externalReference: `${userId}|${plano}|${ciclo}${cupomValido ? "|" + cupomValido : ""}`,
       },
-      externalReference: `${userId}|${plano}|${ciclo}`,
+      externalReference: `${userId}|${plano}|${ciclo}${cupomValido ? "|" + cupomValido : ""}`,
     };
 
     // Cria o checkout. Não mandamos customerData: o Asaas passa a exigir
@@ -294,7 +310,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ url: link });
+    return res.status(200).json({ url: link, valor, cupomAplicado: cupomValido || null });
 
   } catch (e) {
     return res.status(500).json({ erro: "Erro interno", detalhe: String(e) });

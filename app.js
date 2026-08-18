@@ -999,6 +999,74 @@ function mostrarAppOuPaywall() {
   return true;
 }
 
+/* ─── Cupom de desconto ───────────────────────────────────
+   Preço de tabela R$ 37,90/mês. O código aqui é só pra mostrar o preço
+   na hora — quem decide de verdade o valor cobrado é api/criar-checkout.js,
+   no servidor, que valida o código de novo antes de criar o checkout.
+   Nunca confie só no que roda no navegador para valor de pagamento. */
+const PRECO_PLANO_CHEIO = 37.90;
+const CUPONS_PREVIA = { ORGANIZACAO: 26.90 };
+
+// Sobrevive a um redirect (ex: login com Google) que recarrega a página.
+let _cupomAplicado = (() => {
+  try { return localStorage.getItem("fp_cupom") || null; } catch (e) { return null; }
+})();
+
+function _fmtPrecoBR(v) { return v.toFixed(2).replace(".", ","); }
+
+/* Atualiza todo mundo que mostra o preço do plano na página (landing,
+   cadastro, tela de assinatura, tela de planos), de acordo com o cupom
+   aplicado no momento. */
+function atualizarPrecoNaTela() {
+  const valor = (_cupomAplicado && CUPONS_PREVIA[_cupomAplicado]) ? CUPONS_PREVIA[_cupomAplicado] : PRECO_PLANO_CHEIO;
+  document.querySelectorAll(".preco-plano-valor").forEach(el => { el.textContent = _fmtPrecoBR(valor); });
+}
+atualizarPrecoNaTela();
+
+// Clique em "Tem um cupom?" ou em "Aplicar" — delegado, funciona em
+// qualquer uma das caixas de cupom da página (cadastro, telaAssinar, planos).
+document.addEventListener("click", (e) => {
+  const toggle = e.target.closest(".cupom-toggle");
+  if (toggle) {
+    const campo = toggle.parentElement.querySelector(".cupom-campo");
+    if (campo) {
+      campo.hidden = !campo.hidden;
+      if (!campo.hidden) campo.querySelector(".cupom-input")?.focus();
+    }
+    return;
+  }
+
+  const btnAplicar = e.target.closest(".cupom-aplicar");
+  if (btnAplicar) {
+    const box = btnAplicar.closest(".cupom-box");
+    const input = box?.querySelector(".cupom-input");
+    const msg = box?.querySelector(".cupom-msg");
+    if (!input || !msg) return;
+
+    const codigo = String(input.value || "").trim().toUpperCase();
+    if (!codigo) { input.focus(); return; }
+
+    if (CUPONS_PREVIA[codigo]) {
+      _cupomAplicado = codigo;
+      try { localStorage.setItem("fp_cupom", codigo); } catch (e) {}
+      msg.textContent = `Cupom aplicado! R$ ${_fmtPrecoBR(CUPONS_PREVIA[codigo])}/mês — menos de R$ 1 por dia.`;
+      msg.className = "cupom-msg cupom-msg-ok";
+    } else {
+      msg.textContent = "Cupom inválido.";
+      msg.className = "cupom-msg cupom-msg-erro";
+    }
+    atualizarPrecoNaTela();
+
+    // Mantém todas as caixas de cupom da página em sincronia (landing,
+    // cadastro, telaAssinar, planos podem coexistir escondidos no DOM).
+    document.querySelectorAll(".cupom-input").forEach(i => { if (i !== input) i.value = input.value; });
+    document.querySelectorAll(".cupom-msg").forEach(m => {
+      if (m !== msg) { m.textContent = msg.textContent; m.className = msg.className; }
+    });
+    return;
+  }
+});
+
 /* Inicia o checkout do plano único — usada na tela de assinatura
    obrigatória, no cadastro fundido e na landing. */
 async function assinarPlanoUnico() {
@@ -1016,7 +1084,8 @@ async function assinarPlanoUnico() {
       body: JSON.stringify({
         email: state.user.email,
         nome: state.perfil?.nome || null,
-        token: localStorage.getItem("fp_token") || ""
+        token: localStorage.getItem("fp_token") || "",
+        cupom: _cupomAplicado || null
       })
     });
     const dados = await resp.json();
@@ -1025,7 +1094,7 @@ async function assinarPlanoUnico() {
       return;
     }
     if (typeof fbq === "function") {
-      try { fbq("track", "InitiateCheckout", { value: 27.90, currency: "BRL", content_name: "faz_unico" }); } catch(e){}
+      try { fbq("track", "InitiateCheckout", { value: dados.valor || PRECO_PLANO_CHEIO, currency: "BRL", content_name: "faz_unico" }); } catch(e){}
     }
     window.location.href = dados.url;
   } catch (e) {
@@ -7921,7 +7990,7 @@ const DOCUMENTOS = {
     corpo: `
       <div class="doc-plano">
         <div class="doc-plano-tag">Plano único</div>
-        <div class="doc-plano-nome">R$ 27,90/mês</div>
+        <div class="doc-plano-nome">R$ 37,90/mês</div>
         <p class="doc-plano-desc">Um plano só, com acesso completo a todas as funcionalidades. Cancele quando quiser.</p>
       </div>
 
@@ -8846,10 +8915,12 @@ function mapPerfil(p) {
 
 /* Limites de cada plano. Desde a virada pro plano único, não existe mais
    conta grátis: "basico" (sem assinatura ativa) não libera nada — nem
-   contas nem metas. "premium" é o único plano à venda hoje (R$ 27,90/mês,
-   com tudo incluso); "master" continua valendo do mesmo jeito só porque
-   ainda existem assinantes antigos com esse valor gravado no perfil —
-   não precisou migrar ninguém no banco, os dois viram o mesmo acesso aqui. */
+   contas nem metas. "premium" é o único plano à venda hoje (R$ 37,90/mês,
+   ou R$ 26,90/mês com o cupom ORGANIZACAO — ver CUPONS_PREVIA e
+   api/criar-checkout.js); "master" continua valendo do mesmo jeito só
+   porque ainda existem assinantes antigos com esse valor gravado no
+   perfil — não precisou migrar ninguém no banco, os dois viram o mesmo
+   acesso aqui. */
 const LIMITES_PLANO = {
   basico:  { contas: 0,        metas: 0,        investimentos: false, recorrencias: false, relatorios: false, exportar: false, ia: false, importarExtrato: false, conectarBanco: false },
   premium: { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true,  ia: true,  importarExtrato: true,  conectarBanco: true },

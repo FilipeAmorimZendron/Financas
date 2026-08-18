@@ -13,8 +13,9 @@ const ASAAS_KEY = process.env.ASAAS_KEY;
 
 /* Descobre o plano pelo valor pago (mesmos preços de criar-checkout.js).
    Assinantes antigos (Premium/Master, mensal ou anual) continuam renovando
-   nos preços de antes; o plano único novo (R$ 27,90) cai no último
-   "return premium" (é menor que 40) — não precisou mudar nada aqui. */
+   nos preços de antes; o plano único novo (R$ 37,90, ou R$ 26,90 com
+   cupom) cai no último "return premium" (é menor que 40) — não precisou
+   mudar nada aqui. */
 function planoPeloValor(valor) {
   const v = Number(valor) || 0;
   if (v >= 400) return "master";

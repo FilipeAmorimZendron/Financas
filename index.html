@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202608181319" />
+  <link rel="stylesheet" href="style.css?v=202608181404" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -1451,10 +1451,20 @@
               <div class="plano-nome">Acesso completo</div>
               <div class="plano-preco">
                 <span class="plano-preco-moeda">R$</span>
-                <span class="plano-preco-valor">27,90</span>
+                <span class="plano-preco-valor preco-plano-valor">37,90</span>
                 <span class="plano-preco-ciclo">/mês</span>
               </div>
-              <div class="plano-preco-nota">menos de R$ 1 por dia · cancele quando quiser</div>
+              <div class="plano-preco-nota">cancele quando quiser</div>
+
+              <div class="cupom-box">
+                <button type="button" class="cupom-toggle">Tem um cupom de desconto?</button>
+                <div class="cupom-campo" hidden>
+                  <input type="text" class="cupom-input" placeholder="Código do cupom" maxlength="30" />
+                  <button type="button" class="cupom-aplicar">Aplicar</button>
+                </div>
+                <p class="cupom-msg"></p>
+              </div>
+
               <button class="plano-btn plano-btn-primario" onclick="assinarPlanoUnico()">Assinar agora</button>
               <div class="plano-ia-box">
                 <span class="plano-ia-titulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></svg> IA completa</span>
@@ -2559,10 +2569,10 @@
 
         <div class="lp-assinar-preco">
           <span class="lp-assinar-preco-moeda">R$</span>
-          <span class="lp-assinar-preco-valor">27,90</span>
+          <span class="lp-assinar-preco-valor preco-plano-valor">37,90</span>
           <span class="lp-assinar-preco-ciclo">/mês</span>
         </div>
-        <p class="lp-assinar-preco-nota">menos de R$ 1 por dia · cancele quando quiser</p>
+        <p class="lp-assinar-preco-nota">cancele quando quiser</p>
 
         <ul class="lp-assinar-lista">
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Contas, metas e lançamentos sem limite</li>
@@ -2645,7 +2655,7 @@
   <!-- CTA FINAL -->
   <section class="lp-final reveal lp-band-forte">
     <div class="lp-final-card">
-      <span class="lp-final-badge">R$ 27,90/mês</span>
+      <span class="lp-final-badge">R$ <span class="preco-plano-valor">37,90</span>/mês</span>
       <h2 class="lp-final-titulo">Pare de descobrir<br>no fim do mês.</h2>
       <p class="lp-final-sub">O <strong>FAZ</strong> mostra o que sobra antes de você gastar.</p>
       <button class="lp-btn-primary lp-btn-grande" onclick="abrirAuth('cadastro')">Assinar agora <span class="lp-final-seta">→</span></button>
@@ -2743,7 +2753,16 @@
         <!-- CADASTRO -->
         <div id="formCadastroWrap" class="auth-painel" style="display:none">
           <h2 class="auth-titulo">Assine o FAZ Finanças</h2>
-          <p class="auth-sub">R$ 27,90/mês, com tudo incluso. Cancele quando quiser.</p>
+          <p class="auth-sub">R$ <span class="preco-plano-valor">37,90</span>/mês, com tudo incluso. Cancele quando quiser.</p>
+
+          <div class="cupom-box">
+            <button type="button" class="cupom-toggle">Tem um cupom de desconto?</button>
+            <div class="cupom-campo" hidden>
+              <input type="text" class="cupom-input" placeholder="Código do cupom" maxlength="30" />
+              <button type="button" class="cupom-aplicar">Aplicar</button>
+            </div>
+            <p class="cupom-msg"></p>
+          </div>
 
           <button type="button" class="auth-btn-google" onclick="loginComGoogle()">
             <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
@@ -2874,10 +2893,19 @@
 
       <div class="assinar-preco">
         <span class="assinar-preco-moeda">R$</span>
-        <span class="assinar-preco-valor">27,90</span>
+        <span class="assinar-preco-valor preco-plano-valor">37,90</span>
         <span class="assinar-preco-ciclo">/mês</span>
       </div>
-      <p class="assinar-preco-nota">menos de R$ 1 por dia · cancele quando quiser</p>
+      <p class="assinar-preco-nota">cancele quando quiser</p>
+
+      <div class="cupom-box">
+        <button type="button" class="cupom-toggle">Tem um cupom de desconto?</button>
+        <div class="cupom-campo" hidden>
+          <input type="text" class="cupom-input" placeholder="Código do cupom" maxlength="30" />
+          <button type="button" class="cupom-aplicar">Aplicar</button>
+        </div>
+        <p class="cupom-msg"></p>
+      </div>
 
       <ul class="assinar-lista">
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Contas, metas e lançamentos sem limite</li>
@@ -2894,6 +2922,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202608181319"></script>
+  <script src="app.js?v=202608181404"></script>
 </body>
 </html>

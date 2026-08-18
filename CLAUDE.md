@@ -19,7 +19,9 @@ App web de finanças pessoais 100% em português (fazfinancas.com), com IA que:
 - Navy de fundo: #011025
 
 ## Preços atuais
-- Plano único: R$27,90/mês, com todos os benefícios. Não existe mais plano grátis (Básico) nem cadastro sem assinar — o cadastro já leva direto pro checkout.
+- Plano único: R$37,90/mês, com todos os benefícios. Não existe mais plano grátis (Básico) nem cadastro sem assinar — o cadastro já leva direto pro checkout.
+- Cupom de desconto **ORGANIZACAO**: R$26,90/mês (aplicado no campo de cupom no cadastro, na tela de assinatura obrigatória e na tela de Planos do app). Validação de verdade sempre no servidor (`api/criar-checkout.js`, constante `CUPONS`) — o preço mostrado no navegador (`app.js`, `CUPONS_PREVIA`) é só uma prévia. Pra criar/trocar cupons, editar as duas listas juntas.
+- Quem assinou a R$27,90 (entre a virada pro plano único em 13/08/2026 e esta mudança de preço) continua pagando R$27,90 — não foi migrado, é só o valor com que a assinatura foi criada no Asaas.
 - Sem opção anual por enquanto (só mensal).
 - Assinantes antigos dos planos Premium (R$25,90/mês ou R$264,00/ano) e Master (R$47,90/mês ou R$488,40/ano) continuam pagando esses valores normalmente — não foram migrados, só não são mais vendidos pra gente nova.
 - Quem já tinha conta antes da virada pro plano único (13/08/2026) manteve acesso completo de graça — ver `CORTE_PLANO_UNICO` em app.js.

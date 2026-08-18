@@ -4661,6 +4661,58 @@ body.sem-internet .layout { padding-top: 34px; }
 .assinar-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; animation: none; }
 @media (prefers-reduced-motion: reduce) { .assinar-btn { animation: none; } }
 .assinar-rodape { margin: 16px 0 0; font-size: 12.5px; font-weight: 600; color: #7C8FA3; line-height: 1.5; }
+
+/* Cupom de desconto — usada no cadastro, na tela de assinatura obrigatória
+   e na tela de Planos dentro do app. Sempre em fundo escuro, por isso as
+   cores aqui são fixas (iguais ao resto do .assinar-*), não var(). */
+.cupom-box { margin: 2px 0 18px; text-align: center; }
+.cupom-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1EF6DD;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.cupom-toggle:hover { opacity: 0.85; }
+.cupom-campo { display: flex; gap: 8px; margin-top: 12px; text-align: left; }
+.cupom-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid #2C384A;
+  border-radius: 8px;
+  color: #E6EEF5;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  text-transform: uppercase;
+}
+.cupom-input::placeholder { text-transform: none; }
+.cupom-input:focus { border-color: #1EF6DD; }
+.cupom-aplicar {
+  padding: 10px 16px;
+  background: rgba(30,246,221,0.12);
+  border: 1px solid rgba(30,246,221,0.4);
+  border-radius: 8px;
+  color: #1EF6DD;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.cupom-aplicar:hover { background: rgba(30,246,221,0.22); }
+.cupom-msg { margin: 8px 0 0; font-size: 12.5px; line-height: 1.4; }
+.cupom-msg:empty { margin: 0; }
+.cupom-msg-ok { color: #1EF6DD; font-weight: 600; }
+.cupom-msg-erro { color: #d9635d; font-weight: 600; }
 .assinar-sair {
   margin-top: 20px;
   background: none;
