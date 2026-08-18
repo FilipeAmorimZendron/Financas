@@ -11698,14 +11698,18 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   }
   .dash-periodo-opcao { padding: 13px 14px; font-size: 15px; }
 
-  /* Cards de resumo: 2 por linha em vez de amontoar */
+  /* Cards de resumo: 1 por linha — em 2 colunas, valor grande (ex: um
+     saldo na casa do milhão) cortava/estourava o card, porque o
+     tamanho da fonte era fixo e não diminuía pra caber. clamp() aqui
+     acompanha a largura da tela em vez de estourar. */
   .cards-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 10px;
   }
   .info-card { padding: 14px 15px; }
-  .info-card .card-value { font-size: 20px; }
-  .card-highlight { grid-column: 1 / -1; }  /* saldo total ocupa a linha toda */
+  .info-card .card-value { font-size: clamp(16px, 5.5vw, 20px); }
+  .card-highlight { grid-column: 1 / -1; }  /* saldo total ocupa a linha toda (já é 1 coluna, mas mantém se algo mudar) */
+  .card-highlight .card-value { font-size: clamp(20px, 6.5vw, 26px); }
 
   /* Legenda do gráfico: quebra e centraliza */
   .grafico-legenda {
@@ -11739,12 +11743,11 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   .sino-item-tempo { font-size: 10.5px; }
 }
 
-/* Telas bem pequenas (celular estreito) */
-@media (max-width: 380px) {
-  .cards-grid { grid-template-columns: 1fr; }
-  .card-highlight { grid-column: auto; }
-  .info-card .card-value { font-size: 22px; }
-}
+/* Telas bem pequenas (celular estreito): já cai tudo em 1 coluna pelo
+   bloco acima (@max-width:640px), e o font-size ali é clamp() — some
+   sozinho ajustando pra tela. Antes tinha uma regra aqui forçando
+   font-size:22px, MAIOR que nas telas um pouco menos estreitas — o
+   contrário do que faz sentido, e foi o que cortava o Saldo Total. */
 
 /* ═══════════════════════════════════════════════════════
    FORMULÁRIO DE NOVA CONTA — reformulado
