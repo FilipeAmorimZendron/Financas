@@ -11710,6 +11710,11 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   .info-card .card-value { font-size: clamp(16px, 5.5vw, 20px); }
   .card-highlight { grid-column: 1 / -1; }  /* saldo total ocupa a linha toda (já é 1 coluna, mas mantém se algo mudar) */
   .card-highlight .card-value { font-size: clamp(20px, 6.5vw, 26px); }
+  /* Rótulos (SALDO TOTAL, ENTRADAS, GASTOS, A PAGAR) mais destacados —
+     no celular ficavam pequenos e apagados demais (10.5px, cor bem
+     fraca), difíceis de ler de relance. */
+  .info-card .card-label { font-size: 12.5px; letter-spacing: 0.8px; color: var(--text-secondary); }
+  .card-highlight .card-label { color: rgba(255,255,255,0.8); }
 
   /* Legenda do gráfico: quebra e centraliza */
   .grafico-legenda {
