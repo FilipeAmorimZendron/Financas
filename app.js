@@ -1023,6 +1023,27 @@ function atualizarPrecoNaTela() {
 }
 atualizarPrecoNaTela();
 
+/* Se já tinha um cupom válido de uma visita anterior (sobrevivendo ao
+   redirect do login com Google), MOSTRA isso nas caixas de cupom — nunca
+   deixa o preço aparecer diferente sem explicar o motivo. Sem isso, o
+   preço mudava "sozinho" e parecia bug pra quem não lembrava de ter
+   digitado um cupom antes (ou, pior, num navegador compartilhado). */
+function refletirCupomSalvo() {
+  if (!_cupomAplicado || !CUPONS_PREVIA[_cupomAplicado]) return;
+  document.querySelectorAll(".cupom-box").forEach(box => {
+    const input = box.querySelector(".cupom-input");
+    const campo = box.querySelector(".cupom-campo");
+    const msg = box.querySelector(".cupom-msg");
+    if (input) input.value = _cupomAplicado;
+    if (campo) campo.hidden = false;
+    if (msg) {
+      msg.textContent = `Cupom aplicado! R$ ${_fmtPrecoBR(CUPONS_PREVIA[_cupomAplicado])}/mês — menos de R$ 1 por dia.`;
+      msg.className = "cupom-msg cupom-msg-ok";
+    }
+  });
+}
+refletirCupomSalvo();
+
 // Clique em "Tem um cupom?" ou em "Aplicar" — delegado, funciona em
 // qualquer uma das caixas de cupom da página (cadastro, telaAssinar, planos).
 document.addEventListener("click", (e) => {
@@ -1096,6 +1117,9 @@ async function assinarPlanoUnico() {
     if (typeof fbq === "function") {
       try { fbq("track", "InitiateCheckout", { value: dados.valor || PRECO_PLANO_CHEIO, currency: "BRL", content_name: "faz_unico" }); } catch(e){}
     }
+    // Cupom já foi usado neste checkout — não deixa guardado indefinidamente
+    // pra não continuar aparecendo em visitas futuras sem explicação.
+    try { localStorage.removeItem("fp_cupom"); } catch (e) {}
     window.location.href = dados.url;
   } catch (e) {
     toast("Erro de conexão. Tente novamente.", "error");
