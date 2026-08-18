@@ -345,6 +345,14 @@ button, input, textarea, select {
    .dash-header-titulo, que o Dashboard já fazia certo. */
 .page-header-titulo { flex: 1; min-width: 0; }
 
+/* No mobile o .page-header já vira coluna (ver @media 900px mais abaixo
+   e a correção de align-items perto de "título e botão-guia" nesta
+   mesma seção). Só reseta o flex:1 do wrapper aqui em cima, que em modo
+   coluna não faz sentido (cresceria na vertical à toa). */
+@media (max-width: 640px) {
+  .page-header-titulo { flex: none; width: 100%; }
+}
+
 .page-eyebrow {
   font-size: 11px;
   font-weight: 600;
@@ -1586,6 +1594,12 @@ textarea { resize: vertical; }
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     position: fixed; bottom: 0; left: 0; right: 0;
     max-height: 90vh; overflow-y: auto;
+    /* Sem isso, um <div> com overflow:auto dentro de um ancestral
+       position:fixed às vezes simplesmente não responde ao dedo em
+       iOS Safari — o conteúdo fica cortado em cima/embaixo e não dá
+       pra arrastar pra rolar (mesmo o CSS de scroll estando "certo").
+       Ativa o scroll com inércia nativo do iOS pra esse caso. */
+    -webkit-overflow-scrolling: touch;
   }
   .modal-overlay { align-items: flex-end; }
 
@@ -1712,6 +1726,15 @@ textarea { resize: vertical; }
 
 /* Header das páginas: título e botão-guia sempre na mesma linha de base */
 .page-header { align-items: center; }
+/* No mobile o .page-header vira coluna (regra lá em cima, @media 900px) —
+   mas como essa regra de centralizar vem DEPOIS no arquivo, ela ganhava
+   também no mobile (mesma especificidade, quem vem depois vence), e
+   title/eyebrow/filtro/"Como funciona" ficavam todos centralizados em vez
+   de alinhados à esquerda. Esta regra, vindo depois ainda, corrige isso
+   de vez — sem !important, só ficando por último na cascata. */
+@media (max-width: 900px) {
+  .page-header { align-items: flex-start; }
+}
 
 /* Números monoespaçados com tabular para não "dançar" ao atualizar */
 .card-value, .banco-card-saldo, .valor-positivo, .valor-negativo,

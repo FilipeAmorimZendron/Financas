@@ -5608,8 +5608,13 @@ const _modais = {
 
 /* Aceita tanto a chave curta ("movimento") quanto o id completo ("modalEditarMovimento") */
 function _elModal(k) { return _modais[k] || document.getElementById(k); }
-function abrirModal(k)  { _elModal(k)?.classList.add("open"); }
-function fecharModal(k) { _elModal(k)?.classList.remove("open"); }
+// Trava o scroll do fundo enquanto o modal está aberto — mesma coisa que
+// os outros overlays do app já fazem (telaAssinar, revisão de extrato,
+// tela do cartão). Sem isso, no celular, o gesto de rolar às vezes é
+// capturado pela PÁGINA por trás em vez do conteúdo do modal, e por fora
+// parece que o modal "não rola" — mesmo ele tendo overflow-y:auto certo.
+function abrirModal(k)  { _elModal(k)?.classList.add("open"); document.body.style.overflow = "hidden"; }
+function fecharModal(k) { _elModal(k)?.classList.remove("open"); document.body.style.overflow = ""; }
 
 Object.entries(_modais).forEach(([k,el]) => {
   el?.addEventListener("click", e => { if (e.target===el) fecharModal(k); });
