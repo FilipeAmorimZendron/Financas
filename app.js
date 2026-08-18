@@ -11179,7 +11179,7 @@ const ACOES_IA = {
       // botão: devolvemos para a IA perguntar em texto. Rede de segurança
       // para quando a IA esquece de perguntar antes.
       if (p.tipo === "entrada" && !p.descricao) {
-        return { erro: `Esta entrada de ${fmtMoeda(p.valor)} está sem origem, e um lançamento "Entrada" sem nome fica impossível de entender depois. Pergunte a ele de onde veio esse dinheiro (salário, venda, freela, presente...) e chame a ferramenta de novo com isso na descrição. NÃO invente a origem.` };
+        return { erro: `Esta entrada de ${fmtMoeda(p.valor)} está sem origem, e um lançamento "Entrada" sem nome fica impossível de entender depois. Use a ferramenta perguntar_opcoes (nunca texto livre) perguntando de onde veio esse dinheiro, com opções tipo Salário, Venda, Freela, Presente, e chame esta ferramenta de novo com a resposta na descrição. NÃO invente a origem.` };
       }
 
       // ─── O que perguntar, em botões, uma coisa de cada vez ───
@@ -11316,6 +11316,59 @@ const ACOES_IA = {
         recibo,
         mensagem: `${rotulo}: ${descricao}, ${fmtMoeda(p.valor)}, conta ${conta.nome}, categoria ${categoria}, data ${formatarDataBR(p.data)}. ` +
                   `Saldo dessa conta agora: ${fmtMoeda(calcularSaldoBanco(p.contaId))}.`
+      };
+    }
+  },
+
+  perguntar_opcoes: {
+    descricao:
+      "Pergunta uma informação curta ao usuário mostrando botões com respostas prováveis, sempre com a opção dele escrever algo diferente. Use isso em vez de fazer a pergunta só em texto sempre que houver de 2 a 4 respostas prováveis pra sugerir — por exemplo o que foi um gasto sem descrição, ou de onde veio uma entrada sem origem. NÃO use para categoria, forma de pagamento, conta ou parcelas de um lançamento: essas o próprio app já pergunta em botões automaticamente depois que você chama a ferramenta certa (criar_lancamento etc.) — chamar esta ferramenta pra isso duplicaria a pergunta.",
+    parametros: {
+      type: "object",
+      properties: {
+        texto: { type: "string", description: "A pergunta, curta e direta. Ex: 'O que foi esse gasto de R$ 30,00?'" },
+        opcoes: {
+          type: "array",
+          items: { type: "string" },
+          description: "De 2 a 4 respostas prováveis e curtas, em português. Ex: [\"Mercado\", \"Uber\", \"Farmácia\", \"Restaurante\"]."
+        }
+      },
+      required: ["texto", "opcoes"]
+    },
+
+    preparar(d) {
+      const texto = String(d.texto || "").trim();
+      const opcoesBrutas = Array.isArray(d.opcoes) ? d.opcoes.filter(o => typeof o === "string" && o.trim()) : [];
+      if (!texto || !opcoesBrutas.length) {
+        return { erro: "Faltou o texto da pergunta ou as opções de resposta." };
+      }
+
+      // Segunda passada: a pessoa já respondeu (botão, ou "Escrever..." com
+      // texto próprio — que chega marcado com o prefixo "outra:").
+      if (typeof d.resposta === "string" && d.resposta) {
+        let resposta = d.resposta;
+        if (resposta.indexOf("outra:") === 0) resposta = resposta.slice(6);
+        resposta = resposta.trim();
+        if (!resposta) return { erro: "O usuário não escreveu nada." };
+        return { dados: { resposta }, perguntas: [] };
+      }
+
+      return {
+        dados: {},
+        perguntas: [{
+          campo: "resposta",
+          texto,
+          opcoes: opcoesBrutas.slice(0, 4).map(o => ({ v: o.trim(), t: o.trim() })),
+          permiteOutra: true,
+          rotuloOutra: "Escrever..."
+        }]
+      };
+    },
+
+    async executar(p) {
+      return {
+        ok: true,
+        mensagem: `O usuário respondeu: "${p.resposta}". Use essa informação para continuar — se ela completa os dados de uma ação pendente (ex: a descrição de um gasto ou a origem de uma entrada), chame agora a ferramenta certa com esse dado preenchido.`
       };
     }
   },
@@ -11906,7 +11959,7 @@ const ACOES_IA = {
     preparar(d) {
       const semMudanca = d.novoValor == null && !d.novaDescricao && !d.novaCategoria && !d.novaData;
       if (semMudanca) {
-        return { erro: "Não veio o que mudar nesse lançamento. Pergunte a ele o que quer corrigir: valor, descrição, categoria ou data." };
+        return { erro: "Não veio o que mudar nesse lançamento. Use perguntar_opcoes (nunca texto livre) perguntando o que ele quer corrigir, com as opções Valor, Descrição, Categoria e Data — e chame esta ferramenta de novo já preenchendo o campo escolhido." };
       }
       return _acharLancamentoIA(
         Object.assign({}, d, { valor: d.valorAtual }),
