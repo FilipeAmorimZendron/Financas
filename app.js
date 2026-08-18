@@ -12295,6 +12295,46 @@ const ACOES_IA = {
                   (p.taxa ? `, rendendo ${fmtNum(p.taxa)}% ao ${p.taxaPeriodo === "mes" ? "mês" : "ano"}` : "") + "."
       };
     }
+  },
+
+  excluir_investimento: {
+    descricao:
+      "Apaga um investimento que já está registrado na carteira. Use quando o usuário pedir para apagar, excluir, remover ou desfazer um investimento (ex: 'exclui o bitcoin', 'apaga aquele CDB').",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id do investimento, só quando veio de uma escolha em botões. Deixe vazio na primeira tentativa." },
+        busca: { type: "string", description: "Nome, tipo ou moeda do investimento a apagar, como o usuário descreveu (ex: 'bitcoin', 'CDB', 'reserva de emergência')." },
+        valor: { type: "number", description: "Valor aplicado, se ele mencionar — ajuda a achar o certo entre vários parecidos." }
+      },
+      required: ["busca"]
+    },
+
+    preparar(d) {
+      return _acharInvestimentoIA(d, "Qual investimento você quer apagar?");
+    },
+
+    async executar(p) {
+      const i = (state.investimentos || []).find(x => String(x.id) === String(p.id));
+      if (!i) return { ok: false, mensagem: "Esse investimento não está mais na carteira." };
+
+      const cripto = i.criptoId ? criptoPorId(i.criptoId) : null;
+      const rotulo = i.nome || (cripto ? cripto.nome : i.tipo);
+
+      await dbDelete("investimentos", i.id);
+      state.investimentos = state.investimentos.filter(x => x.id !== i.id);
+      renderTudo();
+
+      return {
+        ok: true,
+        titulo: "Investimento apagado",
+        recibo: [
+          { rotulo: "Investimento", valor: rotulo },
+          { rotulo: "Valor", valor: fmtMoeda(i.valor) }
+        ],
+        mensagem: `Apaguei o investimento "${rotulo}" (${fmtMoeda(i.valor)}) da carteira.`
+      };
+    }
   }
 
 };
@@ -12342,6 +12382,66 @@ function _acharLancamentoIA(d, textoPergunta) {
       campo: "id",
       texto: textoPergunta,
       opcoes: ordenados.map(m => ({ v: m.id, t: m.descricao, extra: `${fmtMoeda(m.valor)} · ${formatarDataBR(m.data)}` }))
+    }]
+  };
+}
+
+/* Acha UM investimento pelo nome/tipo/moeda digitado — mesma lógica de
+   desambiguação usada em _acharLancamentoIA: bate substring (dos dois
+   lados) contra nome, tipo e (se for cripto) nome/sigla da moeda,
+   afunila por valor se ainda sobrar mais de um, e devolve direto
+   quando sobra exatamente um. Usada por excluir_investimento. */
+function _acharInvestimentoIA(d, textoPergunta) {
+  const todos = state.investimentos || [];
+  if (!todos.length) {
+    return { erro: "Não há nenhum investimento registrado ainda." };
+  }
+
+  const escolhido = d.id ? todos.find(i => String(i.id) === String(d.id)) : null;
+  if (escolhido) return { dados: { id: escolhido.id }, perguntas: [] };
+
+  const rotuloInv = (i) => {
+    if (i.nome) return i.nome;
+    if (i.criptoId) { const c = criptoPorId(i.criptoId); if (c) return c.nome; }
+    return i.tipo;
+  };
+
+  const alvo = normIA(d.busca);
+  let cand = todos;
+  if (alvo) {
+    cand = todos.filter(i => {
+      const nomes = [i.nome, i.tipo];
+      if (i.criptoId) {
+        const c = criptoPorId(i.criptoId);
+        if (c) { nomes.push(c.nome, c.sigla); }
+      }
+      return nomes.some(n => {
+        const norm = normIA(n || "");
+        return norm && (norm.includes(alvo) || (alvo.length >= 3 && alvo.includes(norm)));
+      });
+    });
+  }
+
+  const v = valorIA(d.valor);
+  if (v && cand.length > 1) {
+    const porValor = cand.filter(i => Math.abs(Number(i.valor) - v) < 0.005);
+    if (porValor.length) cand = porValor;
+  }
+
+  if (!cand.length) {
+    return { erro: "Não achei nenhum investimento com essa descrição. Pergunte a ele o nome ou tipo exato, pra ajudar a achar." };
+  }
+
+  if (cand.length === 1) return { dados: { id: cand[0].id }, perguntas: [] };
+
+  // Mais recentes primeiro, e no máximo 8 opções pra não virar uma parede de botões
+  const ordenados = cand.slice().sort((a, b) => (b.dataInicio || "").localeCompare(a.dataInicio || "")).slice(0, 8);
+  return {
+    dados: { id: "" },
+    perguntas: [{
+      campo: "id",
+      texto: textoPergunta,
+      opcoes: ordenados.map(i => ({ v: i.id, t: rotuloInv(i), extra: fmtMoeda(i.valor) }))
     }]
   };
 }
