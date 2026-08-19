@@ -13,7 +13,7 @@ import { limitar, chaveDoIP } from "./_ratelimit.js";
 // todo mês. "premium" segue sendo o valor gravado em perfil.plano (e no
 // externalReference do Asaas) só por compatibilidade com o resto do
 // código — não precisou renomear nada no banco pra fazer essa mudança.
-const PLANO_UNICO = { valor: 37.9, nome: "FAZ Finanças", desc: "Todos os recursos: IA financeira, contas ilimitadas, investimentos, relatórios e importação de extrato. Cancele quando quiser." };
+const PLANO_UNICO = { valor: 26.9, nome: "FAZ Finanças", desc: "Todos os recursos: IA financeira, contas ilimitadas, investimentos, relatórios e importação de extrato. Cancele quando quiser." };
 const PLANO_ID = "premium";
 const CICLO = "mensal";
 
@@ -22,7 +22,7 @@ const CICLO = "mensal";
 // só uma prévia; quem decide o valor cobrado de verdade é esta lista.
 // Chave em maiúsculas; a comparação abaixo ignora caixa e espaços nas bordas.
 const CUPONS = {
-  ORGANIZACAO: 26.9,
+  ORGANIZACAO: 20.9,
 };
 
 // Sandbox por padrão. Em produção troque para https://api.asaas.com/v3

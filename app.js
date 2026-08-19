@@ -1005,12 +1005,12 @@ function mostrarAppOuPaywall() {
 }
 
 /* ─── Cupom de desconto ───────────────────────────────────
-   Preço de tabela R$ 37,90/mês. O código aqui é só pra mostrar o preço
+   Preço de tabela R$ 26,90/mês. O código aqui é só pra mostrar o preço
    na hora — quem decide de verdade o valor cobrado é api/criar-checkout.js,
    no servidor, que valida o código de novo antes de criar o checkout.
    Nunca confie só no que roda no navegador para valor de pagamento. */
-const PRECO_PLANO_CHEIO = 37.90;
-const CUPONS_PREVIA = { ORGANIZACAO: 26.90 };
+const PRECO_PLANO_CHEIO = 26.90;
+const CUPONS_PREVIA = { ORGANIZACAO: 20.90 };
 
 // Sobrevive a um redirect (ex: login com Google) que recarrega a página.
 let _cupomAplicado = (() => {
@@ -8031,7 +8031,7 @@ const DOCUMENTOS = {
     corpo: `
       <div class="doc-plano">
         <div class="doc-plano-tag">Plano único</div>
-        <div class="doc-plano-nome">R$ 37,90/mês</div>
+        <div class="doc-plano-nome">R$ 26,90/mês</div>
         <p class="doc-plano-desc">Um plano só, com acesso completo a todas as funcionalidades. Cancele quando quiser.</p>
       </div>
 
@@ -8956,8 +8956,8 @@ function mapPerfil(p) {
 
 /* Limites de cada plano. Desde a virada pro plano único, não existe mais
    conta grátis: "basico" (sem assinatura ativa) não libera nada — nem
-   contas nem metas. "premium" é o único plano à venda hoje (R$ 37,90/mês,
-   ou R$ 26,90/mês com o cupom ORGANIZACAO — ver CUPONS_PREVIA e
+   contas nem metas. "premium" é o único plano à venda hoje (R$ 26,90/mês,
+   ou R$ 20,90/mês com o cupom ORGANIZACAO — ver CUPONS_PREVIA e
    api/criar-checkout.js); "master" continua valendo do mesmo jeito só
    porque ainda existem assinantes antigos com esse valor gravado no
    perfil — não precisou migrar ninguém no banco, os dois viram o mesmo
