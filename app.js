@@ -13317,8 +13317,8 @@ const ACOES_IA = {
         numero: { type: "string", description: "Número da nota, se ele mencionar. Opcional." },
         valor: { type: "number", description: "Valor da nota, em reais. Se ele não disse, pergunte antes de chamar." },
         data: { type: "string", description: "Data da nota em AAAA-MM-DD, ou algo como 'hoje', 'ontem'. Se não disser, use hoje." },
-        cliente_fornecedor: { type: "string", description: "Nome do cliente (se emitida) ou fornecedor (se recebida), se mencionar." },
-        descricao: { type: "string", description: "O que foi vendido/comprado ou prestado, se mencionar." }
+        cliente_fornecedor: { type: "string", description: "Nome do cliente (se emitida) ou fornecedor (se recebida), se mencionar. Opcional — NÃO pergunte se ele não disse, registre sem isso." },
+        descricao: { type: "string", description: "O que foi vendido/comprado ou prestado, se mencionar. Opcional — NÃO pergunte se ele não disse (nem em texto, nem em botões), registre sem isso. Só o valor é obrigatório; tudo o resto (número, cliente/fornecedor, descrição) fica vazio se ele não mencionar." }
       },
       required: ["valor"]
     },
