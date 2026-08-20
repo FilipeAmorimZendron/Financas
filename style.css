@@ -314,6 +314,11 @@ button, input, textarea, select {
   gap: 11px;
   transition: background 0.18s var(--ease), color 0.18s var(--ease);
 }
+/* O display:flex acima vence a regra nativa do atributo hidden (mesma
+   especificidade, CSS de autor sempre ganha da folha do navegador) —
+   sem isso, um .menu-item com o atributo hidden continua aparecendo
+   (ex: "Notas Fiscais" fora do espaço Empresarial). */
+.menu-item[hidden] { display: none !important; }
 
 .menu-icon { display: inline-flex; opacity: 0.7; transition: opacity 0.18s; }
 
