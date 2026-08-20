@@ -13509,7 +13509,7 @@ function _acharInvestimentoIA(d, textoPergunta) {
   };
 }
 
-/* Fuzzy-find genérico usado pelos excluir_*/editar_* mais simples
+/* Fuzzy-find genérico usado pelos excluir_ e editar_ mais simples
    (transferência, gasto fixo, conta, objetivo, meta, categoria, nota
    fiscal) — mesma lógica de desambiguação de _acharLancamentoIA e
    _acharInvestimentoIA, só que parametrizada em vez de reescrita em
