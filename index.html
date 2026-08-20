@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202608202100" />
+  <link rel="stylesheet" href="style.css?v=202608202330" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -1150,6 +1150,12 @@
           </button>
         </div>
 
+        <div class="nf-atalhos-impostos">
+          <span class="nf-atalhos-titulo">Lembrete de guias:</span>
+          <button type="button" class="btn-secundario" onclick="atalhoLembreteImposto('DAS (Simples Nacional)')">📅 DAS (Simples Nacional)</button>
+          <button type="button" class="btn-secundario" onclick="atalhoLembreteImposto('ISS')">📅 ISS</button>
+        </div>
+
         <div class="cards-grid nf-resumo-grid" id="nfResumoCards">
           <div class="info-card">
             <div class="card-label">Emitidas no mês</div>
@@ -1162,7 +1168,14 @@
         </div>
 
         <div class="form-panel">
-          <div class="form-panel-title">Nova nota fiscal</div>
+          <div class="form-panel-title-row">
+            <div class="form-panel-title">Nova nota fiscal</div>
+            <label class="btn-secundario btn-importar-nf" for="nfArquivoImportar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>
+              <span id="nfImportarTexto">Importar por foto/PDF</span>
+            </label>
+            <input type="file" id="nfArquivoImportar" accept="image/*,application/pdf" hidden />
+          </div>
           <form id="formNotaFiscal" class="form-grid">
             <div class="field">
               <label for="nfTipo">Tipo</label>
@@ -3099,6 +3112,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202608202100"></script>
+  <script src="app.js?v=202608202330"></script>
 </body>
 </html>

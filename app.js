@@ -5784,6 +5784,88 @@ document.getElementById("formNotaFiscal")?.addEventListener("submit", async e =>
   } catch (err) { tratarErro(err); }
 });
 
+/* Importar nota fiscal por foto/PDF: a IA lê os dados e PRÉ-PREENCHE o
+   formulário acima — nunca salva sozinha. O usuário revisa e clica em
+   "Registrar nota" como se tivesse digitado, corrigindo o que a IA
+   errar. O tipo (emitida/recebida) é decidido comparando o CNPJ salvo
+   em Conta > Dados da empresa com o emitente/destinatário da nota; sem
+   CNPJ salvo (ou sem bater com nenhum), o campo fica em branco pro
+   usuário escolher. */
+document.getElementById("nfArquivoImportar")?.addEventListener("change", async e => {
+  const arquivo = e.target.files[0];
+  e.target.value = ""; // permite escolher o mesmo arquivo de novo depois
+  if (!arquivo) return;
+
+  if (arquivo.size > 5 * 1024 * 1024) {
+    toast("Arquivo muito grande. O limite é 5 MB.", "error");
+    return;
+  }
+  if (!podeUsar("importarExtrato")) {
+    pedirUpgrade("A leitura de nota fiscal por IA está disponível pra quem assina o FAZ Finanças.", "Importar nota fiscal");
+    return;
+  }
+
+  const textoBtn = document.getElementById("nfImportarTexto");
+  const textoOriginal = textoBtn ? textoBtn.textContent : null;
+  if (textoBtn) textoBtn.textContent = "Lendo...";
+  mostrarLoading(true, "Lendo a nota fiscal", "Isso pode levar alguns segundos...");
+  try {
+    const base64 = await arquivoParaBase64(arquivo);
+    const resp = await fetch("/api/ler-nota-fiscal", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        arquivoBase64: base64,
+        tipoArquivo: arquivo.type,
+        token: localStorage.getItem("fp_token") || "",
+        hoje: hojeISO(),
+        meuCnpj: state.perfil?.empresaCnpj || ""
+      })
+    });
+    const dados = await resp.json();
+    if (!resp.ok) {
+      if (dados.erro === "limite") { toast(dados.motivo || "Limite de IA atingido.", "warning"); return; }
+      if (dados.erro === "upgrade") { pedirUpgrade(dados.motivo, "Importar nota fiscal"); return; }
+      toast(dados.erro || "Não consegui ler essa nota fiscal.", "error");
+      return;
+    }
+
+    if (dados.tipo) document.getElementById("nfTipo").value = dados.tipo;
+    if (dados.numero) document.getElementById("nfNumero").value = dados.numero;
+    if (dados.valor != null) document.getElementById("nfValor").value = dados.valor;
+    if (dados.data) document.getElementById("nfData").value = dados.data;
+    if (dados.clienteFornecedor) document.getElementById("nfClienteFornecedor").value = dados.clienteFornecedor;
+    if (dados.descricao) document.getElementById("nfDescricao").value = dados.descricao;
+
+    document.getElementById("formNotaFiscal")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    toast(
+      dados.tipo
+        ? "Nota lida! Confira os dados e clique em \"Registrar nota\"."
+        : "Nota lida! Confira os dados, escolha o tipo (emitida/recebida) e clique em \"Registrar nota\".",
+      "success"
+    );
+  } catch (err) {
+    tratarErro(err);
+  } finally {
+    mostrarLoading(false);
+    if (textoBtn) textoBtn.textContent = textoOriginal;
+  }
+});
+
+/* Atalho "Lembrete de guias" (DAS/ISS) na tela de Notas Fiscais: leva pra
+   Gastos Fixos com a descrição e a categoria já preenchidas — a pessoa só
+   completa a conta, o valor aproximado (o real ajusta a cada mês, na hora
+   de marcar como pago) e o dia do vencimento. */
+function atalhoLembreteImposto(nome) {
+  trocarTela("recorrencias");
+  const desc = document.getElementById("recDescricao");
+  const cat = document.getElementById("recCategoria");
+  if (desc) desc.value = nome;
+  if (cat) cat.value = "Impostos e Taxas";
+  desc?.focus();
+  toast(`Preenchi "${nome}" como gasto fixo — escolha a conta, um valor aproximado e o dia do vencimento (o valor real de cada mês você ajusta na hora de marcar como pago).`, "info");
+}
+
 async function excluirNotaFiscal(id) {
   const ok = await confirmar("Excluir nota fiscal?", { tipo: "perigo", descricao: "O registro será removido.", okLabel: "Excluir" });
   if (!ok) return;
@@ -12796,6 +12878,526 @@ const ACOES_IA = {
         mensagem: `Apaguei o investimento "${rotulo}" (${fmtMoeda(i.valor)}) da carteira.`
       };
     }
+  },
+
+  excluir_transferencia: {
+    descricao: "Apaga uma transferência entre contas próprias que já existe. Use quando o usuário pedir para apagar, desfazer ou remover uma transferência.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id da transferência, só quando veio de uma escolha em botões." },
+        busca: { type: "string", description: "Nome da conta de origem, destino, ou a descrição da transferência." },
+        valor: { type: "number", description: "Valor da transferência, se mencionado — ajuda a desempatar." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      const bMap = Object.fromEntries((state.bancos || []).map(b => [b.id, b.nome]));
+      return _acharItemIA(d, "Qual transferência você quer apagar?", {
+        lista: state.transferencias || [],
+        semItens: "Não há nenhuma transferência registrada ainda.",
+        campoBusca: t => [bMap[t.origem], bMap[t.destino], t.descricao],
+        campoValor: t => t.valor,
+        rotulo: t => `${bMap[t.origem] || "?"} → ${bMap[t.destino] || "?"}`,
+        extra: t => `${fmtMoeda(t.valor)} · ${formatarDataBR(t.data)}`,
+        ordenar: (a, b) => (b.data || "").localeCompare(a.data || "")
+      });
+    },
+    async executar(p) {
+      const t = (state.transferencias || []).find(x => String(x.id) === String(p.id));
+      if (!t) return { ok: false, mensagem: "Essa transferência não está mais na lista." };
+      const bMap = Object.fromEntries((state.bancos || []).map(b => [b.id, b.nome]));
+      await dbDelete("transferencias", t.id);
+      state.transferencias = state.transferencias.filter(x => x.id !== t.id);
+      renderTudo();
+      return {
+        ok: true,
+        titulo: "Transferência apagada",
+        recibo: [
+          { rotulo: "De", valor: bMap[t.origem] || "?" },
+          { rotulo: "Para", valor: bMap[t.destino] || "?" },
+          { rotulo: "Valor", valor: fmtMoeda(t.valor) }
+        ],
+        mensagem: `Apaguei a transferência de ${fmtMoeda(t.valor)} (${bMap[t.origem] || "?"} → ${bMap[t.destino] || "?"}).`
+      };
+    }
+  },
+
+  excluir_recorrencia: {
+    descricao: "Apaga um gasto fixo (recorrência) — ele deixa de se repetir. Use quando o usuário pedir para cancelar, apagar ou remover algo fixo/mensal.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id da recorrência, só quando veio de uma escolha em botões." },
+        busca: { type: "string", description: "Nome do gasto fixo, como o usuário descreveu (ex: Netflix, aluguel)." },
+        valor: { type: "number", description: "Valor da recorrência, se mencionado — ajuda a desempatar." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      return _acharItemIA(d, "Qual gasto fixo você quer apagar?", {
+        lista: state.recorrencias || [],
+        semItens: "Não há nenhum gasto fixo cadastrado ainda.",
+        campoBusca: r => [r.descricao],
+        campoValor: r => r.valor,
+        rotulo: r => r.descricao,
+        extra: r => `${fmtMoeda(r.valor)} · dia ${r.dia}`
+      });
+    },
+    async executar(p) {
+      const r = (state.recorrencias || []).find(x => String(x.id) === String(p.id));
+      if (!r) return { ok: false, mensagem: "Esse gasto fixo não está mais na lista." };
+      await dbDelete("recorrencias", r.id);
+      state.recorrencias = state.recorrencias.filter(x => x.id !== r.id);
+      renderTudo();
+      return {
+        ok: true,
+        titulo: "Gasto fixo apagado",
+        recibo: [
+          { rotulo: "Descrição", valor: r.descricao },
+          { rotulo: "Valor", valor: fmtMoeda(r.valor) }
+        ],
+        mensagem: `Apaguei o gasto fixo "${r.descricao}" (${fmtMoeda(r.valor)}). Ele não vai mais se repetir.`
+      };
+    }
+  },
+
+  editar_recorrencia: {
+    descricao: "Muda o valor, o dia de vencimento ou a categoria de um gasto fixo (recorrência) que já existe. Use quando o usuário pedir para mudar, ajustar ou atualizar algo fixo/mensal. Preencha só o que ele quer mudar.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id da recorrência, só quando veio de uma escolha em botões." },
+        busca: { type: "string", description: "Nome do gasto fixo a mudar." },
+        novo_valor: { type: "number", description: "Novo valor, se ele quer mudar o valor." },
+        novo_dia: { type: "number", description: "Novo dia do mês (1 a 31), se ele quer mudar o vencimento." },
+        nova_categoria: { type: "string", description: "Nova categoria, se ele quer mudar." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      const achado = _acharItemIA(d, "Qual gasto fixo você quer mudar?", {
+        lista: state.recorrencias || [],
+        semItens: "Não há nenhum gasto fixo cadastrado ainda.",
+        campoBusca: r => [r.descricao],
+        rotulo: r => r.descricao,
+        extra: r => `${fmtMoeda(r.valor)} · dia ${r.dia}`
+      });
+      if (achado.erro || (achado.perguntas && achado.perguntas.length)) return achado;
+      const p = { id: achado.dados.id };
+      if (d.novo_valor != null) p.novoValor = valorIA(d.novo_valor);
+      if (d.novo_dia != null) { const dia = Math.round(Number(d.novo_dia)); if (dia >= 1 && dia <= 31) p.novoDia = dia; }
+      if (d.nova_categoria) p.novaCategoria = acharCategoriaIA(d.nova_categoria) || d.nova_categoria;
+      if (!p.novoValor && !p.novoDia && !p.novaCategoria) {
+        return { erro: "Não veio o que mudar. Pergunte a ele o que quer alterar nesse gasto fixo (valor, dia ou categoria)." };
+      }
+      return { dados: p, perguntas: [] };
+    },
+    async executar(p) {
+      const r = (state.recorrencias || []).find(x => String(x.id) === String(p.id));
+      if (!r) return { ok: false, mensagem: "Esse gasto fixo não está mais na lista." };
+      const upd = {};
+      if (p.novoValor) upd.valor = p.novoValor;
+      if (p.novoDia) upd.dia = p.novoDia;
+      if (p.novaCategoria) upd.categoria = p.novaCategoria;
+      const att = await dbUpdate("recorrencias", r.id, upd);
+      if (upd.valor != null) r.valor = Number(att.valor);
+      if (upd.dia != null) r.dia = att.dia;
+      if (upd.categoria != null) r.categoria = att.categoria;
+      renderTudo();
+      const mudancas = [];
+      if (upd.valor != null) mudancas.push(`valor pra ${fmtMoeda(r.valor)}`);
+      if (upd.dia != null) mudancas.push(`vencimento pro dia ${r.dia}`);
+      if (upd.categoria != null) mudancas.push(`categoria pra ${r.categoria}`);
+      return {
+        ok: true,
+        titulo: "Gasto fixo atualizado",
+        recibo: [
+          { rotulo: "Descrição", valor: r.descricao },
+          { rotulo: "Valor", valor: fmtMoeda(r.valor) },
+          { rotulo: "Dia", valor: String(r.dia) }
+        ],
+        mensagem: `Atualizei "${r.descricao}": ${mudancas.join(", ")}.`
+      };
+    }
+  },
+
+  excluir_conta: {
+    descricao: "Apaga uma conta/banco/carteira e as movimentações vinculadas a ela. Ação séria e irreversível — use só quando o usuário pedir claramente para apagar/remover a conta inteira, nunca por engano ou dúvida.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id da conta, só quando veio de uma escolha em botões." },
+        busca: { type: "string", description: "Nome da conta/banco a apagar." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      return _acharItemIA(d, "Qual conta você quer apagar?", {
+        lista: state.bancos || [],
+        semItens: "Não há nenhuma conta cadastrada.",
+        campoBusca: b => [b.nome, b.tipo],
+        rotulo: b => b.nome,
+        extra: b => b.tipo
+      });
+    },
+    async executar(p) {
+      const b = (state.bancos || []).find(x => String(x.id) === String(p.id));
+      if (!b) return { ok: false, mensagem: "Essa conta não está mais na lista." };
+      const temMovs = (state.movimentos || []).some(m => m.bancoId === b.id);
+      await dbDelete("contas", b.id);
+      state.bancos = state.bancos.filter(x => x.id !== b.id);
+      renderTudo();
+      return {
+        ok: true,
+        titulo: "Conta apagada",
+        recibo: [{ rotulo: "Conta", valor: b.nome }],
+        mensagem: `Apaguei a conta "${b.nome}"${temMovs ? " — as movimentações vinculadas a ela também saem" : ""}.`
+      };
+    }
+  },
+
+  excluir_objetivo: {
+    descricao: "Apaga um objetivo de poupança (meta de juntar dinheiro) que já existe.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id do objetivo, só quando veio de escolha em botões." },
+        busca: { type: "string", description: "Nome do objetivo (ex: Tênis, Viagem)." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      return _acharItemIA(d, "Qual objetivo você quer apagar?", {
+        lista: state.objetivos || [],
+        semItens: "Não há nenhum objetivo cadastrado ainda.",
+        campoBusca: o => [o.nome],
+        rotulo: o => o.nome,
+        extra: o => fmtMoeda(o.valorAlvo)
+      });
+    },
+    async executar(p) {
+      const o = (state.objetivos || []).find(x => String(x.id) === String(p.id));
+      if (!o) return { ok: false, mensagem: "Esse objetivo não está mais na lista." };
+      await dbDelete("objetivos", o.id);
+      state.objetivos = state.objetivos.filter(x => x.id !== o.id);
+      renderTudo();
+      return {
+        ok: true,
+        titulo: "Objetivo apagado",
+        recibo: [{ rotulo: "Objetivo", valor: o.nome }],
+        mensagem: `Apaguei o objetivo "${o.nome}".`
+      };
+    }
+  },
+
+  editar_objetivo: {
+    descricao: "Muda a meta (valor alvo), o quanto já foi guardado, ou o prazo de um objetivo de poupança que já existe. Preencha só o que ele quer mudar.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id do objetivo, só quando veio de escolha em botões." },
+        busca: { type: "string", description: "Nome do objetivo a mudar." },
+        novo_valor: { type: "number", description: "Nova meta (valor alvo), se ele quer mudar." },
+        novo_guardado: { type: "number", description: "Novo total já guardado, se ele quer ajustar (ex: 'já juntei mais 200 pro tênis')." },
+        novo_prazo: { type: "string", description: "Nova data alvo em AAAA-MM-DD ou algo como 'até dezembro', se ele quer mudar o prazo." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      const achado = _acharItemIA(d, "Qual objetivo você quer mudar?", {
+        lista: state.objetivos || [],
+        semItens: "Não há nenhum objetivo cadastrado ainda.",
+        campoBusca: o => [o.nome],
+        rotulo: o => o.nome,
+        extra: o => fmtMoeda(o.valorAlvo)
+      });
+      if (achado.erro || (achado.perguntas && achado.perguntas.length)) return achado;
+      const p = { id: achado.dados.id };
+      if (d.novo_valor != null) p.novoValor = valorIA(d.novo_valor);
+      if (d.novo_guardado != null) p.novoGuardado = valorIA(d.novo_guardado);
+      if (d.novo_prazo) {
+        const dt = resolverDataIA(d.novo_prazo);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dt)) p.novoPrazo = dt;
+      }
+      if (!p.novoValor && p.novoGuardado == null && !p.novoPrazo) {
+        return { erro: "Não veio o que mudar. Pergunte o que ele quer alterar nesse objetivo (meta, quanto já guardou, ou prazo)." };
+      }
+      return { dados: p, perguntas: [] };
+    },
+    async executar(p) {
+      const o = (state.objetivos || []).find(x => String(x.id) === String(p.id));
+      if (!o) return { ok: false, mensagem: "Esse objetivo não está mais na lista." };
+      const upd = {};
+      if (p.novoValor) upd.valor_alvo = p.novoValor;
+      if (p.novoGuardado != null) upd.valor_atual = p.novoGuardado;
+      if (p.novoPrazo) { upd.prazo_tipo = "data"; upd.prazo_data = p.novoPrazo; }
+      const att = await dbUpdate("objetivos", o.id, upd);
+      if (upd.valor_alvo != null) o.valorAlvo = Number(att.valor_alvo);
+      if (upd.valor_atual != null) o.valorAtual = Number(att.valor_atual);
+      if (upd.prazo_data != null) { o.prazoTipo = att.prazo_tipo; o.prazoData = att.prazo_data; }
+      renderTudo();
+      const mudancas = [];
+      if (upd.valor_alvo != null) mudancas.push(`meta pra ${fmtMoeda(o.valorAlvo)}`);
+      if (upd.valor_atual != null) mudancas.push(`guardado pra ${fmtMoeda(o.valorAtual)}`);
+      if (upd.prazo_data != null) mudancas.push(`prazo pra ${formatarDataBR(o.prazoData)}`);
+      const falta = Math.max(0, o.valorAlvo - o.valorAtual);
+      return {
+        ok: true,
+        titulo: "Objetivo atualizado",
+        recibo: [
+          { rotulo: "Objetivo", valor: o.nome },
+          { rotulo: "Meta", valor: fmtMoeda(o.valorAlvo) },
+          { rotulo: "Falta", valor: fmtMoeda(falta) }
+        ],
+        mensagem: `Atualizei "${o.nome}": ${mudancas.join(", ")}. Falta juntar ${fmtMoeda(falta)}.`
+      };
+    }
+  },
+
+  excluir_meta: {
+    descricao: "Apaga o limite de gasto mensal (meta) de uma categoria.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id da meta, só quando veio de escolha em botões." },
+        busca: { type: "string", description: "Categoria da meta a apagar." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      return _acharItemIA(d, "Limite de qual categoria você quer apagar?", {
+        lista: state.metas || [],
+        semItens: "Não há nenhum limite de gasto cadastrado ainda.",
+        campoBusca: m => [m.categoria],
+        rotulo: m => m.categoria,
+        extra: m => fmtMoeda(m.limite)
+      });
+    },
+    async executar(p) {
+      const m = (state.metas || []).find(x => String(x.id) === String(p.id));
+      if (!m) return { ok: false, mensagem: "Esse limite não está mais na lista." };
+      await dbDelete("metas", m.id);
+      state.metas = state.metas.filter(x => x.id !== m.id);
+      renderTudo();
+      return {
+        ok: true,
+        titulo: "Limite apagado",
+        recibo: [{ rotulo: "Categoria", valor: m.categoria }],
+        mensagem: `Apaguei o limite de ${m.categoria}.`
+      };
+    }
+  },
+
+  criar_categoria: {
+    descricao: "Cria uma categoria personalizada nova, separada das que já vêm no app. Use quando o usuário pedir para criar/adicionar uma categoria (ex: 'cria uma categoria Pet', 'adiciona uma categoria pro meu filho').",
+    parametros: {
+      type: "object",
+      properties: {
+        nome: { type: "string", description: "Nome da categoria nova. Se ele não disse, pergunte antes de chamar." }
+      },
+      required: ["nome"]
+    },
+    preparar(d) {
+      const nome = String(d.nome == null ? "" : d.nome).trim().slice(0, 40);
+      if (!nome || nome.length < 2) {
+        return { erro: "Não veio o nome da categoria. Pergunte que nome ele quer dar." };
+      }
+      if (nome.toLowerCase() === "entrada" || nome.toLowerCase() === "todas") {
+        return { erro: "Esse nome é reservado pelo app — peça outro nome a ele." };
+      }
+      if (todasCategorias().some(c => c.toLowerCase() === nome.toLowerCase())) {
+        return { erro: `Já existe uma categoria "${nome}" — não crie duplicada, avise que ela já existe.` };
+      }
+      return { dados: { nome }, perguntas: [] };
+    },
+    async executar(p) {
+      const cor = CORES_CATEGORIA[(state.categorias || []).length % CORES_CATEGORIA.length];
+      const nova = await dbInsert("categorias", { user_id: state.user.id, nome: p.nome, cor });
+      state.categorias.push({ id: nova.id, nome: nova.nome, cor: nova.cor || null });
+      state.categorias.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+      atualizarSelectsCategoria();
+      renderTudo();
+      return {
+        ok: true,
+        titulo: "Categoria criada",
+        recibo: [{ rotulo: "Categoria", valor: p.nome }],
+        mensagem: `Criei a categoria "${p.nome}". Já aparece pra escolher em lançamentos, gastos fixos e metas.`
+      };
+    }
+  },
+
+  excluir_categoria: {
+    descricao: "Apaga uma categoria personalizada criada pelo usuário. NÃO funciona nas categorias que já vêm de fábrica no app (essas não podem ser apagadas — se ele pedir uma dessas, explique que não dá). Os lançamentos antigos mantêm o nome da categoria mesmo depois de apagada.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id da categoria, só quando veio de escolha em botões." },
+        busca: { type: "string", description: "Nome da categoria a apagar." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      return _acharItemIA(d, "Qual categoria você quer apagar?", {
+        lista: state.categorias || [],
+        semItens: "Você não tem nenhuma categoria personalizada — só as que já vêm no app, que não podem ser apagadas.",
+        campoBusca: c => [c.nome],
+        rotulo: c => c.nome
+      });
+    },
+    async executar(p) {
+      const c = (state.categorias || []).find(x => String(x.id) === String(p.id));
+      if (!c) return { ok: false, mensagem: "Essa categoria não está mais na lista." };
+      await dbDelete("categorias", c.id);
+      state.categorias = state.categorias.filter(x => x.id !== c.id);
+      atualizarSelectsCategoria();
+      renderTudo();
+      return {
+        ok: true,
+        titulo: "Categoria apagada",
+        recibo: [{ rotulo: "Categoria", valor: c.nome }],
+        mensagem: `Apaguei a categoria "${c.nome}". Os lançamentos que já usavam ela mantêm o nome.`
+      };
+    }
+  },
+
+  registrar_nota_fiscal: {
+    descricao: "Registra uma nota fiscal EMITIDA (ele vendeu/prestou serviço) ou RECEBIDA (ele comprou/tomou serviço) — só um controle/registro pro usuário não perder as contas, NÃO emite nota fiscal de verdade junto à Receita/SEFAZ. Só funciona no espaço Empresarial. Use quando o usuário pedir para registrar, lançar ou anotar uma nota fiscal.",
+    parametros: {
+      type: "object",
+      properties: {
+        tipo: { type: "string", enum: ["emitida", "recebida"], description: "emitida = ele vendeu/prestou serviço; recebida = ele comprou/tomou serviço. Se não estiver claro pelo texto, pergunte com botões." },
+        numero: { type: "string", description: "Número da nota, se ele mencionar. Opcional." },
+        valor: { type: "number", description: "Valor da nota, em reais. Se ele não disse, pergunte antes de chamar." },
+        data: { type: "string", description: "Data da nota em AAAA-MM-DD, ou algo como 'hoje', 'ontem'. Se não disser, use hoje." },
+        cliente_fornecedor: { type: "string", description: "Nome do cliente (se emitida) ou fornecedor (se recebida), se mencionar." },
+        descricao: { type: "string", description: "O que foi vendido/comprado ou prestado, se mencionar." }
+      },
+      required: ["valor"]
+    },
+    preparar(d) {
+      if (state.contextoAtivo !== "empresarial") {
+        return { erro: "Notas fiscais só existem no espaço Empresarial. Explique que ele precisa trocar pro espaço Empresarial no seletor da sidebar primeiro (ou usar a ferramenta trocar_contexto, se ele pedir)." };
+      }
+      const p = {};
+      p.valor = valorIA(d.valor);
+      if (!p.valor) {
+        return { erro: "Não veio o valor da nota. Pergunte quanto foi, e não invente." };
+      }
+      p.tipo = normIA(d.tipo) === "recebida" ? "recebida" : (normIA(d.tipo) === "emitida" ? "emitida" : "");
+      p.numero = String(d.numero || "").trim().slice(0, 40);
+      p.clienteFornecedor = String(d.cliente_fornecedor || "").trim().slice(0, 120);
+      p.descricao = String(d.descricao || "").trim().slice(0, 200);
+      p.data = hojeISO();
+      if (d.data) {
+        const dt = resolverDataIA(d.data);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dt)) p.data = dt;
+      }
+      const perguntas = [];
+      if (!p.tipo) {
+        perguntas.push({
+          campo: "tipo",
+          texto: "Essa nota é emitida (você vendeu) ou recebida (você comprou)?",
+          opcoes: [
+            { v: "emitida", t: "Emitida (venda/serviço prestado)" },
+            { v: "recebida", t: "Recebida (compra/serviço tomado)" }
+          ]
+        });
+      }
+      return { dados: p, perguntas };
+    },
+    async executar(p) {
+      const novo = await dbInsert("notas_fiscais", {
+        tipo: p.tipo, numero: p.numero || null, valor: p.valor, data: p.data,
+        cliente_fornecedor: p.clienteFornecedor || null, descricao: p.descricao || null
+      });
+      state.notasFiscais.push({
+        id: novo.id, tipo: novo.tipo, numero: novo.numero || "",
+        valor: Number(novo.valor), data: novo.data,
+        clienteFornecedor: novo.cliente_fornecedor || "", descricao: novo.descricao || ""
+      });
+      renderTudo();
+      return {
+        ok: true,
+        titulo: "Nota fiscal registrada",
+        recibo: [
+          { rotulo: "Tipo", valor: p.tipo === "emitida" ? "Emitida" : "Recebida" },
+          { rotulo: "Valor", valor: fmtMoeda(p.valor) },
+          { rotulo: "Data", valor: formatarDataBR(p.data) }
+        ],
+        mensagem: `Registrei a nota ${p.tipo === "emitida" ? "emitida" : "recebida"} de ${fmtMoeda(p.valor)}${p.clienteFornecedor ? ` — ${p.clienteFornecedor}` : ""}.`
+      };
+    }
+  },
+
+  excluir_nota_fiscal: {
+    descricao: "Apaga uma nota fiscal registrada. Só funciona no espaço Empresarial.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id da nota, só quando veio de escolha em botões." },
+        busca: { type: "string", description: "Cliente/fornecedor, número ou descrição da nota a apagar." },
+        valor: { type: "number", description: "Valor da nota, se mencionado — ajuda a desempatar." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      if (state.contextoAtivo !== "empresarial") {
+        return { erro: "Notas fiscais só existem no espaço Empresarial. Explique que ele precisa trocar pro espaço Empresarial primeiro." };
+      }
+      return _acharItemIA(d, "Qual nota fiscal você quer apagar?", {
+        lista: state.notasFiscais || [],
+        semItens: "Não há nenhuma nota fiscal registrada ainda.",
+        campoBusca: n => [n.clienteFornecedor, n.numero, n.descricao],
+        campoValor: n => n.valor,
+        rotulo: n => n.clienteFornecedor || n.numero || (n.tipo === "emitida" ? "Nota emitida" : "Nota recebida"),
+        extra: n => `${fmtMoeda(n.valor)} · ${formatarDataBR(n.data)}`,
+        ordenar: (a, b) => (b.data || "").localeCompare(a.data || "")
+      });
+    },
+    async executar(p) {
+      const n = (state.notasFiscais || []).find(x => String(x.id) === String(p.id));
+      if (!n) return { ok: false, mensagem: "Essa nota fiscal não está mais na lista." };
+      await dbDelete("notas_fiscais", n.id);
+      state.notasFiscais = state.notasFiscais.filter(x => x.id !== n.id);
+      renderTudo();
+      return {
+        ok: true,
+        titulo: "Nota fiscal apagada",
+        recibo: [{ rotulo: "Valor", valor: fmtMoeda(n.valor) }],
+        mensagem: `Apaguei a nota fiscal de ${fmtMoeda(n.valor)}.`
+      };
+    }
+  },
+
+  trocar_contexto: {
+    descricao: "Troca o espaço financeiro ativo entre Pessoal e Empresarial. Use quando o usuário pedir pra trocar, mudar ou ir pro espaço Empresarial ou Pessoal.",
+    parametros: {
+      type: "object",
+      properties: {
+        espaco: { type: "string", enum: ["pessoal", "empresarial"], description: "Pra qual espaço trocar." }
+      },
+      required: ["espaco"]
+    },
+    preparar(d) {
+      const espaco = normIA(d.espaco) === "empresarial" ? "empresarial" : "pessoal";
+      if (espaco === "empresarial" && !state.perfil?.empresarial) {
+        return { erro: "O usuário não tem o plano Empresarial. Explique que precisa assinar (R$ 41,90/mês) na tela de Planos antes de usar esse espaço." };
+      }
+      return { dados: { espaco }, perguntas: [] };
+    },
+    async executar(p) {
+      if (p.espaco === state.contextoAtivo) {
+        return { ok: true, titulo: "Já estava lá", mensagem: `Você já está no espaço ${p.espaco === "empresarial" ? "Empresarial" : "Pessoal"}.` };
+      }
+      await alternarContexto(p.espaco);
+      return {
+        ok: true,
+        titulo: "Espaço trocado",
+        recibo: [{ rotulo: "Espaço ativo", valor: p.espaco === "empresarial" ? "Empresarial" : "Pessoal" }],
+        mensagem: `Troquei pro espaço ${p.espaco === "empresarial" ? "Empresarial" : "Pessoal"}.`
+      };
+    }
   }
 
 };
@@ -12903,6 +13505,63 @@ function _acharInvestimentoIA(d, textoPergunta) {
       campo: "id",
       texto: textoPergunta,
       opcoes: ordenados.map(i => ({ v: i.id, t: rotuloInv(i), extra: fmtMoeda(i.valor) }))
+    }]
+  };
+}
+
+/* Fuzzy-find genérico usado pelos excluir_*/editar_* mais simples
+   (transferência, gasto fixo, conta, objetivo, meta, categoria, nota
+   fiscal) — mesma lógica de desambiguação de _acharLancamentoIA e
+   _acharInvestimentoIA, só que parametrizada em vez de reescrita em
+   cada ferramenta. config:
+   - lista: array de itens (já filtrado pelo contexto ativo)
+   - semItens: mensagem de erro quando a lista está vazia
+   - campoBusca(item): array de strings pra bater contra o texto digitado
+   - campoValor(item): número, opcional — desempata quando sobra mais de um
+   - rotulo(item): texto do botão
+   - extra(item): texto secundário do botão, opcional
+   - ordenar(a,b): comparador, opcional — padrão é a ordem que já vier */
+function _acharItemIA(d, textoPergunta, config) {
+  const todos = config.lista || [];
+  if (!todos.length) return { erro: config.semItens };
+
+  const escolhido = d.id ? todos.find(x => String(x.id) === String(d.id)) : null;
+  if (escolhido) return { dados: { id: escolhido.id }, perguntas: [] };
+
+  const alvo = normIA(d.busca);
+  let cand = todos;
+  if (alvo) {
+    cand = todos.filter(item => {
+      const nomes = config.campoBusca(item) || [];
+      return nomes.some(n => {
+        const norm = normIA(n || "");
+        return norm && (norm.includes(alvo) || (alvo.length >= 3 && alvo.includes(norm)));
+      });
+    });
+  }
+
+  if (config.campoValor) {
+    const v = valorIA(d.valor);
+    if (v && cand.length > 1) {
+      const porValor = cand.filter(item => Math.abs(Number(config.campoValor(item)) - v) < 0.005);
+      if (porValor.length) cand = porValor;
+    }
+  }
+
+  if (!cand.length) {
+    return { erro: "Não achei nada com essa descrição. Pergunte o nome exato, pra ajudar a achar." };
+  }
+
+  if (cand.length === 1) return { dados: { id: cand[0].id }, perguntas: [] };
+
+  const base = config.ordenar ? cand.slice().sort(config.ordenar) : cand.slice();
+  const ordenados = base.slice(0, 8);
+  return {
+    dados: { id: "" },
+    perguntas: [{
+      campo: "id",
+      texto: textoPergunta,
+      opcoes: ordenados.map(item => ({ v: item.id, t: config.rotulo(item), extra: config.extra ? config.extra(item) : undefined }))
     }]
   };
 }

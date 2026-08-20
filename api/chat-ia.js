@@ -181,6 +181,15 @@ export default async function handler(req, res) {
       "- 'paga a fatura do Nubank' ou 'quita a fatura do cartão' → use pagar_fatura_cartao.",
       "- 'aplica 500 num CDB a 110% do CDI' ou 'comprei 0.001 de bitcoin' ou 'investi 1000 no tesouro selic' → use registrar_investimento. Renda fixa (exceto Poupança) precisa da taxa contratada — se ele não disse, use perguntar_opcoes (não pergunte em texto livre).",
       "- 'exclui o investimento em bitcoin' ou 'apaga aquele CDB' ou 'remove o investimento X' → use excluir_investimento. Se houver mais de um parecido, o app pergunta em botões qual é — você não escolhe por ele.",
+      "- 'apaga aquela transferência pro poupança' ou 'desfaz a transferência de 200' → use excluir_transferencia.",
+      "- 'cancela o Netflix dos gastos fixos' ou 'remove o aluguel' (falando de algo fixo/recorrente) → use excluir_recorrencia. 'muda o valor do aluguel pra 1600' ou 'troca o dia do Netflix pro dia 15' → use editar_recorrencia, preenchendo só o campo que ele quer mudar.",
+      "- 'apaga a conta Nubank' ou 'remove aquele banco' → use excluir_conta. Ação séria (apaga a conta E as movimentações vinculadas) — só use quando ele pedir claramente pra apagar a conta inteira, nunca por interpretação.",
+      "- 'apaga a meta de comprar o carro' ou 'desiste do objetivo da viagem' → use excluir_objetivo. 'já juntei mais 200 pro tênis' ou 'muda a meta do carro pra 20 mil' → use editar_objetivo.",
+      "- 'remove o limite de gasto de Lazer' ou 'apaga o teto de Alimentação' → use excluir_meta (limite de gasto por categoria — não confundir com objetivo de poupança).",
+      "- 'cria uma categoria Pet' ou 'adiciona uma categoria pro meu filho' → use criar_categoria. 'apaga a categoria Pet' → use excluir_categoria (só funciona em categorias criadas pelo usuário, nunca nas de fábrica do app).",
+      "- 'registra uma nota fiscal de venda de 500 pro cliente X' ou 'lança uma nota recebida do fornecedor Y' → use registrar_nota_fiscal (só existe no espaço Empresarial — se ele estiver no Pessoal, explique que precisa trocar de espaço primeiro; NUNCA diga que emitiu uma nota fiscal de verdade, é só registro/controle). 'apaga a nota fiscal do cliente X' → use excluir_nota_fiscal.",
+      "- 'muda pro espaço empresarial' ou 'volta pro pessoal' → use trocar_contexto. Se ele não tiver o plano Empresarial, explique que precisa assinar antes.",
+      "- 'me lembra de pagar o DAS todo mês' ou 'quero um lembrete do ISS todo dia 20' (no espaço Empresarial) → é um gasto fixo: use criar_recorrencia com categoria 'Impostos e Taxas'. Como o valor de guias como DAS varia todo mês conforme o faturamento, se ele não souber o valor exato agora, pode usar um valor aproximado/estimado — a pessoa ajusta o valor real na hora de marcar como pago, sem precisar editar a recorrência toda vez.",
       "- Precisa de uma informação curta do usuário e consegue sugerir de 2 a 4 respostas prováveis (o que foi um gasto, de onde veio uma entrada, a taxa de um investimento) → use perguntar_opcoes, NUNCA pergunte isso numa mensagem de texto solta. É a única exceção à regra de nunca perguntar 'o que você comprou': se você mesma decidir que precisa saber, pergunte com botões, nunca em texto livre. IMPORTANTE: quando chamar perguntar_opcoes, não escreva NENHUM texto de resposta nessa mesma mensagem (nem repita a pergunta em frase solta) — os botões com a pergunta já aparecem sozinhos, escrever texto também deixaria a pergunta duplicada na tela.",
       "Preencha só o que o usuário disse. Se ele não disse a conta, a categoria ou a data, DEIXE O CAMPO VAZIO — o app resolve sozinho ou pergunta a ele em botões. Nunca invente a conta nem chute o valor.",
       "REGRA DE FERRO SOBRE O VALOR: se o usuário JÁ DISSE um número ('gasto de 50', 'gastei 50', '50 no nubank'), o valor é esse número — NUNCA pergunte 'quanto custou' de novo. Só pergunte o valor quando ele NÃO deu número nenhum ('uber', 'comprei um lanche') — esse é o único caso em que uma pergunta de texto livre é aceitável, porque não há como sugerir opções pra um valor em reais. Nunca invente um valor.",
@@ -298,10 +307,13 @@ export default async function handler(req, res) {
     }
 
     // Ferramentas: o app manda o que ele sabe fazer. Quem executa é o app —
-    // aqui só repassamos a lista para a IA poder escolher.
+    // aqui só repassamos a lista para a IA poder escolher. Limite de 40 é só
+    // uma trava de segurança (corpo da requisição não pode crescer sem
+    // controle) — o app hoje manda bem menos que isso (ver ACOES_IA em
+    // app.js); suba o número aqui se um dia passar disso.
     let ferramentas = null;
     if (Array.isArray(acoes) && acoes.length) {
-      ferramentas = acoes.slice(0, 20).map(a => ({
+      ferramentas = acoes.slice(0, 40).map(a => ({
         name: String(a.nome || "").slice(0, 64),
         description: String(a.descricao || "").slice(0, 1200),
         input_schema: (a.parametros && typeof a.parametros === "object")

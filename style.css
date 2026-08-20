@@ -431,6 +431,16 @@ button, input, textarea, select {
 /* Só 2 cards (resumo de Notas Fiscais) — não estica pra 4 colunas vazias */
 .nf-resumo-grid { grid-template-columns: repeat(2, minmax(0, 260px)); }
 
+/* Atalhos de lembrete de imposto (DAS/ISS) na tela de Notas Fiscais */
+.nf-atalhos-impostos {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.nf-atalhos-titulo { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+
 .cards-grid-planilha { grid-template-columns: repeat(2, 1fr); }
 
 .info-card {
@@ -581,6 +591,24 @@ button, input, textarea, select {
   background: var(--teal-600);
   border-radius: 2px;
 }
+/* Título do painel + um botão de ação (ex: "Importar por foto/PDF") na
+   mesma linha — a borda/margem que separa do formulário migra pra cá. */
+.form-panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--sec-form-bd);
+}
+.form-panel-title-row .form-panel-title {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+.btn-importar-nf { cursor: pointer; white-space: nowrap; }
 
 .form-grid {
   display: grid;
