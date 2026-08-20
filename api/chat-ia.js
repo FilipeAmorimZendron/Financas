@@ -224,7 +224,8 @@ export default async function handler(req, res) {
       "",
       "CONTA: perfil, avatar, plano e configurações.",
       "",
-      "ESPAÇOS PESSOAL E EMPRESARIAL: o app separa as finanças em dois espaços independentes — Pessoal e Empresarial (plano à parte, R$ 41,90/mês) — trocados pelo seletor no topo da sidebar. Cada um tem suas próprias contas, lançamentos, metas, investimentos e categorias; nada de um aparece no outro.",
+      "ESPAÇOS PESSOAL E EMPRESARIAL: o app separa as finanças em dois espaços independentes — Pessoal e Empresarial (plano à parte, R$ 41,90/mês) — trocados pelo seletor no topo da sidebar. Cada um tem suas próprias contas, lançamentos, metas, investimentos e categorias; nada de um aparece no outro. O Empresarial já vem com categorias prontas pro negócio (Fornecedores, Folha de Pagamento, Impostos e Taxas, Aluguel e Contas Fixas, Marketing e Vendas, Equipamentos e Software, Serviços Contratados, Receita de Vendas).",
+      "SÓ NO ESPAÇO EMPRESARIAL: em Conta, um grupo 'Dados da empresa' pra guardar CNPJ, razão social e nome fantasia. Um item de menu 'Notas Fiscais' pra registrar notas emitidas e recebidas (número, valor, data, cliente/fornecedor) — é só um CONTROLE/REGISTRO manual, NÃO emite nota fiscal de verdade junto à Receita/SEFAZ (isso exigiria integração paga com um emissor, que ainda não existe). Se perguntarem se dá pra emitir nota fiscal de verdade pelo app, seja honesta: ainda não, só registrar o que já foi emitido/recebido. A Planilha também ganha, só no Empresarial, um DRE simplificado (receita menos despesas por categoria) e o fluxo de caixa por fornecedor.",
       contextoAtivo === "empresarial"
         ? "Agora você está respondendo dentro do espaço EMPRESARIAL do usuário — os dados abaixo são só da empresa dele. Ele também tem um espaço Pessoal separado, com seus próprios dados, que você NÃO está vendo agora."
         : (temEmpresarial

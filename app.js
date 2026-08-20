@@ -29,6 +29,7 @@ const state = {
   bancos: [], movimentos: [], transferencias: [], recorrencias: [], metas: [],
   faturasPagas: [], categorias: [],
   objetivos: [], investimentos: [], recPagamentos: [],
+  notasFiscais: [],   // só usado no espaço Empresarial — ver TABELAS_COM_CONTEXTO
   perfil: { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null },
   user: null,
   // "pessoal" ou "empresarial" — qual espaço financeiro está ativo agora.
@@ -863,7 +864,7 @@ async function dbSelect(tabela) {
 const TABELAS_COM_CONTEXTO = new Set([
   "contas", "movimentos", "transferencias", "recorrencias",
   "recorrencia_pagamentos", "metas", "objetivos", "investimentos",
-  "categorias", "faturas_pagas"
+  "categorias", "faturas_pagas", "notas_fiscais"
 ]);
 
 async function dbInsert(tabela, dados) {
@@ -901,7 +902,7 @@ async function dbDelete(tabela, id) {
 async function carregarDadosNuvem() {
   mostrarLoading(true, "Carregando seus dados", "Buscando contas, lançamentos e metas...");
   try {
-    const [contas, movimentos, transferencias, recorrencias, metas, objetivos, investimentos, recPagamentos, perfilRows, faturasPagas, categorias] = await Promise.all([
+    const [contas, movimentos, transferencias, recorrencias, metas, objetivos, investimentos, recPagamentos, perfilRows, faturasPagas, categorias, notasFiscais] = await Promise.all([
       dbSelect("contas"),
       dbSelect("movimentos"),
       dbSelect("transferencias"),
@@ -912,7 +913,8 @@ async function carregarDadosNuvem() {
       dbSelect("recorrencia_pagamentos").catch(()=>[]),
       dbSelect("perfil").catch(()=>[]),
       dbSelect("faturas_pagas").catch(()=>[]),
-      dbSelect("categorias").catch(()=>[])
+      dbSelect("categorias").catch(()=>[]),
+      dbSelect("notas_fiscais").catch(()=>[])
     ]);
     // Cada tabela em TABELAS_COM_CONTEXTO só entra no app se for do espaço
     // ativo agora (Pessoal ou Empresarial) — dado sem a coluna ainda
@@ -959,6 +961,10 @@ async function carregarDadosNuvem() {
     state.metas          = metas.filter(doContexto).map(m => ({ id:m.id, categoria:m.categoria, limite:Number(m.limite) }));
     state.objetivos      = (objetivos||[]).filter(doContexto).map(mapObjetivo);
     state.investimentos  = (investimentos||[]).filter(doContexto).map(mapInvestimento);
+    state.notasFiscais   = (notasFiscais||[]).filter(doContexto).map(n => ({
+      id:n.id, tipo:n.tipo||"emitida", numero:n.numero||"", valor:Number(n.valor)||0,
+      data:n.data, clienteFornecedor:n.cliente_fornecedor||"", descricao:n.descricao||""
+    }));
   } catch(e) {
     // Antes só mostrava um toast e parava, deixando a tela com tudo
     // zerado pra sempre se a sessão tivesse expirado (sem deslogar nem
@@ -3837,6 +3843,70 @@ function renderPlanilha() {
         </tr>`;
       }).join("");
   renderGraficosPlanilha(filtrados);
+  renderRelatoriosEmpresariais(filtrados);
+}
+
+/* DRE simplificado + fluxo de caixa por fornecedor — só o espaço
+   Empresarial mostra esse painel (ver .menu-item-empresarial em
+   atualizarSeletorContexto). Usa o mesmo filtro de período da Planilha,
+   já contando só o que está de fato pago (mesma régua do resto do app). */
+function renderRelatoriosEmpresariais(filtrados) {
+  const elDre = document.getElementById("dreSimplificado");
+  const elFluxo = document.getElementById("fluxoFornecedores");
+  if (!elDre && !elFluxo) return;
+  if (state.contextoAtivo !== "empresarial") return;
+
+  const pagos = filtrados.filter(m => (m.status || "pago") === "pago");
+
+  if (elDre) {
+    const receita = pagos.filter(m => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0);
+    const despesasPorCategoria = {};
+    pagos.filter(m => m.tipo === "gasto").forEach(m => {
+      despesasPorCategoria[m.categoria] = (despesasPorCategoria[m.categoria] || 0) + m.valor;
+    });
+    const totalDespesas = Object.values(despesasPorCategoria).reduce((s, v) => s + v, 0);
+    const resultado = receita - totalDespesas;
+
+    if (!receita && !totalDespesas) {
+      elDre.innerHTML = `<div class="empty-state">Sem movimentações para o filtro selecionado.</div>`;
+    } else {
+      const linhasDespesas = Object.entries(despesasPorCategoria)
+        .sort((a, b) => b[1] - a[1])
+        .map(([cat, val]) => `
+          <div class="transferencia-item">
+            <div class="trans-top"><div class="trans-contas"><span>${esc(cat)}</span></div><div class="trans-valor valor-negativo">-${fmtMoeda(val)}</div></div>
+          </div>`).join("");
+      elDre.innerHTML = `
+        <div class="transferencia-item">
+          <div class="trans-top"><div class="trans-contas"><span><strong>Receita</strong></span></div><div class="trans-valor valor-positivo">${fmtMoeda(receita)}</div></div>
+        </div>
+        ${linhasDespesas}
+        <div class="transferencia-item">
+          <div class="trans-top"><div class="trans-contas"><span><strong>Resultado</strong></span></div><div class="trans-valor ${resultado >= 0 ? "valor-positivo" : "valor-negativo"}">${fmtMoeda(resultado)}</div></div>
+        </div>`;
+    }
+  }
+
+  if (elFluxo) {
+    const fornecedores = {};
+    pagos.filter(m => m.tipo === "gasto" && m.categoria === "Fornecedores").forEach(m => {
+      const nome = (m.descricao || "Sem nome").trim() || "Sem nome";
+      if (!fornecedores[nome]) fornecedores[nome] = { total: 0, qtd: 0 };
+      fornecedores[nome].total += m.valor;
+      fornecedores[nome].qtd += 1;
+    });
+    const linhas = Object.entries(fornecedores).sort((a, b) => b[1].total - a[1].total);
+    elFluxo.innerHTML = !linhas.length
+      ? `<div class="empty-state">Nenhum lançamento na categoria "Fornecedores" ainda.</div>`
+      : linhas.map(([nome, d]) => `
+          <div class="transferencia-item">
+            <div class="trans-top">
+              <div class="trans-contas"><span>${esc(nome)}</span></div>
+              <div class="trans-valor">${fmtMoeda(d.total)}</div>
+            </div>
+            <div class="trans-meta">${d.qtd} lançamento${d.qtd > 1 ? "s" : ""}</div>
+          </div>`).join("");
+  }
 }
 
 /* ─── Gráficos planilha ──────────────────────────────────── */
@@ -4033,6 +4103,7 @@ function renderTudo() {
   renderMetas();
   renderObjetivos();
   renderInvestimentos();
+  renderNotasFiscais();
   renderPlanilha();
 }
 
@@ -5630,6 +5701,135 @@ formTransferencia?.addEventListener("submit", async e => {
     toast(`Transferência de ${fmtMoeda(valor)} realizada!`,"success");
   } catch(err) { tratarErro(err); }
 });
+
+/* ═══ Empresarial: dados da empresa + notas fiscais (registro/controle,
+   não emite NF-e de verdade — isso exigiria um emissor pago à parte) ═══ */
+
+/* Valida CNPJ pelos dígitos verificadores (só matemática — não confirma
+   que a empresa existe de verdade, só que o número é válido). */
+function cnpjValido(cnpj) {
+  const c = String(cnpj || "").replace(/\D/g, "");
+  if (c.length !== 14 || /^(\d)\1{13}$/.test(c)) return false;
+  const calcDV = (base) => {
+    const pesos = base.length === 12
+      ? [5,4,3,2,9,8,7,6,5,4,3,2]
+      : [6,5,4,3,2,9,8,7,6,5,4,3,2];
+    let soma = 0;
+    for (let i = 0; i < base.length; i++) soma += Number(base[i]) * pesos[i];
+    const resto = soma % 11;
+    return resto < 2 ? 0 : 11 - resto;
+  };
+  const dv1 = calcDV(c.slice(0, 12));
+  const dv2 = calcDV(c.slice(0, 12) + dv1);
+  return c === c.slice(0, 12) + String(dv1) + String(dv2);
+}
+
+/* Só formata quando já tem os 14 dígitos — evita brigar com o cursor
+   enquanto a pessoa ainda está digitando. */
+function formatarCnpj(v) {
+  const d = String(v || "").replace(/\D/g, "").slice(0, 14);
+  if (d.length !== 14) return v;
+  return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+}
+
+document.getElementById("empresaCnpj")?.addEventListener("blur", e => {
+  e.target.value = formatarCnpj(e.target.value);
+});
+
+document.getElementById("formDadosEmpresa")?.addEventListener("submit", async e => {
+  e.preventDefault();
+  const cnpjInput = document.getElementById("empresaCnpj");
+  const razaoInput = document.getElementById("empresaRazaoSocial");
+  const fantasiaInput = document.getElementById("empresaNomeFantasia");
+  const cnpjDigitado = cnpjInput.value.trim();
+  if (cnpjDigitado && !cnpjValido(cnpjDigitado)) {
+    toast("CNPJ inválido — confira os números.", "error");
+    cnpjInput.focus();
+    return;
+  }
+  try {
+    const salvo = await salvarPerfil({
+      empresa_cnpj: cnpjDigitado ? formatarCnpj(cnpjDigitado) : null,
+      empresa_razao_social: razaoInput.value.trim() || null,
+      empresa_nome_fantasia: fantasiaInput.value.trim() || null
+    });
+    state.perfil = mapPerfil(salvo);
+    toast("Dados da empresa salvos!", "success");
+  } catch (err) { tratarErro(err); }
+});
+
+document.getElementById("formNotaFiscal")?.addEventListener("submit", async e => {
+  e.preventDefault();
+  const tipo = document.getElementById("nfTipo").value;
+  const numero = document.getElementById("nfNumero").value.trim();
+  const valor = Number(document.getElementById("nfValor").value);
+  const data = document.getElementById("nfData").value;
+  const clienteFornecedor = document.getElementById("nfClienteFornecedor").value.trim();
+  const descricao = document.getElementById("nfDescricao").value.trim();
+  if (!valor || !data) { toast("Preencha o valor e a data.", "error"); return; }
+  try {
+    const novo = await dbInsert("notas_fiscais", {
+      tipo, numero: numero || null, valor, data,
+      cliente_fornecedor: clienteFornecedor || null, descricao: descricao || null
+    });
+    state.notasFiscais.push({
+      id: novo.id, tipo: novo.tipo, numero: novo.numero || "",
+      valor: Number(novo.valor), data: novo.data,
+      clienteFornecedor: novo.cliente_fornecedor || "", descricao: novo.descricao || ""
+    });
+    e.target.reset();
+    document.getElementById("nfData").value = hojeISO();
+    renderTudo();
+    toast("Nota fiscal registrada!", "success");
+  } catch (err) { tratarErro(err); }
+});
+
+async function excluirNotaFiscal(id) {
+  const ok = await confirmar("Excluir nota fiscal?", { tipo: "perigo", descricao: "O registro será removido.", okLabel: "Excluir" });
+  if (!ok) return;
+  try {
+    await dbDelete("notas_fiscais", id);
+    state.notasFiscais = state.notasFiscais.filter(n => n.id !== id);
+    renderTudo();
+    toast("Nota fiscal excluída.", "info", true);
+  } catch (err) { tratarErro(err); }
+}
+
+/* Cards de resumo + lista da tela de Notas Fiscais */
+function renderNotasFiscais() {
+  const lista = document.getElementById("listaNotasFiscais");
+  if (!lista) return;
+
+  const mesAtual = mesAtualISO();
+  const doMes = state.notasFiscais.filter(n => (n.data || "").startsWith(mesAtual));
+  const totalEmitidas  = doMes.filter(n => n.tipo === "emitida").reduce((s,n) => s + n.valor, 0);
+  const totalRecebidas = doMes.filter(n => n.tipo === "recebida").reduce((s,n) => s + n.valor, 0);
+  const elEmitidas  = document.getElementById("nfResumoEmitidas");
+  const elRecebidas = document.getElementById("nfResumoRecebidas");
+  if (elEmitidas)  elEmitidas.textContent  = fmtMoeda(totalEmitidas);
+  if (elRecebidas) elRecebidas.textContent = fmtMoeda(totalRecebidas);
+
+  if (!state.notasFiscais.length) {
+    lista.innerHTML = `<div class="empty-state">Nenhuma nota fiscal registrada ainda.</div>`;
+    return;
+  }
+  lista.innerHTML = [...state.notasFiscais]
+    .sort((a, b) => (b.data || "").localeCompare(a.data || ""))
+    .map(n => `
+      <div class="transferencia-item">
+        <div class="trans-top">
+          <div class="trans-contas">
+            <span>${n.tipo === "emitida" ? "Emitida" : "Recebida"}${n.numero ? " · Nº " + esc(n.numero) : ""}</span>
+            ${n.clienteFornecedor ? `<span class="trans-seta">→</span><span>${esc(n.clienteFornecedor)}</span>` : ""}
+          </div>
+          <div class="trans-valor">${fmtMoeda(n.valor)}</div>
+        </div>
+        <div class="trans-meta">${n.descricao ? esc(n.descricao) + " · " : ""}${new Date(n.data + "T00:00:00").toLocaleDateString("pt-BR")}</div>
+        <div class="item-actions">
+          <button class="btn-icon btn-icon-danger" onclick="excluirNotaFiscal('${n.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></span>Excluir</button>
+        </div>
+      </div>`).join("");
+}
 
 formRecorrencia?.addEventListener("submit", async e => {
   e.preventDefault();
@@ -8284,7 +8484,8 @@ function exportarTudoJSON() {
     pagamentosRecorrentes: state.recPagamentos,
     metas: state.metas,
     objetivos: state.objetivos,
-    investimentos: state.investimentos
+    investimentos: state.investimentos,
+    notasFiscais: state.notasFiscais
   };
   const nome = `meus-dados-financas-${hojeISO()}.json`;
   baixarArquivo(nome, JSON.stringify(dados, null, 2), "application/json");
@@ -8315,6 +8516,7 @@ function exportarTudoCSV() {
   bloco("METAS", state.metas, ["categoria","limite"]);
   bloco("OBJETIVOS", state.objetivos, ["nome","valorAlvo","valorAtual","prazoData"]);
   bloco("INVESTIMENTOS", state.investimentos, ["tipo","nome","valor","taxa","taxaPeriodo","regime","valorAtual","rendaPassiva"]);
+  bloco("NOTAS FISCAIS", state.notasFiscais, ["tipo","numero","valor","data","clienteFornecedor","descricao"]);
 
   const nome = `meus-dados-financas-${hojeISO()}.csv`;
   baixarArquivo(nome, "\uFEFF" + linhas.join("\n"), "text/csv;charset=utf-8;");
@@ -9088,7 +9290,7 @@ async function salvarPerfil(dados) {
 }
 
 function mapPerfil(p) {
-  if (!p) return { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null, plano: "basico", assinaturaStatus: "inativa", atrasoDesde: null, empresarial: false };
+  if (!p) return { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null, plano: "basico", assinaturaStatus: "inativa", atrasoDesde: null, empresarial: false, empresaCnpj: "", empresaRazaoSocial: "", empresaNomeFantasia: "" };
   return {
     avatarTipo:   p.avatar_tipo   || "inicial",
     avatarPadrao: p.avatar_padrao || null,
@@ -9102,7 +9304,11 @@ function mapPerfil(p) {
     // Empresarial é um plano à parte (R$ 41,90/mês) — este selo diz se a
     // pessoa pagou por ele. Não tem nada a ver com podeUsar()/planoAtual():
     // o nível de acesso (premium) é o mesmo; só libera o espaço extra.
-    empresarial:      !!p.empresarial
+    empresarial:      !!p.empresarial,
+    // Dados da empresa (opcionais) — só aparecem no espaço Empresarial.
+    empresaCnpj:          p.empresa_cnpj          || "",
+    empresaRazaoSocial:   p.empresa_razao_social  || "",
+    empresaNomeFantasia:  p.empresa_nome_fantasia || ""
   };
 }
 
@@ -9459,6 +9665,23 @@ function atualizarSeletorContexto() {
       cadeado.remove();
     }
   });
+
+  // Itens que só existem no espaço Empresarial (menu "Notas Fiscais",
+  // grupo "Dados da empresa" na tela de Conta) — escondidos no Pessoal.
+  const empresarial = state.contextoAtivo === "empresarial";
+  document.querySelectorAll(".menu-item-empresarial").forEach(el => { el.hidden = !empresarial; });
+  const grupoEmpresa = document.getElementById("contaGrupoEmpresa");
+  if (grupoEmpresa) {
+    grupoEmpresa.hidden = !empresarial;
+    if (empresarial) {
+      const cnpj = document.getElementById("empresaCnpj");
+      const razao = document.getElementById("empresaRazaoSocial");
+      const fantasia = document.getElementById("empresaNomeFantasia");
+      if (cnpj && document.activeElement !== cnpj) cnpj.value = state.perfil?.empresaCnpj || "";
+      if (razao && document.activeElement !== razao) razao.value = state.perfil?.empresaRazaoSocial || "";
+      if (fantasia && document.activeElement !== fantasia) fantasia.value = state.perfil?.empresaNomeFantasia || "";
+    }
+  }
 }
 
 /* ============================================================
@@ -9939,7 +10162,7 @@ function dispensarDica(chave) {
 }
 
 function restaurarDicas() {
-  ["recorrencias"].forEach(chave => {
+  ["recorrencias", "notasFiscais"].forEach(chave => {
     if (localStorage.getItem(`fp_dica_${chave}`) === "1") {
       document.getElementById(`dica${chave.charAt(0).toUpperCase()}${chave.slice(1)}`)?.remove();
     }

@@ -423,6 +423,8 @@ button, input, textarea, select {
   margin-bottom: 20px;
   perspective: 1000px;
 }
+/* Só 2 cards (resumo de Notas Fiscais) — não estica pra 4 colunas vazias */
+.nf-resumo-grid { grid-template-columns: repeat(2, minmax(0, 260px)); }
 
 .cards-grid-planilha { grid-template-columns: repeat(2, 1fr); }
 
@@ -9245,6 +9247,27 @@ body.sem-internet .layout { padding-top: 34px; }
   box-shadow: 0 4px 18px rgba(245,165,36,0.45);
 }
 .lp-assinar-logo { height: 26px; margin-bottom: 20px; }
+/* Ícone Pessoal/Empresarial no topo do card — mesmo desenho do seletor
+   da sidebar (.contexto-btn), em vez do logo (que fica com fundo
+   estranho em cima de fundo escuro). */
+.lp-assinar-icone {
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(245,165,36,0.12);
+  border: 1px solid rgba(245,165,36,0.35);
+  color: var(--lp-amber);
+}
+.lp-assinar-icone svg { width: 22px; height: 22px; }
+.lp-assinar-icone-empresarial {
+  background: rgba(30,246,221,0.12);
+  border-color: rgba(30,246,221,0.35);
+  color: var(--lp-teal, #1EF6DD);
+}
 .lp-assinar-titulo {
   font-family: 'Sora', sans-serif;
   font-size: 25px;

@@ -35,6 +35,8 @@ App web de finanças pessoais 100% em português (fazfinancas.com), com IA que:
 - `perfil.empresarial` (boolean) diz se a pessoa pagou pelo plano Empresarial — liberado/revogado sozinho pelo webhook e por `confirmar-assinatura.js`, de acordo com o valor pago em cada cobrança (`ehValorEmpresarial()`). Sem ele, o botão "Empresarial" da sidebar leva pro upsell em vez de trocar de espaço.
 - Categorias fixas trocam sozinhas conforme o espaço ativo (`categoriasFixasAtivas()` em app.js): Pessoal usa `CATEGORIAS_FIXAS` de sempre, Empresarial usa `CATEGORIAS_FIXAS_EMPRESARIAL` (Fornecedores, Folha de Pagamento, Impostos e Taxas, etc.) — são só uma lista hardcoded no front, não linhas no banco, então aparecem prontas pra todo mundo sem precisar de nenhuma migração ou seed.
 - O chat de IA sabe em qual espaço está (`contexto` mandado em cada chamada de `/api/chat-ia`) e que o outro espaço existe, mas nunca recebe os dados financeiros dele — a saudação inicial do chat também muda conforme o espaço ativo.
+- Só no Empresarial: grupo "Dados da empresa" em Conta (CNPJ com validação de dígito verificador, razão social, nome fantasia — colunas `perfil.empresa_*`); tela "Notas Fiscais" (tabela `notas_fiscais`, com RLS) — é só REGISTRO/controle manual, não emite NF-e de verdade junto à Receita/SEFAZ (exigiria um emissor pago à parte, tipo o caso do WhatsApp); e, na Planilha, um DRE simplificado + fluxo de caixa por fornecedor (agrupa lançamentos da categoria "Fornecedores" por descrição).
+- Múltiplos usuários por empresa (convidar sócio/funcionário pro mesmo espaço Empresarial) ainda NÃO existe — decisão de arquitetura maior (modelo de permissão, convites) que precisa ser desenhada com calma antes de mexer no schema.
 
 ## Como trabalhar neste projeto (regras fixas)
 

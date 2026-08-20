@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202608201730" />
+  <link rel="stylesheet" href="style.css?v=202608202000" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -110,6 +110,10 @@
         <button class="menu-item" data-screen="investimentos">
           <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg></span>
           Investimentos
+        </button>
+        <button class="menu-item menu-item-empresarial" data-screen="notasfiscais" hidden>
+          <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M9 13h6M9 17h4"></path></svg></span>
+          Notas Fiscais
         </button>
         <button class="menu-item" data-screen="planilha">
           <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg></span>
@@ -1124,7 +1128,80 @@
         </div>
       </section>
 
+      <!-- NOTAS FISCAIS (só no espaço Empresarial) -->
+      <section class="screen" id="screen-notasfiscais">
+        <div class="page-header">
+          <div class="page-header-titulo">
+            <p class="page-eyebrow">Empresarial</p>
+            <h2 class="page-title">Notas Fiscais</h2>
+          </div>
+        </div>
 
+        <div class="dica-box" id="dicaNotasFiscais">
+          <div class="dica-icone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/></svg>
+          </div>
+          <div class="dica-texto">
+            <strong>Registro e controle — não emite nota fiscal de verdade.</strong>
+            <span>Pra emitir NF-e de verdade junto à Receita, você ainda precisa de um emissor (a gente pode integrar um no futuro). Aqui é só pra você não perder o controle de quanto emitiu e quanto recebeu.</span>
+          </div>
+          <button type="button" class="dica-fechar" onclick="dispensarDica('notasFiscais')" aria-label="Dispensar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div class="cards-grid nf-resumo-grid" id="nfResumoCards">
+          <div class="info-card">
+            <div class="card-label">Emitidas no mês</div>
+            <div class="card-value" id="nfResumoEmitidas">R$ 0,00</div>
+          </div>
+          <div class="info-card">
+            <div class="card-label">Recebidas no mês</div>
+            <div class="card-value" id="nfResumoRecebidas">R$ 0,00</div>
+          </div>
+        </div>
+
+        <div class="form-panel">
+          <div class="form-panel-title">Nova nota fiscal</div>
+          <form id="formNotaFiscal" class="form-grid">
+            <div class="field">
+              <label for="nfTipo">Tipo</label>
+              <select id="nfTipo">
+                <option value="emitida">Emitida (venda/serviço prestado)</option>
+                <option value="recebida">Recebida (compra/serviço tomado)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="nfNumero">Número (opcional)</label>
+              <input type="text" id="nfNumero" placeholder="Ex: 1024" />
+            </div>
+            <div class="field">
+              <label for="nfValor">Valor (R$)</label>
+              <input type="number" id="nfValor" step="0.01" min="0.01" placeholder="0,00" required />
+            </div>
+            <div class="field">
+              <label for="nfData">Data</label>
+              <input type="date" id="nfData" required min="2000-01-01" max="2100-12-31" />
+            </div>
+            <div class="field">
+              <label for="nfClienteFornecedor">Cliente / Fornecedor</label>
+              <input type="text" id="nfClienteFornecedor" placeholder="Ex: Fornecedor Tal Ltda" />
+            </div>
+            <div class="field field-desc">
+              <label for="nfDescricao">Descrição (opcional)</label>
+              <input type="text" id="nfDescricao" placeholder="Ex: Prestação de serviço de consultoria" />
+            </div>
+            <div class="field field-button">
+              <button type="submit" class="btn-primary">Registrar nota</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h3 class="panel-title">Notas registradas</h3></div>
+          <div id="listaNotasFiscais" class="lista-container"><div class="empty-state">Nenhuma nota fiscal registrada ainda.</div></div>
+        </div>
+      </section>
 
       <!-- PLANILHA -->
       <section class="screen" id="screen-planilha">
@@ -1237,6 +1314,18 @@
             </table>
           </div>
         </div>
+
+        <!-- Relatórios do espaço Empresarial (só aparecem lá) -->
+        <div id="planEmpresarialPanel" class="menu-item-empresarial" hidden>
+          <div class="panel">
+            <div class="panel-header"><h3 class="panel-title">DRE simplificado</h3></div>
+            <div id="dreSimplificado" class="lista-container"><div class="empty-state">Sem movimentações para o filtro selecionado.</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><h3 class="panel-title">Fluxo de caixa por fornecedor</h3></div>
+            <div id="fluxoFornecedores" class="lista-container"><div class="empty-state">Nenhum lançamento na categoria "Fornecedores" ainda.</div></div>
+          </div>
+        </div>
       </section>
 
       <!-- CONTA -->
@@ -1309,6 +1398,28 @@
               </div>
               <svg class="conta-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
+          </div>
+
+          <!-- DADOS DA EMPRESA (só no espaço Empresarial) -->
+          <div class="conta-grupo" id="contaGrupoEmpresa" hidden>
+            <div class="conta-grupo-titulo">Dados da empresa</div>
+            <form id="formDadosEmpresa" class="form-grid" style="padding: 4px 4px 8px;">
+              <div class="field">
+                <label for="empresaCnpj">CNPJ</label>
+                <input type="text" id="empresaCnpj" placeholder="00.000.000/0000-00" maxlength="18" />
+              </div>
+              <div class="field">
+                <label for="empresaRazaoSocial">Razão social</label>
+                <input type="text" id="empresaRazaoSocial" placeholder="Ex: FAZ Serviços Ltda" maxlength="120" />
+              </div>
+              <div class="field">
+                <label for="empresaNomeFantasia">Nome fantasia</label>
+                <input type="text" id="empresaNomeFantasia" placeholder="Ex: FAZ" maxlength="120" />
+              </div>
+              <div class="field field-button">
+                <button type="submit" class="btn-primary">Salvar dados da empresa</button>
+              </div>
+            </form>
           </div>
 
           <!-- DADOS E PRIVACIDADE -->
@@ -2592,7 +2703,9 @@
     <div class="lp-planos-grid lp-planos-grid-duo">
       <div class="lp-assinar-shell reveal">
         <span class="lp-assinar-badge">Pessoal</span>
-        <img src="logofaz-transparente.png" alt="FAZ Finanças" class="lp-assinar-logo" />
+        <div class="lp-assinar-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
         <h3 class="lp-assinar-titulo">Assine e libere tudo</h3>
         <p class="lp-assinar-sub">Sem versão limitada, sem trava de recursos. Um plano só, com tudo incluso.</p>
 
@@ -2626,7 +2739,9 @@
 
       <div class="lp-assinar-shell lp-assinar-shell-empresarial reveal">
         <span class="lp-assinar-badge lp-assinar-badge-empresarial">Empresarial</span>
-        <img src="logofaz-transparente.png" alt="FAZ Finanças" class="lp-assinar-logo" />
+        <div class="lp-assinar-icone lp-assinar-icone-empresarial">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg>
+        </div>
         <h3 class="lp-assinar-titulo">Espaço separado pra empresa</h3>
         <p class="lp-assinar-sub">Tudo do plano Pessoal, num espaço financeiro só da empresa — nunca se mistura com o seu.</p>
 
@@ -2984,6 +3099,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202608201730"></script>
+  <script src="app.js?v=202608202000"></script>
 </body>
 </html>
