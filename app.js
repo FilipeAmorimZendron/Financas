@@ -30,6 +30,7 @@ const state = {
   faturasPagas: [], categorias: [],
   objetivos: [], investimentos: [], recPagamentos: [],
   notasFiscais: [],   // só usado no espaço Empresarial — ver TABELAS_COM_CONTEXTO
+  contatos: [],       // clientes e fornecedores — idem
   perfil: { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null },
   user: null,
   // "pessoal" ou "empresarial" — qual espaço financeiro está ativo agora.
@@ -864,7 +865,7 @@ async function dbSelect(tabela) {
 const TABELAS_COM_CONTEXTO = new Set([
   "contas", "movimentos", "transferencias", "recorrencias",
   "recorrencia_pagamentos", "metas", "objetivos", "investimentos",
-  "categorias", "faturas_pagas", "notas_fiscais"
+  "categorias", "faturas_pagas", "notas_fiscais", "contatos"
 ]);
 
 async function dbInsert(tabela, dados) {
@@ -902,7 +903,7 @@ async function dbDelete(tabela, id) {
 async function carregarDadosNuvem() {
   mostrarLoading(true, "Carregando seus dados", "Buscando contas, lançamentos e metas...");
   try {
-    const [contas, movimentos, transferencias, recorrencias, metas, objetivos, investimentos, recPagamentos, perfilRows, faturasPagas, categorias, notasFiscais] = await Promise.all([
+    const [contas, movimentos, transferencias, recorrencias, metas, objetivos, investimentos, recPagamentos, perfilRows, faturasPagas, categorias, notasFiscais, contatos] = await Promise.all([
       dbSelect("contas"),
       dbSelect("movimentos"),
       dbSelect("transferencias"),
@@ -914,7 +915,8 @@ async function carregarDadosNuvem() {
       dbSelect("perfil").catch(()=>[]),
       dbSelect("faturas_pagas").catch(()=>[]),
       dbSelect("categorias").catch(()=>[]),
-      dbSelect("notas_fiscais").catch(()=>[])
+      dbSelect("notas_fiscais").catch(()=>[]),
+      dbSelect("contatos").catch(()=>[])
     ]);
     // Cada tabela em TABELAS_COM_CONTEXTO só entra no app se for do espaço
     // ativo agora (Pessoal ou Empresarial) — dado sem a coluna ainda
@@ -963,8 +965,13 @@ async function carregarDadosNuvem() {
     state.investimentos  = (investimentos||[]).filter(doContexto).map(mapInvestimento);
     state.notasFiscais   = (notasFiscais||[]).filter(doContexto).map(n => ({
       id:n.id, tipo:n.tipo||"emitida", numero:n.numero||"", valor:Number(n.valor)||0,
-      data:n.data, clienteFornecedor:n.cliente_fornecedor||"", descricao:n.descricao||""
+      data:n.data, clienteFornecedor:n.cliente_fornecedor||"", descricao:n.descricao||"",
+      contatoId:n.contato_id||null
     }));
+    state.contatos       = (contatos||[]).filter(doContexto).map(c => ({
+      id:c.id, nome:c.nome, tipo:c.tipo||"cliente", documento:c.documento||"",
+      telefone:c.telefone||"", email:c.email||""
+    })).sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
   } catch(e) {
     // Antes só mostrava um toast e parava, deixando a tela com tudo
     // zerado pra sempre se a sessão tivesse expirado (sem deslogar nem
@@ -4104,6 +4111,7 @@ function renderTudo() {
   renderObjetivos();
   renderInvestimentos();
   renderNotasFiscais();
+  renderContatos();
   renderPlanilha();
 }
 
@@ -5758,6 +5766,18 @@ document.getElementById("formDadosEmpresa")?.addEventListener("submit", async e 
   } catch (err) { tratarErro(err); }
 });
 
+/* Acha um contato cadastrado pelo nome exato (sem diferenciar maiúscula/
+   acento) — usado ao registrar nota fiscal, pelo formulário ou pela IA,
+   pra já linkar contato_id quando o nome bater com um já cadastrado. Sem
+   bate-volta nenhum: se não achar, a nota salva do mesmo jeito, só sem
+   o vínculo (fica como texto solto). */
+function _acharContatoPorNome(nome) {
+  const alvo = normIA(nome);
+  if (!alvo) return null;
+  const achado = (state.contatos || []).find(c => normIA(c.nome) === alvo);
+  return achado ? achado.id : null;
+}
+
 document.getElementById("formNotaFiscal")?.addEventListener("submit", async e => {
   e.preventDefault();
   const tipo = document.getElementById("nfTipo").value;
@@ -5768,14 +5788,17 @@ document.getElementById("formNotaFiscal")?.addEventListener("submit", async e =>
   const descricao = document.getElementById("nfDescricao").value.trim();
   if (!valor || !data) { toast("Preencha o valor e a data.", "error"); return; }
   try {
+    const contatoId = _acharContatoPorNome(clienteFornecedor);
     const novo = await dbInsert("notas_fiscais", {
       tipo, numero: numero || null, valor, data,
-      cliente_fornecedor: clienteFornecedor || null, descricao: descricao || null
+      cliente_fornecedor: clienteFornecedor || null, descricao: descricao || null,
+      contato_id: contatoId
     });
     state.notasFiscais.push({
       id: novo.id, tipo: novo.tipo, numero: novo.numero || "",
       valor: Number(novo.valor), data: novo.data,
-      clienteFornecedor: novo.cliente_fornecedor || "", descricao: novo.descricao || ""
+      clienteFornecedor: novo.cliente_fornecedor || "", descricao: novo.descricao || "",
+      contatoId: novo.contato_id || null
     });
     e.target.reset();
     document.getElementById("nfData").value = hojeISO();
@@ -5911,6 +5934,80 @@ function renderNotasFiscais() {
           <button class="btn-icon btn-icon-danger" onclick="excluirNotaFiscal('${n.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></span>Excluir</button>
         </div>
       </div>`).join("");
+}
+
+document.getElementById("formContato")?.addEventListener("submit", async e => {
+  e.preventDefault();
+  const nome = document.getElementById("ctNome").value.trim();
+  const tipo = document.getElementById("ctTipo").value;
+  const documento = document.getElementById("ctDocumento").value.trim();
+  const telefone = document.getElementById("ctTelefone").value.trim();
+  const email = document.getElementById("ctEmail").value.trim();
+  if (!nome) { toast("Preencha o nome.", "error"); return; }
+  if (state.contatos.some(c => normIA(c.nome) === normIA(nome))) {
+    toast("Já existe um cadastro com esse nome.", "error");
+    return;
+  }
+  try {
+    const novo = await dbInsert("contatos", {
+      nome, tipo, documento: documento || null, telefone: telefone || null, email: email || null
+    });
+    state.contatos.push({ id: novo.id, nome: novo.nome, tipo: novo.tipo, documento: novo.documento || "", telefone: novo.telefone || "", email: novo.email || "" });
+    state.contatos.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    e.target.reset();
+    renderTudo();
+    toast(`"${nome}" cadastrado!`, "success");
+  } catch (err) { tratarErro(err); }
+});
+
+async function excluirContato(id) {
+  const c = state.contatos.find(x => x.id === id);
+  const ok = await confirmar("Excluir cadastro?", { tipo: "perigo", descricao: "As notas fiscais já registradas com esse nome continuam do jeito que estão, só perdem o vínculo com o cadastro.", okLabel: "Excluir" });
+  if (!ok) return;
+  try {
+    await dbDelete("contatos", id);
+    state.contatos = state.contatos.filter(x => x.id !== id);
+    state.notasFiscais.forEach(n => { if (n.contatoId === id) n.contatoId = null; });
+    renderTudo();
+    toast(`"${c?.nome || "Cadastro"}" excluído.`, "info", true);
+  } catch (err) { tratarErro(err); }
+}
+
+/* Lista de clientes/fornecedores + o datalist que alimenta a sugestão no
+   campo "Cliente / Fornecedor" das Notas Fiscais. */
+function renderContatos() {
+  const lista = document.getElementById("listaContatos");
+  const datalist = document.getElementById("listaContatosNomes");
+  if (datalist) {
+    datalist.innerHTML = state.contatos.map(c => `<option value="${esc(c.nome)}"></option>`).join("");
+  }
+  if (!lista) return;
+
+  if (!state.contatos.length) {
+    lista.innerHTML = `<div class="empty-state">Nenhum cliente ou fornecedor cadastrado ainda.</div>`;
+    return;
+  }
+  const rotuloTipo = { cliente: "Cliente", fornecedor: "Fornecedor", ambos: "Cliente e fornecedor" };
+  lista.innerHTML = state.contatos.map(c => {
+    const notas = state.notasFiscais.filter(n => n.contatoId === c.id);
+    const totalEmitidas = notas.filter(n => n.tipo === "emitida").reduce((s, n) => s + n.valor, 0);
+    const totalRecebidas = notas.filter(n => n.tipo === "recebida").reduce((s, n) => s + n.valor, 0);
+    const partesTotal = [];
+    if (totalEmitidas > 0) partesTotal.push(`emitido ${fmtMoeda(totalEmitidas)}`);
+    if (totalRecebidas > 0) partesTotal.push(`recebido ${fmtMoeda(totalRecebidas)}`);
+    const contato = [c.documento, c.telefone, c.email].filter(Boolean).join(" · ");
+    return `
+      <div class="transferencia-item">
+        <div class="trans-top">
+          <div class="trans-contas"><span>${esc(c.nome)}</span><span class="trans-seta">·</span><span>${rotuloTipo[c.tipo] || "Cliente"}</span></div>
+          <div class="trans-valor">${partesTotal.length ? partesTotal.join(" · ") : "Sem notas ainda"}</div>
+        </div>
+        ${contato ? `<div class="trans-meta">${esc(contato)}</div>` : ""}
+        <div class="item-actions">
+          <button class="btn-icon btn-icon-danger" onclick="excluirContato('${c.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></span>Excluir</button>
+        </div>
+      </div>`;
+  }).join("");
 }
 
 formRecorrencia?.addEventListener("submit", async e => {
@@ -8567,7 +8664,8 @@ function exportarTudoJSON() {
     metas: state.metas,
     objetivos: state.objetivos,
     investimentos: state.investimentos,
-    notasFiscais: state.notasFiscais
+    notasFiscais: state.notasFiscais,
+    contatos: state.contatos
   };
   const nome = `meus-dados-financas-${hojeISO()}.json`;
   baixarArquivo(nome, JSON.stringify(dados, null, 2), "application/json");
@@ -8599,6 +8697,7 @@ function exportarTudoCSV() {
   bloco("OBJETIVOS", state.objetivos, ["nome","valorAlvo","valorAtual","prazoData"]);
   bloco("INVESTIMENTOS", state.investimentos, ["tipo","nome","valor","taxa","taxaPeriodo","regime","valorAtual","rendaPassiva"]);
   bloco("NOTAS FISCAIS", state.notasFiscais, ["tipo","numero","valor","data","clienteFornecedor","descricao"]);
+  bloco("CLIENTES E FORNECEDORES", state.contatos, ["nome","tipo","documento","telefone","email"]);
 
   const nome = `meus-dados-financas-${hojeISO()}.csv`;
   baixarArquivo(nome, "\uFEFF" + linhas.join("\n"), "text/csv;charset=utf-8;");
@@ -11469,6 +11568,26 @@ function montarResumoFinanceiro() {
     linhas.push("");
   }
 
+  // ─── Clientes e fornecedores cadastrados (Empresarial) ───
+  // Mesmo motivo das seções acima: sem isso a IA não sabe quem já está
+  // cadastrado e não consegue achar/apagar um cadastro, nem avisar que
+  // já existe antes de criar duplicado.
+  if (state.contatos && state.contatos.length) {
+    const rotuloTipo = { cliente: "cliente", fornecedor: "fornecedor", ambos: "cliente e fornecedor" };
+    linhas.push(`Clientes e fornecedores cadastrados (${state.contatos.length} no total):`);
+    state.contatos.slice(0, 20).forEach(c => {
+      const notas = state.notasFiscais.filter(n => n.contatoId === c.id);
+      const totalEmitidas = notas.filter(n => n.tipo === "emitida").reduce((s, n) => s + n.valor, 0);
+      const totalRecebidas = notas.filter(n => n.tipo === "recebida").reduce((s, n) => s + n.valor, 0);
+      const partes = [];
+      if (totalEmitidas > 0) partes.push(`emitido ${fmtMoeda(totalEmitidas)}`);
+      if (totalRecebidas > 0) partes.push(`recebido ${fmtMoeda(totalRecebidas)}`);
+      linhas.push(`  - ${c.nome} (${rotuloTipo[c.tipo] || "cliente"})${partes.length ? ": " + partes.join(", ") : ""}`);
+    });
+    if (state.contatos.length > 20) linhas.push(`  ... e mais ${state.contatos.length - 20} cadastro(s).`);
+    linhas.push("");
+  }
+
   // ─── Última importação de extrato (se recente) ───
   // Para a IA responder "quanto gastei no extrato que enviei?"
   if (ultimaImportacao) {
@@ -13354,14 +13473,17 @@ const ACOES_IA = {
       return { dados: p, perguntas };
     },
     async executar(p) {
+      const contatoId = _acharContatoPorNome(p.clienteFornecedor);
       const novo = await dbInsert("notas_fiscais", {
         tipo: p.tipo, numero: p.numero || null, valor: p.valor, data: p.data,
-        cliente_fornecedor: p.clienteFornecedor || null, descricao: p.descricao || null
+        cliente_fornecedor: p.clienteFornecedor || null, descricao: p.descricao || null,
+        contato_id: contatoId
       });
       state.notasFiscais.push({
         id: novo.id, tipo: novo.tipo, numero: novo.numero || "",
         valor: Number(novo.valor), data: novo.data,
-        clienteFornecedor: novo.cliente_fornecedor || "", descricao: novo.descricao || ""
+        clienteFornecedor: novo.cliente_fornecedor || "", descricao: novo.descricao || "",
+        contatoId: novo.contato_id || null
       });
       renderTudo();
       return {
@@ -13413,6 +13535,109 @@ const ACOES_IA = {
         titulo: "Nota fiscal apagada",
         recibo: [{ rotulo: "Valor", valor: fmtMoeda(n.valor) }],
         mensagem: `Apaguei a nota fiscal de ${fmtMoeda(n.valor)}.`
+      };
+    }
+  },
+
+  criar_contato: {
+    descricao: "Cadastra um cliente ou fornecedor. Só funciona no espaço Empresarial. Use quando o usuário pedir para cadastrar/adicionar um cliente ou fornecedor. Depois de cadastrado, o nome passa a ser sugerido automaticamente ao registrar notas fiscais, e as notas com esse nome aparecem agrupadas no cadastro dele.",
+    parametros: {
+      type: "object",
+      properties: {
+        nome: { type: "string", description: "Nome do cliente/fornecedor. Se ele não disse, pergunte antes de chamar." },
+        tipo: { type: "string", enum: ["cliente", "fornecedor", "ambos"], description: "Se não estiver claro pelo texto, pergunte com botões." },
+        documento: { type: "string", description: "CNPJ ou CPF, se ele mencionar. Opcional — NÃO pergunte se ele não disse." },
+        telefone: { type: "string", description: "Telefone, se mencionar. Opcional — NÃO pergunte." },
+        email: { type: "string", description: "E-mail, se mencionar. Opcional — NÃO pergunte." }
+      },
+      required: ["nome"]
+    },
+    preparar(d) {
+      if (state.contextoAtivo !== "empresarial") {
+        return { erro: "Clientes e fornecedores só existem no espaço Empresarial. Explique que ele precisa trocar pro espaço Empresarial primeiro." };
+      }
+      const nome = String(d.nome == null ? "" : d.nome).trim().slice(0, 120);
+      if (!nome) {
+        return { erro: "Não veio o nome. Pergunte o nome do cliente/fornecedor antes de cadastrar." };
+      }
+      if (state.contatos.some(c => normIA(c.nome) === normIA(nome))) {
+        return { erro: `Já existe um cadastro com o nome "${nome}" — avise que já está cadastrado, não crie duplicado.` };
+      }
+      const p = {
+        nome,
+        documento: String(d.documento || "").trim().slice(0, 40),
+        telefone: String(d.telefone || "").trim().slice(0, 40),
+        email: String(d.email || "").trim().slice(0, 120)
+      };
+      const tipoNorm = normIA(d.tipo);
+      p.tipo = tipoNorm === "fornecedor" ? "fornecedor" : tipoNorm === "ambos" ? "ambos" : tipoNorm === "cliente" ? "cliente" : "";
+      const perguntas = [];
+      if (!p.tipo) {
+        perguntas.push({
+          campo: "tipo",
+          texto: `"${nome}" é cliente, fornecedor ou os dois?`,
+          opcoes: [
+            { v: "cliente", t: "Cliente" },
+            { v: "fornecedor", t: "Fornecedor" },
+            { v: "ambos", t: "Os dois" }
+          ]
+        });
+      }
+      return { dados: p, perguntas };
+    },
+    async executar(p) {
+      const novo = await dbInsert("contatos", {
+        nome: p.nome, tipo: p.tipo, documento: p.documento || null, telefone: p.telefone || null, email: p.email || null
+      });
+      state.contatos.push({ id: novo.id, nome: novo.nome, tipo: novo.tipo, documento: novo.documento || "", telefone: novo.telefone || "", email: novo.email || "" });
+      state.contatos.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+      renderTudo();
+      const rotuloTipo = { cliente: "Cliente", fornecedor: "Fornecedor", ambos: "Cliente e fornecedor" };
+      return {
+        ok: true,
+        titulo: "Cadastro criado",
+        recibo: [
+          { rotulo: "Nome", valor: p.nome },
+          { rotulo: "Tipo", valor: rotuloTipo[p.tipo] || "Cliente" }
+        ],
+        mensagem: `Cadastrei "${p.nome}" (${rotuloTipo[p.tipo] || "Cliente"}).`
+      };
+    }
+  },
+
+  excluir_contato: {
+    descricao: "Apaga o cadastro de um cliente ou fornecedor. Não apaga as notas fiscais já registradas com esse nome, só o cadastro. Só funciona no espaço Empresarial.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id do cadastro, só quando veio de escolha em botões." },
+        busca: { type: "string", description: "Nome do cliente/fornecedor a apagar." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      if (state.contextoAtivo !== "empresarial") {
+        return { erro: "Clientes e fornecedores só existem no espaço Empresarial. Explique que ele precisa trocar pro espaço Empresarial primeiro." };
+      }
+      return _acharItemIA(d, "Qual cadastro você quer apagar?", {
+        lista: state.contatos || [],
+        semItens: "Não há nenhum cliente ou fornecedor cadastrado ainda.",
+        campoBusca: c => [c.nome],
+        rotulo: c => c.nome
+      });
+    },
+    async executar(p) {
+      const c = (state.contatos || []).find(x => String(x.id) === String(p.id));
+      if (!c) return { ok: false, mensagem: "Esse cadastro não está mais na lista." };
+      await dbDelete("contatos", c.id);
+      state.contatos = state.contatos.filter(x => x.id !== c.id);
+      state.notasFiscais.forEach(n => { if (n.contatoId === c.id) n.contatoId = null; });
+      renderTudo();
+      return {
+        ok: true,
+        titulo: "Cadastro apagado",
+        recibo: [{ rotulo: "Nome", valor: c.nome }],
+        mensagem: `Apaguei o cadastro de "${c.nome}". As notas fiscais já registradas continuam do mesmo jeito.`
       };
     }
   },
