@@ -11223,6 +11223,18 @@ function montarResumoFinanceiro() {
   } else if (statusAss === "cancelada_falta_pagamento") {
     linhas.push("Situação: plano cancelado por falta de pagamento. Precisa assinar de novo para recuperar o acesso.");
   }
+  // Dados da empresa (só faz sentido mostrar dentro do espaço Empresarial)
+  if (state.contextoAtivo === "empresarial") {
+    const { empresaCnpj, empresaRazaoSocial, empresaNomeFantasia } = state.perfil || {};
+    if (empresaCnpj || empresaRazaoSocial || empresaNomeFantasia) {
+      linhas.push("Dados da empresa cadastrados:");
+      if (empresaRazaoSocial) linhas.push(`  - Razão social: ${empresaRazaoSocial}`);
+      if (empresaNomeFantasia) linhas.push(`  - Nome fantasia: ${empresaNomeFantasia}`);
+      if (empresaCnpj) linhas.push(`  - CNPJ: ${empresaCnpj}`);
+    } else {
+      linhas.push("Dados da empresa (CNPJ/razão social) ainda não cadastrados — pode sugerir preencher em Conta > Dados da empresa se for relevante.");
+    }
+  }
   linhas.push("");
 
   // ─── Saldo total e por conta ───
@@ -11436,6 +11448,24 @@ function montarResumoFinanceiro() {
       }
       linhas.push(detalhe);
     });
+    linhas.push("");
+  }
+
+  // ─── Notas fiscais (Empresarial) ───
+  // Mesmo motivo da seção de transferências: sem isso a IA não enxerga
+  // state.notasFiscais e não consegue achar/apagar uma nota que o usuário
+  // pediu por cliente/fornecedor, número ou valor.
+  if (state.notasFiscais && state.notasFiscais.length) {
+    const nfOrdenadas = state.notasFiscais.slice().sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+    const totalEmitidas = state.notasFiscais.filter(n => n.tipo === "emitida").reduce((s, n) => s + n.valor, 0);
+    const totalRecebidas = state.notasFiscais.filter(n => n.tipo === "recebida").reduce((s, n) => s + n.valor, 0);
+    linhas.push(`Notas fiscais registradas (${nfOrdenadas.length} no total — emitidas ${fmtMoeda(totalEmitidas)}, recebidas ${fmtMoeda(totalRecebidas)}; é só REGISTRO/controle, não emite NF-e de verdade):`);
+    nfOrdenadas.slice(0, 15).forEach(n => {
+      const quem = n.clienteFornecedor ? ` — ${n.clienteFornecedor}` : "";
+      const num = n.numero ? ` (Nº ${n.numero})` : "";
+      linhas.push(`  - ${formatarDataBR(n.data)}: ${n.tipo === "emitida" ? "Emitida" : "Recebida"} ${fmtMoeda(n.valor)}${quem}${num}`);
+    });
+    if (nfOrdenadas.length > 15) linhas.push(`  ... e mais ${nfOrdenadas.length - 15} nota(s) mais antiga(s).`);
     linhas.push("");
   }
 

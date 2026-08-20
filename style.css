@@ -194,7 +194,19 @@ button, input, textarea, select {
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  /* Scrollbar fina e discreta (mesmo padrão do chat da IA) — sem isso, a
+     barra padrão do navegador fica grossa e destoa do resto do app assim
+     que o menu cresce (mais itens no Empresarial) e passa a rolar. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--sidebar-border) transparent;
 }
+.sidebar::-webkit-scrollbar { width: 6px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--sidebar-border);
+  border-radius: 100px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 
 .brand {
   display: flex;
