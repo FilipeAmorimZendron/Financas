@@ -11239,6 +11239,23 @@ function montarResumoFinanceiro() {
   }
   linhas.push("");
 
+  // ─── Transferências entre contas próprias ───
+  // Sem isso a IA não enxerga state.transferencias — só os lançamentos
+  // normais (movimentos) — e não consegue achar/apagar uma transferência
+  // que o usuário pediu por nome/data/valor (ver excluir_transferencia).
+  if (state.transferencias.length) {
+    const bMapResumo = Object.fromEntries(state.bancos.map(b => [b.id, b.nome]));
+    const transfOrdenadas = state.transferencias.slice().sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+    linhas.push(`Transferências entre contas próprias (${transfOrdenadas.length} no total, mais recentes primeiro — NÃO confundir com Pix/transferência para outra pessoa, que aparece nos lançamentos comuns abaixo):`);
+    transfOrdenadas.slice(0, 15).forEach(t => {
+      const origem = bMapResumo[t.origem] || "conta removida";
+      const destino = bMapResumo[t.destino] || "conta removida";
+      linhas.push(`  - ${formatarDataBR(t.data)}: ${fmtMoeda(t.valor)} de ${origem} para ${destino}${t.descricao ? " — " + t.descricao : ""}`);
+    });
+    if (transfOrdenadas.length > 15) linhas.push(`  ... e mais ${transfOrdenadas.length - 15} transferência(s) mais antiga(s).`);
+    linhas.push("");
+  }
+
   // ─── Gastos de HOJE ───
   // Compras no crédito ficam de fora — igual ao card de Gastos do dashboard:
   // elas só contam como saída de verdade quando a fatura é paga, não na hora
