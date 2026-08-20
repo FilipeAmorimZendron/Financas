@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202608191000" />
+  <link rel="stylesheet" href="style.css?v=202608201400" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -68,6 +68,17 @@
       </button>
       <div class="brand">
         <img src="logofaz.png" alt="FAZ Finanças" class="brand-logo-img" />
+      </div>
+
+      <div class="contexto-toggle" role="group" aria-label="Espaço financeiro" data-tooltip="Pessoal / Empresarial">
+        <button type="button" class="contexto-btn active" data-contexto="pessoal" data-tooltip="Pessoal" onclick="alternarContexto('pessoal')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span class="menu-label">Pessoal</span>
+        </button>
+        <button type="button" class="contexto-btn" data-contexto="empresarial" data-tooltip="Empresarial" onclick="alternarContexto('empresarial')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg>
+          <span class="menu-label">Empresarial</span>
+        </button>
       </div>
 
       <div class="sidebar-section-label">Menu</div>
@@ -1415,14 +1426,14 @@
 
           <div class="planos-topo">
             <h2 class="planos-titulo">Assine o FAZ Finanças</h2>
-            <p class="planos-sub">Um plano só, com tudo incluso. Sem pegadinha.</p>
+            <p class="planos-sub">Escolha o Pessoal, o Empresarial, ou os dois — cada um com seu próprio espaço, sem misturar as finanças.</p>
           </div>
 
-          <div class="planos-grid planos-grid-unico">
+          <div class="planos-grid planos-grid-duo">
 
-            <!-- Plano único -->
+            <!-- Plano Pessoal -->
             <div class="plano-card plano-card-destaque" id="planoCardUnico">
-              <div class="plano-selo">Plano único</div>
+              <div class="plano-selo">Pessoal</div>
               <div class="plano-nome">Acesso completo</div>
               <div class="plano-preco">
                 <span class="plano-preco-moeda">R$</span>
@@ -1451,6 +1462,34 @@
                 <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Gastos fixos: o app lança sozinho, todo mês</li>
                 <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Manda o extrato e a IA organiza tudo sozinha</li>
                 <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Relatórios prontos pra exportar quando quiser</li>
+              </ul>
+            </div>
+
+            <!-- Plano Empresarial -->
+            <div class="plano-card plano-card-empresarial" id="planoCardEmpresarial">
+              <div class="plano-selo plano-selo-empresarial">Empresarial</div>
+              <div class="plano-nome">Espaço separado pra empresa</div>
+              <div class="plano-preco">
+                <span class="plano-preco-moeda">R$</span>
+                <span class="plano-preco-valor preco-plano-empresarial-valor">41,90</span>
+                <span class="plano-preco-ciclo">/mês</span>
+              </div>
+              <div class="plano-preco-nota">cancele quando quiser</div>
+
+              <div class="cupom-box" data-tier="empresarial">
+                <button type="button" class="cupom-toggle">Tem um cupom de desconto?</button>
+                <div class="cupom-campo" hidden>
+                  <input type="text" class="cupom-input" placeholder="Código do cupom" maxlength="30" />
+                  <button type="button" class="cupom-aplicar">Aplicar</button>
+                </div>
+                <p class="cupom-msg"></p>
+              </div>
+
+              <button class="plano-btn plano-btn-primario" id="btnAssinarEmpresarial" onclick="assinarPlanoEmpresarial()">Assinar Empresarial</button>
+              <ul class="plano-lista">
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Finanças da empresa 100% separadas das pessoais</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Tudo do plano Pessoal incluído</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Suporte prioritário</li>
               </ul>
             </div>
 
@@ -2900,6 +2939,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202608191000"></script>
+  <script src="app.js?v=202608201400"></script>
 </body>
 </html>

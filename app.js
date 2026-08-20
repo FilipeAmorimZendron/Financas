@@ -30,7 +30,13 @@ const state = {
   faturasPagas: [], categorias: [],
   objetivos: [], investimentos: [], recPagamentos: [],
   perfil: { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null },
-  user: null
+  user: null,
+  // "pessoal" ou "empresarial" — qual espaço financeiro está ativo agora.
+  // Ver alternarContexto() e TABELAS_COM_CONTEXTO.
+  contextoAtivo: (() => {
+    try { return localStorage.getItem("fp_contexto") === "empresarial" ? "empresarial" : "pessoal"; }
+    catch (e) { return "pessoal"; }
+  })()
 };
 
 let chartCategoriasPlanilha = null;
@@ -829,11 +835,24 @@ async function dbSelect(tabela) {
   return res.json();
 }
 
+/* Tabelas com dado financeiro separado por espaço (Pessoal/Empresarial).
+   Toda gravação nelas leva a tag do contexto ativo — dbInsert cuida disso
+   sozinho, então nenhuma das funções que chamam dbInsert("contas", ...)
+   etc. precisou mudar. Ver state.contextoAtivo e alternarContexto(). */
+const TABELAS_COM_CONTEXTO = new Set([
+  "contas", "movimentos", "transferencias", "recorrencias",
+  "recorrencia_pagamentos", "metas", "objetivos", "investimentos",
+  "categorias", "faturas_pagas"
+]);
+
 async function dbInsert(tabela, dados) {
+  const corpo = (TABELAS_COM_CONTEXTO.has(tabela) && dados && dados.contexto === undefined)
+    ? { ...dados, contexto: state.contextoAtivo || "pessoal" }
+    : dados;
   const res = await fetchSeguro(`${SUPABASE_URL}/rest/v1/${tabela}`, {
     method: "POST",
     headers: { ..._h, ...getAuthHeader(), "Prefer": "return=representation" },
-    body: JSON.stringify(dados)
+    body: JSON.stringify(corpo)
   });
   const rows = await res.json();
   return rows[0];
@@ -874,15 +893,22 @@ async function carregarDadosNuvem() {
       dbSelect("faturas_pagas").catch(()=>[]),
       dbSelect("categorias").catch(()=>[])
     ]);
+    // Cada tabela em TABELAS_COM_CONTEXTO só entra no app se for do espaço
+    // ativo agora (Pessoal ou Empresarial) — dado sem a coluna ainda
+    // (linhas antigas, de antes da migração) conta como "pessoal".
+    const ctx = state.contextoAtivo || "pessoal";
+    const doContexto = linha => (linha.contexto || "pessoal") === ctx;
+
     // Mapear campos do banco para o formato do app
-    state.bancos         = contas.map(c => ({ id:c.id, nome:c.nome, tipo:c.tipo, saldoInicial: Number(c.saldo_inicial), saldoData: c.saldo_data || null, cor: c.cor || null, temCartao: c.tem_cartao || false, limite: c.limite != null ? Number(c.limite) : null, diaFechamento: c.dia_fechamento || null, diaVencimento: c.dia_vencimento || null }));
-    state.movimentos     = movimentos.map(m => ({ id:m.id, descricao:m.descricao, bancoId:m.conta_id, data:m.data, valor:Number(m.valor), tipo:m.tipo, categoria:m.categoria, recorrenciaId:m.recorrencia_id, status:m.status||"pago", vencimento:m.vencimento||null, pagoEm:m.pago_em||null, formaPagamento:m.forma_pagamento||null, cartaoId:m.cartao_id||null, faturaMes:m.fatura_mes||null, parcelaNum:m.parcela_num||null, parcelaTotal:m.parcela_total||null, compraId:m.compra_id||null }));
-    state.transferencias = transferencias.map(t => ({ id:t.id, origem:t.conta_origem, destino:t.conta_destino, valor:Number(t.valor), data:t.data, descricao:t.descricao||"" }));
-    state.faturasPagas   = (faturasPagas||[]).map(f => ({ id:f.id, cartaoId:f.cartao_id, faturaMes:f.fatura_mes, contaId:f.conta_id||null, valor:Number(f.valor), pagoEm:f.pago_em }));
+    state.bancos         = contas.filter(doContexto).map(c => ({ id:c.id, nome:c.nome, tipo:c.tipo, saldoInicial: Number(c.saldo_inicial), saldoData: c.saldo_data || null, cor: c.cor || null, temCartao: c.tem_cartao || false, limite: c.limite != null ? Number(c.limite) : null, diaFechamento: c.dia_fechamento || null, diaVencimento: c.dia_vencimento || null }));
+    state.movimentos     = movimentos.filter(doContexto).map(m => ({ id:m.id, descricao:m.descricao, bancoId:m.conta_id, data:m.data, valor:Number(m.valor), tipo:m.tipo, categoria:m.categoria, recorrenciaId:m.recorrencia_id, status:m.status||"pago", vencimento:m.vencimento||null, pagoEm:m.pago_em||null, formaPagamento:m.forma_pagamento||null, cartaoId:m.cartao_id||null, faturaMes:m.fatura_mes||null, parcelaNum:m.parcela_num||null, parcelaTotal:m.parcela_total||null, compraId:m.compra_id||null }));
+    state.transferencias = transferencias.filter(doContexto).map(t => ({ id:t.id, origem:t.conta_origem, destino:t.conta_destino, valor:Number(t.valor), data:t.data, descricao:t.descricao||"" }));
+    state.faturasPagas   = (faturasPagas||[]).filter(doContexto).map(f => ({ id:f.id, cartaoId:f.cartao_id, faturaMes:f.fatura_mes, contaId:f.conta_id||null, valor:Number(f.valor), pagoEm:f.pago_em }));
     state.categorias     = (categorias||[])
+      .filter(doContexto)
       .map(c => ({ id:c.id, nome:c.nome, cor:c.cor||null }))
       .sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
-    state.recorrencias   = recorrencias.map(r => ({
+    state.recorrencias   = recorrencias.filter(doContexto).map(r => ({
       id:r.id, descricao:r.descricao, valor:Number(r.valor), tipo:r.tipo,
       categoria:r.categoria, contaId:r.conta_id, dia:r.dia,
       frequencia: r.frequencia || "mensal",
@@ -904,14 +930,14 @@ async function carregarDadosNuvem() {
         .then(() => console.log("Perfil criado automaticamente para", state.user.id))
         .catch(err => console.error("Erro ao criar perfil automático:", err));
     }
-    state.recPagamentos  = (recPagamentos||[]).map(p => ({
+    state.recPagamentos  = (recPagamentos||[]).filter(doContexto).map(p => ({
       id:p.id, recorrenciaId:p.recorrencia_id, vencimento:p.vencimento,
       pagoEm:p.pago_em, valorPago: p.valor_pago != null ? Number(p.valor_pago) : null,
       movimentoId: p.movimento_id || null
     }));
-    state.metas          = metas.map(m => ({ id:m.id, categoria:m.categoria, limite:Number(m.limite) }));
-    state.objetivos      = (objetivos||[]).map(mapObjetivo);
-    state.investimentos  = (investimentos||[]).map(mapInvestimento);
+    state.metas          = metas.filter(doContexto).map(m => ({ id:m.id, categoria:m.categoria, limite:Number(m.limite) }));
+    state.objetivos      = (objetivos||[]).filter(doContexto).map(mapObjetivo);
+    state.investimentos  = (investimentos||[]).filter(doContexto).map(mapInvestimento);
   } catch(e) {
     // Antes só mostrava um toast e parava, deixando a tela com tudo
     // zerado pra sempre se a sessão tivesse expirado (sem deslogar nem
@@ -1005,12 +1031,16 @@ function mostrarAppOuPaywall() {
 }
 
 /* ─── Cupom de desconto ───────────────────────────────────
-   Preço de tabela R$ 26,90/mês. O código aqui é só pra mostrar o preço
-   na hora — quem decide de verdade o valor cobrado é api/criar-checkout.js,
-   no servidor, que valida o código de novo antes de criar o checkout.
-   Nunca confie só no que roda no navegador para valor de pagamento. */
+   Preço de tabela: R$ 26,90/mês (Pessoal) e R$ 41,90/mês (Empresarial).
+   O código aqui é só pra mostrar o preço na hora — quem decide de verdade
+   o valor cobrado é api/criar-checkout.js, no servidor, que valida o
+   código de novo antes de criar o checkout. Nunca confie só no que roda
+   no navegador para valor de pagamento.
+   CUPONS_PREVIA é por plano (pessoal/empresarial) porque o mesmo código
+   (ORGANIZACAO) dá descontos diferentes em cada um. */
 const PRECO_PLANO_CHEIO = 26.90;
-const CUPONS_PREVIA = { ORGANIZACAO: 20.90 };
+const PRECO_EMPRESARIAL_CHEIO = 41.90;
+const CUPONS_PREVIA = { ORGANIZACAO: { pessoal: 20.90, empresarial: 35.90 } };
 
 // Sobrevive a um redirect (ex: login com Google) que recarrega a página.
 let _cupomAplicado = (() => {
@@ -1019,19 +1049,31 @@ let _cupomAplicado = (() => {
 
 function _fmtPrecoBR(v) { return v.toFixed(2).replace(".", ","); }
 
+/* Preço cheio + preço com cupom (se houver) de um dos dois planos. */
+function _precoTier(tier) {
+  const cheio = tier === "empresarial" ? PRECO_EMPRESARIAL_CHEIO : PRECO_PLANO_CHEIO;
+  const comCupom = _cupomAplicado && CUPONS_PREVIA[_cupomAplicado]?.[tier];
+  return { cheio, valor: comCupom || cheio, temCupom: !!comCupom };
+}
+
 /* Atualiza todo mundo que mostra o preço do plano na página (landing,
-   cadastro, tela de assinatura, tela de planos), de acordo com o cupom
-   aplicado no momento. Com cupom, mostra o preço cheio riscado do lado
-   do novo — não só troca o número, deixa claro que houve desconto. */
+   cadastro, tela de assinatura, tela de planos — pessoal e empresarial),
+   de acordo com o cupom aplicado no momento. Com cupom, mostra o preço
+   cheio riscado do lado do novo — não só troca o número, deixa claro
+   que houve desconto. */
 function atualizarPrecoNaTela() {
-  const temCupom = !!(_cupomAplicado && CUPONS_PREVIA[_cupomAplicado]);
-  const valor = temCupom ? CUPONS_PREVIA[_cupomAplicado] : PRECO_PLANO_CHEIO;
-  document.querySelectorAll(".preco-plano-valor").forEach(el => {
-    if (temCupom) {
-      el.innerHTML = `<s class="preco-riscado">${_fmtPrecoBR(PRECO_PLANO_CHEIO)}</s> ${_fmtPrecoBR(valor)}`;
-    } else {
-      el.textContent = _fmtPrecoBR(valor);
-    }
+  [
+    { seletor: ".preco-plano-valor", tier: "pessoal" },
+    { seletor: ".preco-plano-empresarial-valor", tier: "empresarial" }
+  ].forEach(({ seletor, tier }) => {
+    const p = _precoTier(tier);
+    document.querySelectorAll(seletor).forEach(el => {
+      if (p.temCupom) {
+        el.innerHTML = `<s class="preco-riscado">${_fmtPrecoBR(p.cheio)}</s> ${_fmtPrecoBR(p.valor)}`;
+      } else {
+        el.textContent = _fmtPrecoBR(p.valor);
+      }
+    });
   });
 }
 atualizarPrecoNaTela();
@@ -1040,17 +1082,22 @@ atualizarPrecoNaTela();
    redirect do login com Google), MOSTRA isso nas caixas de cupom — nunca
    deixa o preço aparecer diferente sem explicar o motivo. Sem isso, o
    preço mudava "sozinho" e parecia bug pra quem não lembrava de ter
-   digitado um cupom antes (ou, pior, num navegador compartilhado). */
+   digitado um cupom antes (ou, pior, num navegador compartilhado).
+   Cada caixa mostra o preço do SEU plano (data-tier="empresarial" ou
+   pessoal, o padrão) — nunca o de outra caixa na mesma página. */
 function refletirCupomSalvo() {
-  if (!_cupomAplicado || !CUPONS_PREVIA[_cupomAplicado]) return;
+  if (!_cupomAplicado) return;
   document.querySelectorAll(".cupom-box").forEach(box => {
+    const tier = box.dataset.tier === "empresarial" ? "empresarial" : "pessoal";
+    const valorTier = CUPONS_PREVIA[_cupomAplicado]?.[tier];
+    if (!valorTier) return;
     const input = box.querySelector(".cupom-input");
     const campo = box.querySelector(".cupom-campo");
     const msg = box.querySelector(".cupom-msg");
     if (input) input.value = _cupomAplicado;
     if (campo) campo.hidden = false;
     if (msg) {
-      msg.textContent = `Cupom aplicado! R$ ${_fmtPrecoBR(CUPONS_PREVIA[_cupomAplicado])}/mês — menos de R$ 1 por dia.`;
+      msg.textContent = `Cupom aplicado! R$ ${_fmtPrecoBR(valorTier)}/mês — menos de R$ 1 por dia.`;
       msg.className = "cupom-msg cupom-msg-ok";
     }
   });
@@ -1058,7 +1105,8 @@ function refletirCupomSalvo() {
 refletirCupomSalvo();
 
 // Clique em "Tem um cupom?" ou em "Aplicar" — delegado, funciona em
-// qualquer uma das caixas de cupom da página (cadastro, telaAssinar, planos).
+// qualquer uma das caixas de cupom da página (cadastro, telaAssinar, planos
+// pessoal e empresarial).
 document.addEventListener("click", (e) => {
   const toggle = e.target.closest(".cupom-toggle");
   if (toggle) {
@@ -1073,6 +1121,7 @@ document.addEventListener("click", (e) => {
   const btnAplicar = e.target.closest(".cupom-aplicar");
   if (btnAplicar) {
     const box = btnAplicar.closest(".cupom-box");
+    const tier = box?.dataset.tier === "empresarial" ? "empresarial" : "pessoal";
     const input = box?.querySelector(".cupom-input");
     const msg = box?.querySelector(".cupom-msg");
     if (!input || !msg) return;
@@ -1080,10 +1129,11 @@ document.addEventListener("click", (e) => {
     const codigo = String(input.value || "").trim().toUpperCase();
     if (!codigo) { input.focus(); return; }
 
-    if (CUPONS_PREVIA[codigo]) {
+    const valorTier = CUPONS_PREVIA[codigo]?.[tier];
+    if (valorTier) {
       _cupomAplicado = codigo;
       try { localStorage.setItem("fp_cupom", codigo); } catch (e) {}
-      msg.textContent = `Cupom aplicado! R$ ${_fmtPrecoBR(CUPONS_PREVIA[codigo])}/mês — menos de R$ 1 por dia.`;
+      msg.textContent = `Cupom aplicado! R$ ${_fmtPrecoBR(valorTier)}/mês — menos de R$ 1 por dia.`;
       msg.className = "cupom-msg cupom-msg-ok";
     } else {
       msg.textContent = "Cupom inválido.";
@@ -1091,24 +1141,39 @@ document.addEventListener("click", (e) => {
     }
     atualizarPrecoNaTela();
 
-    // Mantém todas as caixas de cupom da página em sincronia (landing,
-    // cadastro, telaAssinar, planos podem coexistir escondidos no DOM).
-    document.querySelectorAll(".cupom-input").forEach(i => { if (i !== input) i.value = input.value; });
-    document.querySelectorAll(".cupom-msg").forEach(m => {
-      if (m !== msg) { m.textContent = msg.textContent; m.className = msg.className; }
+    // Mantém as OUTRAS caixas de cupom da página em sincronia (mesmo código
+    // digitado), mas cada uma mostra o preço/mensagem do SEU próprio plano
+    // — nunca copia a mensagem de uma caixa de plano diferente.
+    document.querySelectorAll(".cupom-box").forEach(outraBox => {
+      if (outraBox === box) return;
+      const outroTier = outraBox.dataset.tier === "empresarial" ? "empresarial" : "pessoal";
+      const outroInput = outraBox.querySelector(".cupom-input");
+      const outraMsg = outraBox.querySelector(".cupom-msg");
+      if (outroInput) outroInput.value = input.value;
+      if (!outraMsg) return;
+      const v = CUPONS_PREVIA[codigo]?.[outroTier];
+      if (v) {
+        outraMsg.textContent = `Cupom aplicado! R$ ${_fmtPrecoBR(v)}/mês — menos de R$ 1 por dia.`;
+        outraMsg.className = "cupom-msg cupom-msg-ok";
+      } else {
+        outraMsg.textContent = "Cupom inválido.";
+        outraMsg.className = "cupom-msg cupom-msg-erro";
+      }
     });
     return;
   }
 });
 
-/* Inicia o checkout do plano único — usada na tela de assinatura
-   obrigatória, no cadastro fundido e na landing. */
-async function assinarPlanoUnico() {
+/* Inicia o checkout de um dos dois planos (Pessoal ou Empresarial).
+   tipoConta: "pessoal" | "empresarial". Usada por assinarPlanoUnico()
+   (tela de assinatura obrigatória, cadastro fundido, landing) e por
+   assinarPlanoEmpresarial() (card Empresarial na tela de planos). */
+async function _assinarPlano(tipoConta, btn, contentName) {
   if (!state.user || !state.user.id) {
     toast("Faça login para assinar.", "error");
     return;
   }
-  const btn = document.getElementById("btnAssinarAgora");
+  const textoOriginal = btn ? btn.textContent : null;
   if (btn) { btn.disabled = true; btn.textContent = "Preparando pagamento..."; }
   else toast("Preparando pagamento...", "info");
   try {
@@ -1119,7 +1184,8 @@ async function assinarPlanoUnico() {
         email: state.user.email,
         nome: state.perfil?.nome || null,
         token: localStorage.getItem("fp_token") || "",
-        cupom: _cupomAplicado || null
+        cupom: _cupomAplicado || null,
+        tipoConta
       })
     });
     const dados = await resp.json();
@@ -1128,7 +1194,7 @@ async function assinarPlanoUnico() {
       return;
     }
     if (typeof fbq === "function") {
-      try { fbq("track", "InitiateCheckout", { value: dados.valor || PRECO_PLANO_CHEIO, currency: "BRL", content_name: "faz_unico" }); } catch(e){}
+      try { fbq("track", "InitiateCheckout", { value: dados.valor || (tipoConta === "empresarial" ? PRECO_EMPRESARIAL_CHEIO : PRECO_PLANO_CHEIO), currency: "BRL", content_name: contentName }); } catch(e){}
     }
     // Cupom já foi usado neste checkout — não deixa guardado indefinidamente
     // pra não continuar aparecendo em visitas futuras sem explicação.
@@ -1137,8 +1203,25 @@ async function assinarPlanoUnico() {
   } catch (e) {
     toast("Erro de conexão. Tente novamente.", "error");
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = "Assinar agora"; }
+    if (btn) { btn.disabled = false; btn.textContent = textoOriginal; }
   }
+}
+
+/* Inicia o checkout do plano Pessoal — usada na tela de assinatura
+   obrigatória, no cadastro fundido e na landing. */
+async function assinarPlanoUnico() {
+  return _assinarPlano("pessoal", document.getElementById("btnAssinarAgora"), "faz_unico");
+}
+
+/* Inicia o checkout do plano Empresarial — usada no card Empresarial
+   da tela de planos. Quem já tem o Empresarial não precisa passar por
+   aqui de novo (evita criar uma segunda assinatura por engano). */
+async function assinarPlanoEmpresarial() {
+  if (state.perfil?.empresarial) {
+    toast("Você já tem o plano Empresarial ativo.", "info");
+    return;
+  }
+  return _assinarPlano("empresarial", document.getElementById("btnAssinarEmpresarial"), "faz_empresarial");
 }
 
 /* Sair a partir da tela de assinatura obrigatória, sem confirmação extra
@@ -8935,7 +9018,7 @@ async function salvarPerfil(dados) {
 }
 
 function mapPerfil(p) {
-  if (!p) return { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null, plano: "basico", assinaturaStatus: "inativa", atrasoDesde: null };
+  if (!p) return { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null, plano: "basico", assinaturaStatus: "inativa", atrasoDesde: null, empresarial: false };
   return {
     avatarTipo:   p.avatar_tipo   || "inicial",
     avatarPadrao: p.avatar_padrao || null,
@@ -8945,7 +9028,11 @@ function mapPerfil(p) {
     assinaturaStatus: p.assinatura_status  || "inativa",
     atrasoDesde:      p.atraso_desde       || null,
     planoAnterior:    p.plano_anterior     || null,
-    proximaCobranca:  p.proxima_cobranca   || null
+    proximaCobranca:  p.proxima_cobranca   || null,
+    // Empresarial é um plano à parte (R$ 41,90/mês) — este selo diz se a
+    // pessoa pagou por ele. Não tem nada a ver com podeUsar()/planoAtual():
+    // o nível de acesso (premium) é o mesmo; só libera o espaço extra.
+    empresarial:      !!p.empresarial
   };
 }
 
@@ -9220,6 +9307,7 @@ function atualizarCadeadosMenu() {
     });
   });
   atualizarSeloPlano();
+  atualizarSeletorContexto();
 }
 
 /* Mostra um selo colorido com o nome do plano (Premium/Master) na sidebar.
@@ -9248,7 +9336,60 @@ function atualizarSeloPlano() {
   selo.textContent = plano === "master" ? "Master" : "Premium";
 }
 
+/* ============================================================
+   PESSOAL x EMPRESARIAL (espaços separados)
+   Alterna qual "contexto" está ativo. Tudo que o usuário cadastra fica
+   marcado com esse contexto (ver TABELAS_COM_CONTEXTO / dbInsert) e só
+   aparece de volta quando o mesmo contexto estiver ativo — Pessoal e
+   Empresarial nunca se misturam.
+   Empresarial é um plano à parte (R$ 41,90/mês): sem ele, o botão leva
+   para o upsell em vez de trocar de espaço.
+   ============================================================ */
 
+/* Troca de espaço financeiro e recarrega os dados já filtrados para ele. */
+async function alternarContexto(ctx) {
+  if (ctx !== "pessoal" && ctx !== "empresarial") return;
+  if (ctx === state.contextoAtivo) return;
+
+  if (ctx === "empresarial" && !state.perfil?.empresarial) {
+    irParaPlanos(
+      "Espaço Empresarial",
+      "Separe as finanças da sua empresa das suas finanças pessoais — assine o plano Empresarial (R$ 41,90/mês) para liberar."
+    );
+    return;
+  }
+
+  state.contextoAtivo = ctx;
+  try { localStorage.setItem("fp_contexto", ctx); } catch (e) {}
+
+  atualizarSeletorContexto();
+  await carregarDadosNuvem();
+  renderTudo();
+  trocarTela("dashboard");
+}
+
+/* Pinta o seletor Pessoal/Empresarial no topo do menu (sidebar e gaveta
+   mobile reaproveitam o mesmo HTML) de acordo com o contexto ativo e se
+   o plano Empresarial está liberado. */
+function atualizarSeletorContexto() {
+  document.querySelectorAll(".contexto-btn").forEach(btn => {
+    const ctx = btn.dataset.contexto;
+    btn.classList.toggle("active", ctx === state.contextoAtivo);
+    const bloqueado = ctx === "empresarial" && !state.perfil?.empresarial;
+    btn.classList.toggle("contexto-btn-bloqueado", bloqueado);
+    let cadeado = btn.querySelector(".contexto-cadeado");
+    if (bloqueado) {
+      if (!cadeado) {
+        cadeado = document.createElement("span");
+        cadeado.className = "contexto-cadeado";
+        cadeado.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+        btn.appendChild(cadeado);
+      }
+    } else if (cadeado) {
+      cadeado.remove();
+    }
+  });
+}
 
 /* ============================================================
    ESTADOS VAZIOS (v14)

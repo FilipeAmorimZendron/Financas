@@ -20,12 +20,19 @@ App web de finanças pessoais 100% em português (fazfinancas.com), com IA que:
 - Navy de fundo: #011025
 
 ## Preços atuais
-- Plano único: R$26,90/mês, com todos os benefícios. Não existe mais plano grátis (Básico) nem cadastro sem assinar — o cadastro já leva direto pro checkout.
-- Cupom de desconto **ORGANIZACAO**: R$20,90/mês (aplicado no campo de cupom no cadastro, na tela de assinatura obrigatória e na tela de Planos do app). Validação de verdade sempre no servidor (`api/criar-checkout.js`, constante `CUPONS`) — o preço mostrado no navegador (`app.js`, `CUPONS_PREVIA`) é só uma prévia. Pra criar/trocar cupons, editar as duas listas juntas.
-- Quem assinou a R$37,90 (ou R$26,90 com cupom, entre a subida de preço em 18/08/2026 e esta mudança em 19/08/2026) continua pagando esse valor — não foi migrado, é só o valor com que a assinatura foi criada no Asaas. O mesmo vale pra quem assinou a R$27,90 antes disso (entre a virada pro plano único em 13/08/2026 e a subida de 18/08/2026).
+- Plano Pessoal: R$26,90/mês, com todos os benefícios. Não existe mais plano grátis (Básico) nem cadastro sem assinar — o cadastro já leva direto pro checkout.
+- Plano Empresarial: R$41,90/mês (Pessoal + R$15) — mesmo nível de acesso do Pessoal, mas com um espaço financeiro totalmente separado (ver seção "Espaços: Pessoal x Empresarial" abaixo) e suporte prioritário. Vendido como plano à parte, escolhido na tela de Planos do app (`screen-planos`) — não aparece na landing pública.
+- Cupom de desconto **ORGANIZACAO**: R$20,90/mês no Pessoal, R$35,90/mês no Empresarial (aplicado no campo de cupom no cadastro, na tela de assinatura obrigatória e na tela de Planos do app). Validação de verdade sempre no servidor (`api/criar-checkout.js`, constante `CUPONS`, agora por plano) — o preço mostrado no navegador (`app.js`, `CUPONS_PREVIA`) é só uma prévia. Pra criar/trocar cupons, editar as duas listas juntas.
+- Quem assinou a R$37,90 (ou R$26,90 com cupom, entre a subida de preço em 18/08/2026 e a mudança em 19/08/2026) continua pagando esse valor — não foi migrado, é só o valor com que a assinatura foi criada no Asaas. O mesmo vale pra quem assinou a R$27,90 antes disso (entre a virada pro plano único em 13/08/2026 e a subida de 18/08/2026).
 - Sem opção anual por enquanto (só mensal).
 - Assinantes antigos dos planos Premium (R$25,90/mês ou R$264,00/ano) e Master (R$47,90/mês ou R$488,40/ano) continuam pagando esses valores normalmente — não foram migrados, só não são mais vendidos pra gente nova.
-- Quem já tinha conta antes da virada pro plano único (13/08/2026) manteve acesso completo de graça — ver `CORTE_PLANO_UNICO` em app.js.
+- Quem já tinha conta antes da virada pro plano único (13/08/2026) manteve acesso completo de graça — ver `CORTE_PLANO_UNICO` em app.js. Isso NÃO inclui o Empresarial: mesmo quem é "da casa" precisa assinar o plano Empresarial pra liberar esse espaço.
+- Trocar de plano (Pessoal → Empresarial ou o contrário) cancela a assinatura anterior no Asaas e cria uma nova — muda a data de cobrança mensal da pessoa pro dia da troca. Ver `api/criar-checkout.js`.
+
+## Espaços: Pessoal x Empresarial
+- Todo dado financeiro (contas, lançamentos, transferências, metas, recorrências, investimentos, categorias, faturas pagas) tem uma coluna `contexto` (`"pessoal"` ou `"empresarial"`). O usuário troca de espaço pelo seletor no topo da sidebar (`alternarContexto()` em app.js) — tudo que ele cadastra fica marcado com o contexto ativo, e só volta a aparecer nesse mesmo contexto.
+- A separação é centralizada em dois pontos só, nenhuma tela precisou mudar: `dbInsert()` cola `contexto: state.contextoAtivo` sozinho nas tabelas de `TABELAS_COM_CONTEXTO`, e `carregarDadosNuvem()` filtra cada lista pelo contexto ativo antes de guardar em `state.*`.
+- `perfil.empresarial` (boolean) diz se a pessoa pagou pelo plano Empresarial — liberado/revogado sozinho pelo webhook e por `confirmar-assinatura.js`, de acordo com o valor pago em cada cobrança (`ehValorEmpresarial()`). Sem ele, o botão "Empresarial" da sidebar leva pro upsell em vez de trocar de espaço.
 
 ## Como trabalhar neste projeto (regras fixas)
 

@@ -11,14 +11,27 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const ASAAS_URL = process.env.ASAAS_URL || "https://api-sandbox.asaas.com/v3";
 const ASAAS_KEY = process.env.ASAAS_KEY;
 
+// Valores do plano Empresarial (cheio e com o cupom ORGANIZACAO) — mesma
+// lista de webhook-asaas.js. Precisa ser checado ANTES dos limites
+// genéricos abaixo: sem isso, 41,90 cairia em "v >= 40 -> master" (o
+// Master antigo de R$47,90), classificando errado o plano Empresarial.
+const VALORES_EMPRESARIAL = [41.9, 35.9];
+function ehValorEmpresarial(valor) {
+  const v = Number(valor) || 0;
+  return VALORES_EMPRESARIAL.some(x => Math.abs(v - x) < 0.005);
+}
+
 /* Descobre o plano pelo valor pago (mesmos preços de criar-checkout.js).
    Assinantes antigos (Premium/Master, mensal ou anual) continuam renovando
    nos preços de antes; o plano único (hoje R$ 26,90, ou R$ 20,90 com
-   cupom — já foi R$ 37,90/27,90 antes) cai no último "return premium"
-   (sempre menor que 40) — não precisou mudar nada aqui a cada mudança
-   de preço. */
+   cupom — já foi R$ 37,90/27,90 antes) e o Empresarial (R$ 41,90, ou
+   R$ 35,90 com cupom) caem no último "return premium" — o Empresarial só
+   por causa do ehValorEmpresarial() acima, os outros por serem sempre
+   menores que 40 — não precisou mudar mais nada aqui a cada mudança de
+   preço. */
 function planoPeloValor(valor) {
   const v = Number(valor) || 0;
+  if (ehValorEmpresarial(v)) return "premium";
   if (v >= 400) return "master";
   if (v >= 200) return "premium";
   if (v >= 40)  return "master";
@@ -223,6 +236,9 @@ export default async function handler(req, res) {
     const atualizacao = {
       assinatura_status: "ativa",
       plano: plano,
+      // Mesma lógica do webhook: liga/desliga o espaço Empresarial de
+      // acordo com o valor pago nesta cobrança.
+      empresarial: ehValorEmpresarial(confirmado.value),
     };
     if (confirmado.subscription) {
       atualizacao.asaas_subscription_id = confirmado.subscription;

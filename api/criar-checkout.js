@@ -8,21 +8,28 @@
 
 import { limitar, chaveDoIP } from "./_ratelimit.js";
 
-// ---- Plano único (valor em reais) ----
-// Não existe mais escolha de plano nem ciclo anual — um preço só, cobrado
-// todo mês. "premium" segue sendo o valor gravado em perfil.plano (e no
-// externalReference do Asaas) só por compatibilidade com o resto do
-// código — não precisou renomear nada no banco pra fazer essa mudança.
+// ---- Planos (valor em reais) ----
+// Dois planos à venda: Pessoal (o "plano único" de sempre) e Empresarial
+// (espaço financeiro separado, R$ 15 a mais por mês). Os dois usam o
+// mesmo nível de acesso no app ("premium" — ver LIMITES_PLANO em app.js);
+// a diferença fica só no valor cobrado e na coluna perfil.empresarial,
+// que o webhook liga/desliga sozinho de acordo com o valor pago
+// (ver ehValorEmpresarial em webhook-asaas.js e confirmar-assinatura.js).
+// "premium" segue sendo o valor gravado em perfil.plano (e no
+// externalReference do Asaas) pros dois — não precisou renomear nada no
+// banco pra fazer essa mudança.
 const PLANO_UNICO = { valor: 26.9, nome: "FAZ Finanças", desc: "Todos os recursos: IA financeira, contas ilimitadas, investimentos, relatórios e importação de extrato. Cancele quando quiser." };
+const PLANO_EMPRESARIAL = { valor: 41.9, nome: "FAZ Finanças Empresarial", desc: "Tudo do plano Pessoal, num espaço financeiro separado pra sua empresa, com suporte prioritário. Cancele quando quiser." };
 const PLANO_ID = "premium";
 const CICLO = "mensal";
 
 // Cupons de desconto: preço final com o código, em vez do preço de tabela.
+// Por plano — o mesmo código dá descontos diferentes em cada um.
 // A validação é sempre aqui no servidor — o valor que o navegador mostra é
 // só uma prévia; quem decide o valor cobrado de verdade é esta lista.
 // Chave em maiúsculas; a comparação abaixo ignora caixa e espaços nas bordas.
 const CUPONS = {
-  ORGANIZACAO: 20.9,
+  ORGANIZACAO: { pessoal: 20.9, empresarial: 35.9 },
 };
 
 // Sandbox por padrão. Em produção troque para https://api.asaas.com/v3
@@ -72,8 +79,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Dados que o app manda (não existe mais plano/ciclo pra escolher)
-    const { email, nome, token, cupom } = req.body || {};
+    // Dados que o app manda. tipoConta escolhe entre os dois planos —
+    // "pessoal" (padrão, mantém compatibilidade com quem ainda não manda
+    // esse campo) ou "empresarial".
+    const { email, nome, token, cupom, tipoConta: tipoContaBruto } = req.body || {};
+    const tipoConta = tipoContaBruto === "empresarial" ? "empresarial" : "pessoal";
 
     if (!email) {
       return res.status(400).json({ erro: "Dados do usuário faltando" });
@@ -91,21 +101,50 @@ export default async function handler(req, res) {
       return res.status(401).json({ erro: "Sessão expirada. Faça login novamente." });
     }
 
-    const config = PLANO_UNICO;
+    const config = tipoConta === "empresarial" ? PLANO_EMPRESARIAL : PLANO_UNICO;
     const plano = PLANO_ID;
     const ciclo = CICLO;
 
-    // Cupom: só aceita o que está na lista CUPONS. O que o navegador manda
-    // é ignorado se não bater — nunca confiamos em valor vindo do cliente.
+    // Cupom: só aceita o que está na lista CUPONS, pro plano certo. O que o
+    // navegador manda é ignorado se não bater — nunca confiamos em valor
+    // vindo do cliente.
     const cupomDigitado = String(cupom || "").trim().toUpperCase();
-    const cupomValido = Object.prototype.hasOwnProperty.call(CUPONS, cupomDigitado) ? cupomDigitado : null;
-    const valor = cupomValido ? CUPONS[cupomValido] : config.valor;
+    const valorCupom = CUPONS[cupomDigitado]?.[tipoConta];
+    const cupomValido = valorCupom != null ? cupomDigitado : null;
+    const valor = cupomValido ? valorCupom : config.valor;
+
+    const SUPABASE_URL = process.env.SUPABASE_URL || "https://yuvhkrwksdnajfautkru.supabase.co";
+    const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+    // Troca de plano (Pessoal <-> Empresarial): se a pessoa já tem uma
+    // assinatura ATIVA de outro tipo, cancela ela no Asaas antes de criar
+    // a nova — senão ficaria pagando as duas ao mesmo tempo. Se for a
+    // primeira assinatura, ou já for do mesmo tipo, não mexe em nada aqui.
+    let assinaturaAnteriorId = null;
+    if (SERVICE_KEY) {
+      try {
+        const respPerfilAtual = await fetch(
+          `${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${encodeURIComponent(userId)}&select=assinatura_status,asaas_subscription_id,empresarial`,
+          { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } }
+        );
+        if (respPerfilAtual.ok) {
+          const linhas = await respPerfilAtual.json();
+          const perfilAtual = linhas[0];
+          if (perfilAtual?.assinatura_status === "ativa" && perfilAtual.asaas_subscription_id) {
+            const tierAtual = perfilAtual.empresarial ? "empresarial" : "pessoal";
+            if (tierAtual !== tipoConta) {
+              assinaturaAnteriorId = perfilAtual.asaas_subscription_id;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Não consegui checar a assinatura anterior:", e);
+      }
+    }
 
     // Garante que o e-mail esteja gravado no perfil ANTES do pagamento.
     // O webhook usa o e-mail para identificar o usuário quando o Asaas
     // não devolve o externalReference — sem isso, o plano não libera.
-    const SUPABASE_URL = process.env.SUPABASE_URL || "https://yuvhkrwksdnajfautkru.supabase.co";
-    const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
     if (SERVICE_KEY) {
       try {
         await fetch(`${SUPABASE_URL}/rest/v1/perfil`, {
@@ -133,6 +172,21 @@ export default async function handler(req, res) {
       "access_token": chave,
       "User-Agent": "FAZ Financas",
     };
+
+    // Cancela a assinatura anterior (troca de plano) ANTES de criar a nova.
+    // Não impede o checkout se falhar — pior caso, sobra uma assinatura
+    // antiga pra cancelar manualmente no Asaas.
+    if (assinaturaAnteriorId) {
+      try {
+        const respCancela = await fetch(`${ASAAS_URL}/subscriptions/${assinaturaAnteriorId}`, {
+          method: "DELETE",
+          headers,
+        });
+        console.log("Assinatura anterior cancelada para troca de plano:", assinaturaAnteriorId, respCancela.status);
+      } catch (e) {
+        console.error("Falha ao cancelar assinatura anterior:", e);
+      }
+    }
 
     // --- 1. Acha ou cria o cliente no Asaas ---
     // Primeiro procura um cliente já existente com esse e-mail.

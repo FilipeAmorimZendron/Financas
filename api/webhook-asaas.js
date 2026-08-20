@@ -191,17 +191,34 @@ async function userIdPeloEmail(email) {
   return "";
 }
 
+// Valores do plano Empresarial (cheio e com o cupom ORGANIZACAO) — ver
+// PLANO_EMPRESARIAL e CUPONS em criar-checkout.js. Empresarial usa o
+// MESMO nível de acesso do plano único ("premium" — ver LIMITES_PLANO em
+// app.js); a única diferença é a coluna perfil.empresarial, que liga ou
+// desliga sozinha aqui de acordo com o valor pago em CADA cobrança —
+// então upgrade e downgrade de plano se resolvem sozinhos, sem precisar
+// de nenhum campo extra no externalReference.
+const VALORES_EMPRESARIAL = [41.9, 35.9];
+function ehValorEmpresarial(valor) {
+  const v = Number(valor) || 0;
+  return VALORES_EMPRESARIAL.some(x => Math.abs(v - x) < 0.005);
+}
+
 /* Descobre o plano a partir do valor pago, quando não sabemos pela referência.
    Precisa bater com os preços de criar-checkout.js.
    Desde a virada pro plano único (hoje R$ 26,90/mês, ou R$ 20,90 com
-   cupom — já foi R$ 37,90/27,90 antes), só existe uma venda nova possível
-   — "premium" — mas os limites continuam aqui porque assinantes antigos
-   (Premium R$25,90, Master R$47,90/mês, e os dois com desconto anual)
-   continuam renovando nesses valores até cancelarem. Qualquer preço do
-   plano único até hoje já cai certinho no último "return premium"
-   (sempre menor que 40). */
+   cupom — já foi R$ 37,90/27,90 antes) e a criação do plano Empresarial
+   (R$ 41,90/mês, ou R$ 35,90 com cupom), só existe uma venda nova possível
+   pro NÍVEL de acesso — "premium" — mas os limites continuam aqui porque
+   assinantes antigos (Premium R$25,90, Master R$47,90/mês, e os dois com
+   desconto anual) continuam renovando nesses valores até cancelarem.
+   IMPORTANTE: os valores do Empresarial (41,90 e principalmente 35,90)
+   têm que ser checados ANTES dos limites genéricos abaixo — sem isso,
+   41,90 cairia sem querer em "v >= 40 -> master" (o Master antigo de
+   R$47,90), classificando errado o plano Empresarial novo. */
 function planoPeloValor(valor) {
   const v = Number(valor) || 0;
+  if (ehValorEmpresarial(v)) return "premium"; // Empresarial: mesmo acesso do plano único
   if (v >= 400) return "master";   // anual master antigo (488,40)
   if (v >= 200) return "premium";  // anual premium antigo (264,00)
   if (v >= 40)  return "master";   // mensal master antigo (47,90)
@@ -404,6 +421,10 @@ export default async function handler(req, res) {
       novoStatus = "ativa";
       novoPlano = plano || "premium";
       extras.atraso_desde = null;
+      // Liga/desliga o espaço Empresarial de acordo com o valor pago NESTA
+      // cobrança — resolve upgrade e downgrade de plano sozinho, sem
+      // precisar de um campo à parte pra "tipo de conta".
+      extras.empresarial = ehValorEmpresarial(pagamento.value);
       // Guarda quando vence a próxima, para o app avisar com antecedência
       if (pagamento.dueDate) {
         const venc = new Date(pagamento.dueDate + "T00:00:00");
@@ -424,6 +445,7 @@ export default async function handler(req, res) {
       // Estorno ou contestação: o dinheiro saiu da nossa conta. Corta na hora.
       novoPlano = "basico";
       extras.atraso_desde = null;
+      extras.empresarial = false;
       if (plano && plano !== "basico") extras.plano_anterior = plano;
       novoStatus = "inativa";
 

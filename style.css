@@ -253,6 +253,48 @@ button, input, textarea, select {
   margin-bottom: 10px;
 }
 
+/* Seletor Pessoal / Empresarial — topo da sidebar */
+.contexto-toggle {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  margin: 0 0 20px;
+  background: var(--sidebar-hover);
+  border-radius: var(--radius-md);
+}
+.contexto-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--sidebar-text-dim);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.contexto-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.contexto-btn .menu-label { white-space: nowrap; overflow: hidden; transition: opacity 0.18s, max-width 0.18s; }
+.contexto-btn:hover { color: var(--sidebar-text); }
+.contexto-btn.active {
+  background: var(--teal-600);
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(28,74,77,0.25);
+}
+.contexto-cadeado {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.7;
+}
+.contexto-cadeado svg { width: 12px; height: 12px; }
+.contexto-btn-bloqueado:not(.active) { color: var(--sidebar-text-dim); }
+
 .menu { display: flex; flex-direction: column; gap: 2px; }
 
 .menu-item {
@@ -8449,6 +8491,31 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .sidebar-recolhida .menu-item:hover::after { opacity: 1; }
 
+/* Seletor Pessoal/Empresarial recolhido junto com a sidebar: só os ícones,
+   com tooltip igual ao dos itens de menu. */
+.sidebar-recolhida .contexto-btn { position: relative; padding-left: 0; padding-right: 0; }
+.sidebar-recolhida .contexto-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 6px 11px;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 50;
+  box-shadow: var(--shadow-md);
+}
+.sidebar-recolhida .contexto-btn:hover::after { opacity: 1; }
+
 /* Mobile: sidebar é gaveta, sem recolher */
 @media (max-width: 900px) {
   .sidebar-toggle { display: none; }
@@ -8610,6 +8677,12 @@ body.sem-internet .layout { padding-top: 34px; }
   grid-template-columns: minmax(0, 380px);
   justify-content: center;
 }
+/* Dois planos (Pessoal + Empresarial): lado a lado, cada um com largura
+   confortável — empilha em telas estreitas (ver media query abaixo). */
+.planos-grid-duo {
+  grid-template-columns: repeat(2, minmax(0, 380px));
+  justify-content: center;
+}
 .plano-card {
   position: relative;
   padding: 24px 22px;
@@ -8625,6 +8698,10 @@ body.sem-internet .layout { padding-top: 34px; }
 .plano-card-master {
   border: 1px solid #b8842a;
   background: linear-gradient(180deg, rgba(184, 132, 42, 0.05), transparent 40%);
+}
+.plano-card-empresarial {
+  border: 1px solid var(--teal-600);
+  background: linear-gradient(180deg, rgba(10, 107, 97, 0.08), transparent 40%);
 }
 /* Realce quando a pessoa chega da landing com um plano escolhido */
 .plano-card-escolhido {
@@ -8649,6 +8726,10 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .plano-selo-master {
   background: #b8842a;
+  color: #fff;
+}
+.plano-selo-empresarial {
+  background: var(--teal-600);
   color: #fff;
 }
 .plano-nome {
