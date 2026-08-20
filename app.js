@@ -54,7 +54,12 @@ const ICONE_CAT = {
   "Lazer":            _sv('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v16M17 4v16M2 9h5M2 15h5M17 9h5M17 15h5"/>'),
   "Transporte":       _sv('<path d="M5 13l1.5-5A2 2 0 0 1 8.4 6.5h7.2a2 2 0 0 1 1.9 1.5L19 13"/><path d="M5 13h14v4a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H8v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="15.5" r="0.6"/><circle cx="16.5" cy="15.5" r="0.6"/>'),
   "Compras":          _sv('<circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.5 3h2l2.2 12.4a1.5 1.5 0 0 0 1.5 1.2h9.3a1.5 1.5 0 0 0 1.5-1.2L21 7H6"/>'),
-  "Outros":           _sv('<path d="M21 8v13H3V8"/><rect x="1" y="3" width="22" height="5" rx="1"/><line x1="12" y1="3" x2="12" y2="21"/>')
+  "Outros":           _sv('<path d="M21 8v13H3V8"/><rect x="1" y="3" width="22" height="5" rx="1"/><line x1="12" y1="3" x2="12" y2="21"/>'),
+  // Categorias do espaço Empresarial (ver CATEGORIAS_FIXAS_EMPRESARIAL)
+  "Fornecedores":         _sv('<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/>'),
+  "Folha de Pagamento":   _sv('<circle cx="9" cy="8" r="3.2"/><path d="M2.5 21a6.5 6.5 0 0 1 13 0"/><circle cx="18" cy="9" r="2.4"/><path d="M15.5 21a4.7 4.7 0 0 1 7.3-3.9"/>'),
+  "Impostos e Taxas":     _sv('<circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/><line x1="19" y1="5" x2="5" y2="19"/>'),
+  "Receita de Vendas":    _sv('<polyline points="3 17 9.5 10.5 14 15 21 8"/><polyline points="15 8 21 8 21 14"/>')
 };
 const ICONE_CAT_FALLBACK = _sv('<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/>');
 
@@ -70,16 +75,32 @@ const CATEGORIAS_FIXAS = [
   "Lazer", "Educação", "Serviços", "Compras", "Outros"
 ];
 
+/* Categorias de fábrica do espaço EMPRESARIAL — voltadas pra o que uma
+   empresa realmente lança no dia a dia, em vez de reaproveitar as
+   pessoais (ninguém categoriza despesa de fornecedor como "Compras").
+   Automático: aparecem sozinhas assim que o espaço Empresarial é aberto,
+   sem precisar criar nada na mão. */
+const CATEGORIAS_FIXAS_EMPRESARIAL = [
+  "Fornecedores", "Folha de Pagamento", "Impostos e Taxas",
+  "Aluguel e Contas Fixas", "Marketing e Vendas",
+  "Equipamentos e Software", "Serviços Contratados", "Receita de Vendas", "Outros"
+];
+
+/* Quais categorias fixas valem agora, conforme o espaço ativo. */
+function categoriasFixasAtivas() {
+  return state.contextoAtivo === "empresarial" ? CATEGORIAS_FIXAS_EMPRESARIAL : CATEGORIAS_FIXAS;
+}
+
 /* Cores oferecidas ao criar uma categoria */
 const CORES_CATEGORIA = [
   "#7F77DD", "#1D9E75", "#D85A30", "#378ADD",
   "#BA7517", "#D4537E", "#639922", "#888780"
 ];
 
-/* Todas as categorias disponíveis: fixas + as do usuário */
+/* Todas as categorias disponíveis: fixas (do espaço ativo) + as do usuário */
 function todasCategorias() {
   const minhas = (state.categorias || []).map(c => c.nome);
-  return [...CATEGORIAS_FIXAS, ...minhas];
+  return [...categoriasFixasAtivas(), ...minhas];
 }
 
 /* A cor de uma categoria personalizada (fixas usam o padrão do tema) */
@@ -103,8 +124,8 @@ function opcoesCategoria(selecionada, opcoes = {}) {
     html += `<option value="Entrada"${selecionada === "Entrada" ? " selected" : ""}>Entrada</option>`;
   }
 
-  // Fixas
-  html += CATEGORIAS_FIXAS
+  // Fixas (do espaço ativo — Pessoal ou Empresarial)
+  html += categoriasFixasAtivas()
     .map(c => `<option value="${esc(c)}"${selecionada === c ? " selected" : ""}>${esc(c)}</option>`)
     .join("");
 
@@ -257,7 +278,7 @@ function renderCategorias() {
     html += minhas.map(linhaMinha).join("");
   }
   html += `<div class="cat-grupo-titulo">Do aplicativo</div>`;
-  html += CATEGORIAS_FIXAS.map(linhaFixa).join("");
+  html += categoriasFixasAtivas().map(linhaFixa).join("");
 
   el.innerHTML = html;
 }
@@ -13121,9 +13142,16 @@ async function executarAcaoIA(acao) {
       if (!retomou) {
         const nome = primeiroNome();
         const abertura = nome ? "Oi, " + nome + "! 👋" : "Oi! 👋";
-        const saudacao = abertura + " Sou o Assistente FAZ — registro gastos, contas, metas e mais, do jeito que você falar.\n\n" +
-          "Ex: \"gastei 50 no mercado\" ou \"meu aluguel é 1500 todo dia 10\".\n\n" +
-          "O que você precisa?";
+        // Saudação muda conforme o espaço ativo — nunca mistura os dois na
+        // mesma mensagem (ver ESPAÇOS PESSOAL E EMPRESARIAL em chat-ia.js).
+        const empresarial = state.contextoAtivo === "empresarial";
+        const saudacao = empresarial
+          ? abertura + " Sou o Assistente FAZ, aqui no espaço **Empresarial** — registro gastos, contas, metas e mais da sua empresa, do jeito que você falar.\n\n" +
+            "Ex: \"paguei 800 de fornecedor\" ou \"o aluguel do escritório é 2500 todo dia 5\".\n\n" +
+            "O que você precisa?"
+          : abertura + " Sou o Assistente FAZ — registro gastos, contas, metas e mais, do jeito que você falar.\n\n" +
+            "Ex: \"gastei 50 no mercado\" ou \"meu aluguel é 1500 todo dia 10\".\n\n" +
+            "O que você precisa?";
         addMsg(saudacao, "ia");
         conversaIniciada = true;
       }
@@ -13198,7 +13226,12 @@ async function executarAcaoIA(acao) {
           pergunta: pergunta,
           resumoFinanceiro: resumo,
           token: token,
-          historico: historicoEnvio
+          historico: historicoEnvio,
+          // Pra IA saber em qual espaço está respondendo (Pessoal ou
+          // Empresarial) e se o outro espaço existe — sem nunca receber os
+          // dados financeiros do espaço que não está ativo agora.
+          contexto: state.contextoAtivo || "pessoal",
+          temEmpresarial: !!state.perfil?.empresarial
         };
         if (typeof esquemaAcoesIA === "function") corpo.acoes = esquemaAcoesIA();
         if (extras.length) { corpo.continuacao = true; corpo.extras = extras; }

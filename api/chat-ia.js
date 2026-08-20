@@ -78,7 +78,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { pergunta, resumoFinanceiro, token, historico, acoes, extras, continuacao } = req.body || {};
+    const { pergunta, resumoFinanceiro, token, historico, acoes, extras, continuacao, contexto, temEmpresarial } = req.body || {};
+    const contextoAtivo = contexto === "empresarial" ? "empresarial" : "pessoal";
 
     if (!pergunta || typeof pergunta !== "string") {
       return res.status(400).json({ erro: "Pergunta inválida." });
@@ -222,6 +223,14 @@ export default async function handler(req, res) {
       "PLANILHA: análise detalhada com filtros, gráficos por categoria e resumos.",
       "",
       "CONTA: perfil, avatar, plano e configurações.",
+      "",
+      "ESPAÇOS PESSOAL E EMPRESARIAL: o app separa as finanças em dois espaços independentes — Pessoal e Empresarial (plano à parte, R$ 41,90/mês) — trocados pelo seletor no topo da sidebar. Cada um tem suas próprias contas, lançamentos, metas, investimentos e categorias; nada de um aparece no outro.",
+      contextoAtivo === "empresarial"
+        ? "Agora você está respondendo dentro do espaço EMPRESARIAL do usuário — os dados abaixo são só da empresa dele. Ele também tem um espaço Pessoal separado, com seus próprios dados, que você NÃO está vendo agora."
+        : (temEmpresarial
+            ? "Agora você está respondendo dentro do espaço PESSOAL do usuário — os dados abaixo são só pessoais. Ele também assina o Empresarial e tem um espaço separado pra empresa, com seus próprios dados, que você NÃO está vendo agora."
+            : "Agora você está respondendo dentro do espaço PESSOAL do usuário — os dados abaixo são só pessoais. Existe também um espaço Empresarial (plano à parte) pra quem quer separar as finanças da empresa; se for relevante, pode mencionar que existe."),
+      "NUNCA misture ou some números dos dois espaços — você só enxerga o espaço ativo agora. Se ele perguntar sobre o outro espaço, explique que ele precisa trocar pelo seletor da sidebar pra você ver os dados de lá.",
       "",
       "════ PLANO E PAGAMENTO ════",
       "- O FAZ Finanças tem um plano único: R$ 26,90/mês, com tudo incluso — contas, metas e lançamentos ilimitados, investimentos, gastos fixos, importar extrato, relatórios, exportar e este assistente de IA. Com o cupom de desconto ORGANIZACAO (aplicado no cadastro ou na tela de assinatura), o valor cai para R$ 20,90/mês.",

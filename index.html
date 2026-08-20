@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202608201530" />
+  <link rel="stylesheet" href="style.css?v=202608201730" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -2160,6 +2160,18 @@
           e a categoria sozinho. Ou importe o extrato em CSV.
         </p>
       </div>
+
+      <div class="lp-card reveal">
+        <div class="lp-card-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg>
+        </div>
+        <h3 class="lp-card-titulo">Espaço Empresarial</h3>
+        <p class="lp-card-desc">
+          Tem uma empresa também? Assine o plano Empresarial e tenha um espaço
+          separado pra ela — categorias prontas pro negócio, tudo isolado das
+          suas finanças pessoais, trocado com um clique.
+        </p>
+      </div>
     </div>
   </section>
 
@@ -2572,14 +2584,14 @@
   <!-- COMO FUNCIONA -->
   <section class="lp-secao lp-planos-secao lp-band-clara" id="planos">
     <div class="lp-secao-head reveal">
-      <p class="lp-eyebrow">Plano</p>
-      <h2 class="lp-h2">Um plano só.<br>Tudo incluso.</h2>
-      <p class="lp-p lp-planos-sub">Sem versão limitada, sem trava de recursos, sem letra miúda. Você assina e usa tudo — a partir de hoje.</p>
+      <p class="lp-eyebrow">Planos</p>
+      <h2 class="lp-h2">Pessoal ou Empresarial.<br>Sem misturar as finanças.</h2>
+      <p class="lp-p lp-planos-sub">Sem versão limitada, sem trava de recursos, sem letra miúda. Assine o que precisa — e pode ter os dois, cada um no seu próprio espaço.</p>
     </div>
 
-    <div class="lp-planos-grid lp-planos-grid-unico">
+    <div class="lp-planos-grid lp-planos-grid-duo">
       <div class="lp-assinar-shell reveal">
-        <span class="lp-assinar-badge">Plano único</span>
+        <span class="lp-assinar-badge">Pessoal</span>
         <img src="logofaz-transparente.png" alt="FAZ Finanças" class="lp-assinar-logo" />
         <h3 class="lp-assinar-titulo">Assine e libere tudo</h3>
         <p class="lp-assinar-sub">Sem versão limitada, sem trava de recursos. Um plano só, com tudo incluso.</p>
@@ -2610,6 +2622,39 @@
 
         <button type="button" class="lp-assinar-btn" onclick="assinarNaLanding()">Assinar agora</button>
         <p class="lp-assinar-rodape">✓ Cancele quando quiser &nbsp;·&nbsp; ✓ Pagamento seguro pelo Asaas</p>
+      </div>
+
+      <div class="lp-assinar-shell lp-assinar-shell-empresarial reveal">
+        <span class="lp-assinar-badge lp-assinar-badge-empresarial">Empresarial</span>
+        <img src="logofaz-transparente.png" alt="FAZ Finanças" class="lp-assinar-logo" />
+        <h3 class="lp-assinar-titulo">Espaço separado pra empresa</h3>
+        <p class="lp-assinar-sub">Tudo do plano Pessoal, num espaço financeiro só da empresa — nunca se mistura com o seu.</p>
+
+        <div class="lp-assinar-preco">
+          <span class="lp-assinar-preco-moeda">R$</span>
+          <span class="lp-assinar-preco-valor preco-plano-empresarial-valor">41,90</span>
+          <span class="lp-assinar-preco-ciclo">/mês</span>
+        </div>
+        <p class="lp-assinar-preco-nota">cancele quando quiser</p>
+
+        <div class="cupom-box" data-tier="empresarial">
+          <button type="button" class="cupom-toggle">Tem um cupom de desconto?</button>
+          <div class="cupom-campo" hidden>
+            <input type="text" class="cupom-input" placeholder="Código do cupom" maxlength="30" />
+            <button type="button" class="cupom-aplicar">Aplicar</button>
+          </div>
+          <p class="cupom-msg"></p>
+        </div>
+
+        <ul class="lp-assinar-lista">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Categorias prontas pra empresa: fornecedores, folha, impostos e mais</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Finanças da empresa 100% separadas das pessoais</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Troca de espaço com um clique, sem precisar de outra conta</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Suporte prioritário</li>
+        </ul>
+
+        <button type="button" class="lp-assinar-btn lp-assinar-btn-empresarial" onclick="abrirAuth('cadastro')">Criar conta e assinar</button>
+        <p class="lp-assinar-rodape">✓ Escolhido dentro do app, depois de criar sua conta</p>
       </div>
     </div>
     <div class="lp-planos-garantia">
@@ -2939,6 +2984,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202608201530"></script>
+  <script src="app.js?v=202608201730"></script>
 </body>
 </html>

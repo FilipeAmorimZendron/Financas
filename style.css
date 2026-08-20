@@ -4727,51 +4727,60 @@ body.sem-internet .layout { padding-top: 34px; }
 /* Cupom de desconto — usada no cadastro, na tela de assinatura obrigatória
    e na tela de Planos dentro do app. Sempre em fundo escuro, por isso as
    cores aqui são fixas (iguais ao resto do .assinar-*), não var(). */
-.cupom-box { margin: 2px 0 18px; text-align: center; }
+/* Discreto de propósito: o cupom é um detalhe pra quem já sabe que tem
+   um código, não um segundo CTA competindo com o botão de assinar. */
+.cupom-box { margin: 2px 0 16px; text-align: center; }
 .cupom-toggle {
   background: none;
   border: none;
   padding: 0;
   font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #1EF6DD;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-muted, #8b96a5);
   cursor: pointer;
-  text-decoration: underline;
+  text-decoration: underline dotted;
   text-underline-offset: 2px;
+  opacity: 0.85;
 }
-.cupom-toggle:hover { opacity: 0.85; }
-.cupom-campo { display: flex; gap: 8px; margin-top: 12px; text-align: left; }
+.cupom-toggle:hover { opacity: 1; color: var(--text-secondary, #b7c0cc); }
+.cupom-campo {
+  display: flex;
+  gap: 6px;
+  margin: 10px auto 0;
+  max-width: 230px;
+  text-align: left;
+}
 .cupom-input {
   flex: 1;
   min-width: 0;
-  padding: 10px 12px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid #2C384A;
-  border-radius: 8px;
-  color: #E6EEF5;
+  padding: 6px 9px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 7px;
+  color: var(--text-secondary, #b7c0cc);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 12px;
   outline: none;
   text-transform: uppercase;
 }
-.cupom-input::placeholder { text-transform: none; }
-.cupom-input:focus { border-color: #1EF6DD; }
+.cupom-input::placeholder { text-transform: none; color: var(--text-muted, #8b96a5); }
+.cupom-input:focus { border-color: rgba(30,246,221,0.5); color: #E6EEF5; }
 .cupom-aplicar {
-  padding: 10px 16px;
-  background: rgba(30,246,221,0.12);
-  border: 1px solid rgba(30,246,221,0.4);
-  border-radius: 8px;
-  color: #1EF6DD;
+  padding: 6px 11px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 7px;
+  color: var(--text-secondary, #b7c0cc);
   font-family: inherit;
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: 600;
+  font-size: 11.5px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.cupom-aplicar:hover { background: rgba(30,246,221,0.22); }
-.cupom-msg { margin: 8px 0 0; font-size: 12.5px; line-height: 1.4; }
+.cupom-aplicar:hover { background: rgba(30,246,221,0.1); border-color: rgba(30,246,221,0.4); color: #1EF6DD; }
+.cupom-msg { margin: 7px 0 0; font-size: 11.5px; line-height: 1.4; }
 .cupom-msg:empty { margin: 0; }
 .cupom-msg-ok { color: #1EF6DD; font-weight: 600; }
 .cupom-msg-erro { color: #d9635d; font-weight: 600; }
@@ -8990,6 +8999,16 @@ body.sem-internet .layout { padding-top: 34px; }
   grid-template-columns: minmax(0, 440px);
   justify-content: center;
 }
+/* Dois planos (Pessoal + Empresarial): lado a lado, cada um com a mesma
+   largura confortável do card único — empilha em telas estreitas (ver
+   media query de .lp-planos-grid mais abaixo). */
+.lp-planos-grid-duo {
+  grid-template-columns: repeat(2, minmax(0, 420px));
+  justify-content: center;
+  align-items: stretch;
+}
+.lp-planos-grid-duo .lp-assinar-shell { display: flex; flex-direction: column; height: 100%; }
+.lp-planos-grid-duo .lp-assinar-lista { flex: 1; }
 .lp-plano {
   position: relative;
   padding: 28px 24px;
@@ -9290,6 +9309,26 @@ body.sem-internet .layout { padding-top: 34px; }
 @media (max-width: 480px) {
   .lp-assinar-shell { padding: 36px 24px 28px; }
 }
+
+/* Card Empresarial: mesmo desenho do Pessoal, mas em teal (a cor da marca)
+   em vez de âmbar — diferencia sem depender só da cor (o selo já diz
+   "Empresarial" por escrito, e o botão tem texto diferente). */
+.lp-assinar-shell-empresarial {
+  border-color: rgba(30,246,221,0.4);
+  box-shadow: 0 0 0 4px rgba(30,246,221,0.1), 0 50px 120px -30px rgba(0,0,0,0.4);
+}
+.lp-assinar-badge-empresarial {
+  background: linear-gradient(135deg, var(--lp-teal-soft, #19D1BB), var(--lp-teal, #1EF6DD));
+  color: #062420;
+  box-shadow: 0 4px 18px rgba(30,246,221,0.35);
+}
+.lp-assinar-btn-empresarial {
+  background: linear-gradient(135deg, var(--lp-teal-soft, #19D1BB), var(--lp-teal, #1EF6DD));
+  color: #062420;
+  box-shadow: 0 10px 30px rgba(30,246,221,0.3);
+  animation: none;
+}
+.lp-assinar-btn-empresarial:hover { box-shadow: 0 14px 38px rgba(30,246,221,0.42); }
 
 .lp-planos-garantia { text-align: center; margin-top: 32px; }
 .lp-planos-garantia-titulo {
