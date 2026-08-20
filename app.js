@@ -1042,9 +1042,13 @@ const PRECO_PLANO_CHEIO = 26.90;
 const PRECO_EMPRESARIAL_CHEIO = 41.90;
 const CUPONS_PREVIA = { ORGANIZACAO: { pessoal: 20.90, empresarial: 35.90 } };
 
-// Sobrevive a um redirect (ex: login com Google) que recarrega a página.
+// sessionStorage (não localStorage): sobrevive a um redirect (ex: login
+// com Google) que recarrega a página NA MESMA aba, mas não fica aplicado
+// pra sempre — fechou a aba ou voltou outro dia, precisa digitar de novo.
+// Some também sempre que a tela de Planos é aberta (ver limparCupomAplicado
+// em trocarTela) — cada tentativa de pagar exige digitar o cupom de novo.
 let _cupomAplicado = (() => {
-  try { return localStorage.getItem("fp_cupom") || null; } catch (e) { return null; }
+  try { return sessionStorage.getItem("fp_cupom") || null; } catch (e) { return null; }
 })();
 
 function _fmtPrecoBR(v) { return v.toFixed(2).replace(".", ","); }
@@ -1132,7 +1136,7 @@ document.addEventListener("click", (e) => {
     const valorTier = CUPONS_PREVIA[codigo]?.[tier];
     if (valorTier) {
       _cupomAplicado = codigo;
-      try { localStorage.setItem("fp_cupom", codigo); } catch (e) {}
+      try { sessionStorage.setItem("fp_cupom", codigo); } catch (e) {}
       msg.textContent = `Cupom aplicado! R$ ${_fmtPrecoBR(valorTier)}/mês — menos de R$ 1 por dia.`;
       msg.className = "cupom-msg cupom-msg-ok";
     } else {
@@ -1164,6 +1168,25 @@ document.addEventListener("click", (e) => {
   }
 });
 
+/* Esquece o cupom aplicado e limpa as caixas de cupom na tela — chamada
+   toda vez que a tela de Planos é aberta (ver trocarTela). Cada visita à
+   tela de Planos (assinar de novo, trocar de plano, virar Empresarial...)
+   exige digitar o cupom de novo, em vez de reaproveitar um cupom aplicado
+   há dias/sessões atrás sem a pessoa pedir. */
+function limparCupomAplicado() {
+  _cupomAplicado = null;
+  try { sessionStorage.removeItem("fp_cupom"); } catch (e) {}
+  document.querySelectorAll(".cupom-box").forEach(box => {
+    const input = box.querySelector(".cupom-input");
+    const campo = box.querySelector(".cupom-campo");
+    const msg = box.querySelector(".cupom-msg");
+    if (input) input.value = "";
+    if (campo) campo.hidden = true;
+    if (msg) { msg.textContent = ""; msg.className = "cupom-msg"; }
+  });
+  atualizarPrecoNaTela();
+}
+
 /* Inicia o checkout de um dos dois planos (Pessoal ou Empresarial).
    tipoConta: "pessoal" | "empresarial". Usada por assinarPlanoUnico()
    (tela de assinatura obrigatória, cadastro fundido, landing) e por
@@ -1189,17 +1212,39 @@ async function _assinarPlano(tipoConta, btn, contentName) {
       })
     });
     const dados = await resp.json();
-    if (!resp.ok || !dados.url) {
+    if (!resp.ok) {
       toast(dados.erro || "Não foi possível iniciar o pagamento. Tente de novo.", "error");
       return;
     }
+
+    // Troca de plano (Pessoal <-> Empresarial) de quem já assina: a
+    // assinatura já foi atualizada no servidor — sem cobrança à parte
+    // (diferença pequena/negativa), não tem checkout nenhum pra abrir.
+    if (dados.troca && dados.semCobranca) {
+      toast(dados.mensagem || "Plano trocado com sucesso!", "success");
+      await carregarDadosNuvem();
+      renderTudo();
+      return;
+    }
+
+    if (!dados.url) {
+      toast(dados.erro || "Não foi possível iniciar o pagamento. Tente de novo.", "error");
+      return;
+    }
+
     if (typeof fbq === "function") {
       try { fbq("track", "InitiateCheckout", { value: dados.valor || (tipoConta === "empresarial" ? PRECO_EMPRESARIAL_CHEIO : PRECO_PLANO_CHEIO), currency: "BRL", content_name: contentName }); } catch(e){}
     }
-    // Cupom já foi usado neste checkout — não deixa guardado indefinidamente
-    // pra não continuar aparecendo em visitas futuras sem explicação.
-    try { localStorage.removeItem("fp_cupom"); } catch (e) {}
-    window.location.href = dados.url;
+    // Troca de plano com diferença a cobrar: mostra o cálculo (quanto e
+    // até quando) antes de mandar pro checkout da diferença.
+    if (dados.troca && dados.mensagem) {
+      toast(dados.mensagem, "info");
+    }
+    // Cupom já foi usado neste checkout — precisa digitar de novo pra
+    // qualquer pagamento seguinte (outra assinatura, upgrade etc.).
+    _cupomAplicado = null;
+    try { sessionStorage.removeItem("fp_cupom"); } catch (e) {}
+    setTimeout(() => { window.location.href = dados.url; }, dados.troca ? 1600 : 0);
   } catch (e) {
     toast("Erro de conexão. Tente novamente.", "error");
   } finally {
@@ -3979,6 +4024,10 @@ function trocarTela(name) {
   if (name === "planos" && typeof fbq === "function") {
     try { fbq("track", "ViewContent", { content_name: "planos" }); } catch(e){}
   }
+
+  // Toda visita à tela de Planos começa sem cupom aplicado — precisa
+  // digitar de novo, mesmo que tenha usado um antes nesta mesma sessão.
+  if (name === "planos") limparCupomAplicado();
 
   menuItems.forEach(i=>i.classList.toggle("active", i.dataset.screen===name));
   screens.forEach(s => {

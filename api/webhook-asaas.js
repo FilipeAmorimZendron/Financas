@@ -361,6 +361,19 @@ export default async function handler(req, res) {
 
     let [userId, plano, ciclo] = ref.split("|");
 
+    // Cobrança avulsa de troca de plano (Pessoal <-> Empresarial) — ver
+    // trocarValorAssinatura() em criar-checkout.js. Essa referência é
+    // "userId|upgrade_pessoal" ou "userId|upgrade_empresarial", não o
+    // formato normal "userId|plano|ciclo". criar-checkout.js já atualizou
+    // o valor da assinatura e a coluna perfil.empresarial NA HORA, sem
+    // esperar essa cobrança — então aqui só confirmamos o recebimento,
+    // sem tocar em perfil.plano/assinatura_status (evita gravar
+    // "upgrade_empresarial" por engano no lugar de "premium"/"master").
+    if (plano && plano.startsWith("upgrade_")) {
+      console.log("Webhook de cobrança avulsa de troca de plano — nada a atualizar:", userId, plano, evento);
+      return res.status(200).json({ ok: true, motivo: "cobrança avulsa de troca de plano, já tratada no checkout" });
+    }
+
     // Caminho preferencial: a tabela que nós mesmos gravamos ao criar o
     // checkout. Não depende do Asaas nem do e-mail digitado pela pessoa.
     if (!userId) {
