@@ -1,11 +1,11 @@
 {
-  "name": "Finanças Pessoais",
-  "short_name": "Finanças",
+  "name": "FAZ Finanças",
+  "short_name": "FAZ",
   "description": "Controle total do seu dinheiro em um só lugar.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1e2540",
-  "theme_color": "#1e2540",
+  "background_color": "#011025",
+  "theme_color": "#011025",
   "orientation": "portrait-primary",
   "icons": [
     {

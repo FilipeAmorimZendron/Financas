@@ -14803,3 +14803,15 @@ async function executarAcaoIA(acao) {
     ligar();
   }
 })();
+
+/* ============================================================
+   PWA — registra o Service Worker (ver sw.js: não faz cache de nada de
+   propósito, só existe pra satisfazer o critério de instalação do
+   navegador). Registrado depois do "load" pra não competir com o
+   carregamento inicial da página.
+   ============================================================ */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
