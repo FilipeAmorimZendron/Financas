@@ -33,6 +33,10 @@ const state = {
   contatos: [],       // clientes e fornecedores — idem
   perfil: { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null },
   user: null,
+  // true quando o espaço que NÃO está ativo agora tem algo vencido ou
+  // vencendo — acende a bolinha vermelha no seletor da sidebar. Ver
+  // haCompromissoPendente() e atualizarSeletorContexto().
+  avisoOutroContexto: false,
   // "pessoal" ou "empresarial" — qual espaço financeiro está ativo agora.
   // Ver alternarContexto() e TABELAS_COM_CONTEXTO.
   contextoAtivo: (() => {
@@ -945,6 +949,20 @@ async function carregarDadosNuvem() {
     }));
     const perfilExistente = (perfilRows||[])[0];
     state.perfil = mapPerfil(perfilExistente);
+
+    // Bolinha de aviso no seletor Pessoal/Empresarial: verifica se o
+    // espaço que NÃO está ativo agora tem algo vencido/vencendo nos
+    // próximos dias. Usa os arrays brutos (movimentos/recorrencias/
+    // recPagamentos) já buscados acima — sem nenhuma consulta extra ao
+    // banco. Ver haCompromissoPendente() e atualizarSeletorContexto().
+    try {
+      const outro = state.contextoAtivo === "empresarial" ? "pessoal" : "empresarial";
+      const podeVerOutro = outro === "pessoal" || !!state.perfil?.empresarial;
+      state.avisoOutroContexto = podeVerOutro && haCompromissoPendente(outro, movimentos, recorrencias, recPagamentos);
+    } catch (e) {
+      state.avisoOutroContexto = false;
+    }
+
     // O plano pode ter mudado no servidor (pagamento, atraso, cancelamento).
     // Atualiza o selo e os cadeados na hora, sem esperar o próximo render.
     try { atualizarCadeadosMenu(); } catch (e) {}
@@ -8016,6 +8034,48 @@ function ocorrenciasNaJanela(deISO, ateISO) {
   return itens.sort((a, b) => a.vencimento.localeCompare(b.vencimento));
 }
 
+/* Versão leve de "tem algo pra resolver", usada só pra acender a bolinha
+   vermelha do espaço que NÃO está ativo agora (seletor Pessoal/Empresarial
+   na sidebar — ver atualizarSeletorContexto()). Recebe os arrays BRUTOS
+   (como vêm do Supabase, chave em snake_case) já buscados em
+   carregarDadosNuvem() — não faz nenhuma consulta nova, e não mexe em
+   state.* (por isso não reaproveita calcularAvisos(), que é amarrado ao
+   contexto ativo). Olha só o que é rápido de checar: lançamento avulso
+   pendente vencido/vencendo, ou ocorrência de recorrência não paga —
+   não cobre saldo negativo nem meta estourada do outro espaço. */
+function haCompromissoPendente(contexto, movimentosBrutos, recorrenciasBrutas, recPagamentosBrutos) {
+  const limite = somarDias(hojeISO(), 5); // mesmo horizonte de calcularAvisos()
+  const doContexto = linha => (linha.contexto || "pessoal") === contexto;
+
+  const temAvulso = (movimentosBrutos || []).some(m => {
+    if (!doContexto(m)) return false;
+    if (m.tipo !== "gasto" || (m.status || "pago") !== "pendente") return false;
+    const venc = m.vencimento || m.data;
+    return venc && venc <= limite;
+  });
+  if (temAvulso) return true;
+
+  const recDoOutro = (recorrenciasBrutas || []).filter(r => doContexto(r) && r.ativa !== false);
+  if (!recDoOutro.length) return false;
+
+  const pagas = new Set(
+    (recPagamentosBrutos || [])
+      .filter(doContexto)
+      .map(p => `${p.recorrencia_id}|${p.vencimento}`)
+  );
+  return recDoOutro.some(r => {
+    const rec = {
+      ativa: true,
+      inicio: r.inicio || (r.dia ? `${mesAtualISO()}-${String(r.dia).padStart(2,"0")}` : hojeISO()),
+      fim: r.fim || null,
+      frequencia: r.frequencia || "mensal",
+      intervalo: r.intervalo || 1,
+      intervaloUnidade: r.intervalo_unidade || "meses"
+    };
+    return ocorrenciasDe(rec, "2000-01-01", limite).some(venc => !pagas.has(`${r.id}|${venc}`));
+  });
+}
+
 
 /* Descrição legível da frequência */
 function textoFrequencia(rec) {
@@ -9847,6 +9907,10 @@ async function alternarContexto(ctx) {
    mobile reaproveitam o mesmo HTML) de acordo com o contexto ativo e se
    o plano Empresarial está liberado. */
 function atualizarSeletorContexto() {
+  // O espaço que NÃO está ativo agora — só ele pode mostrar a bolinha de
+  // aviso (o espaço ativo já tem seus avisos no sino, não precisa duplicar).
+  const outro = state.contextoAtivo === "empresarial" ? "pessoal" : "empresarial";
+
   document.querySelectorAll(".contexto-btn").forEach(btn => {
     const ctx = btn.dataset.contexto;
     btn.classList.toggle("active", ctx === state.contextoAtivo);
@@ -9862,6 +9926,25 @@ function atualizarSeletorContexto() {
       }
     } else if (cadeado) {
       cadeado.remove();
+    }
+
+    // Bolinha de aviso: só no botão do espaço que não está ativo agora, e
+    // só quando esse espaço tem algo vencido/vencendo (calculado em
+    // carregarDadosNuvem() → haCompromissoPendente(), guardado em
+    // state.avisoOutroContexto). Some junto com o cadeado se o Empresarial
+    // estiver bloqueado — não faz sentido avisar de algo que a pessoa
+    // ainda não pode ver.
+    const temAviso = ctx === outro && !bloqueado && !!state.avisoOutroContexto;
+    let bolinha = btn.querySelector(".contexto-aviso-dot");
+    if (temAviso) {
+      if (!bolinha) {
+        bolinha = document.createElement("span");
+        bolinha.className = "contexto-aviso-dot";
+        bolinha.title = `Tem algo vencido ou vencendo no espaço ${ctx === "empresarial" ? "Empresarial" : "Pessoal"}`;
+        btn.appendChild(bolinha);
+      }
+    } else if (bolinha) {
+      bolinha.remove();
     }
   });
 

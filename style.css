@@ -275,6 +275,7 @@ button, input, textarea, select {
   border-radius: var(--radius-md);
 }
 .contexto-btn {
+  position: relative;
   flex: 1;
   display: flex;
   align-items: center;
@@ -306,6 +307,27 @@ button, input, textarea, select {
 }
 .contexto-cadeado svg { width: 12px; height: 12px; }
 .contexto-btn-bloqueado:not(.active) { color: var(--sidebar-text-dim); }
+
+/* Bolinha de aviso — "tem algo vencido/vencendo no outro espaço".
+   O usuário é daltônico: a cor sozinha não pode ser o único sinal, por
+   isso o pulso (crescer e sumir o anel) é a pista principal — a cor só
+   reforça — e o title="" no botão dá o motivo por extenso no hover. */
+.contexto-aviso-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff5252;
+  border: 1.5px solid var(--sidebar-bg, #0c1420);
+  animation: contextoAvisoPulso 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes contextoAvisoPulso {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,82,82,0.55); }
+  50% { transform: scale(1.2); box-shadow: 0 0 0 4px rgba(255,82,82,0); }
+}
 
 .menu { display: flex; flex-direction: column; gap: 2px; }
 
