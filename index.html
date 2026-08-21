@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202608202400" />
+  <link rel="stylesheet" href="style.css?v=202608202248" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -133,6 +133,10 @@
             <span class="perfil-acao">Ver conta</span>
           </span>
           <svg class="perfil-seta" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+        <button type="button" class="sidebar-ajuda-btn" id="comoUsarBtn" onclick="mostrarGuia('comecar')" title="Como usar o FAZ Finanças">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          <span>Como usar</span>
         </button>
         <button type="button" class="sidebar-ia-btn" id="iaFab" title="Falar com o Assistente FAZ">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></svg>
@@ -3178,6 +3182,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202608202500"></script>
+  <script src="app.js?v=202608202248"></script>
 </body>
 </html>

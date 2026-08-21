@@ -9719,6 +9719,35 @@ body.scroll-travado {
 .sidebar-recolhida .sidebar-ia-btn span { display: none; }
 .sidebar-recolhida .sidebar-ia-btn { padding: 11px 0; }
 
+/* Botão "Como usar" — abre o guia geral (GUIAS.comecar). Fica entre o
+   card de perfil e o Assistente FAZ, discreto (outline) pra não competir
+   com o CTA cheio do assistente logo abaixo. */
+.sidebar-ajuda-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 12px;
+  margin-top: 2px;
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.sidebar-ajuda-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.sidebar-ajuda-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+.sidebar-recolhida .sidebar-ajuda-btn span { display: none; }
+.sidebar-recolhida .sidebar-ajuda-btn { padding: 9px 0; }
+
 /* Botão flutuante do Assistente FAZ — só no mobile (a sidebar vira gaveta) */
 .ia-fab-mobile {
   display: none;

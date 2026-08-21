@@ -6473,6 +6473,21 @@ function sincronizarBottomNav(screen) {
    ============================================================ */
 
 const GUIAS = {
+  comecar: {
+    icon: "🚀",
+    titulo: "Como usar o FAZ Finanças",
+    subtitulo: "O caminho mais rápido pra deixar suas finanças no piloto automático",
+    itens: [
+      { icon: "🏦", titulo: "1. Crie sua primeira conta", desc: "Vá em <em>Contas</em> e cadastre seu banco (ou carteira) com o saldo atual de verdade. É o que faz o Dashboard começar certo desde o primeiro dia." },
+      { icon: "📤", titulo: "2. Importe o extrato com a IA", desc: 'Em <em>Lançamentos</em>, use "Importar extrato" (CSV, foto ou PDF) — ou peça direto no chat: <em>"lança meu extrato desse mês"</em>. A IA lê tudo e cria os lançamentos sozinha.' },
+      { icon: "🏷️", titulo: "3. Deixe a IA categorizar — e ajuste o que quiser", desc: 'Mercado vira Alimentação, Uber vira Transporte, e por aí vai. Se faltar uma categoria sua, crie uma nova em Lançamentos ou peça: <em>"cria a categoria Pet"</em>.' },
+      { icon: "🔁", titulo: "4. Cadastre as contas fixas", desc: "Aluguel, plano de saúde, streaming, financiamento — cadastre uma vez em <em>Gastos Fixos</em> e o app lança sozinho todo mês, sem você precisar lembrar." },
+      { icon: "🎯", titulo: "5. Defina metas nas categorias que mais pesam", desc: "Em <em>Metas</em>, coloque um limite mensal nas 2 ou 3 categorias onde você mais gasta. Uma barra avisa quando está perto de estourar." },
+      { icon: "🗣️", titulo: "6. No dia a dia, fale com a IA em vez de preencher formulário", desc: 'Ex: <em>"gastei 35 no ifood"</em> ou <em>"recebi 200 de um freela"</em> — ela registra, categoriza e confirma em segundos. É o jeito mais rápido de manter tudo atualizado.' },
+      { icon: "📊", titulo: "7. Acompanhe pelo Dashboard e pela Planilha", desc: "Com a base montada, é só abrir o Dashboard de vez em quando pra ver a evolução do saldo, ou a Planilha pra analisar por categoria e período." },
+    ],
+    dica: "💡 Dica: você não precisa fazer tudo isso no mesmo dia — mas quem começa pela conta certa e importa o extrato de cara economiza dezenas de lançamentos manuais depois."
+  },
   dashboard: {
     icon: "📊",
     titulo: "Dashboard — Visão Geral",
@@ -6623,10 +6638,13 @@ function fecharGuia() {
   overlay.style.display = "none";
 }
 
-// Botão "?" nos page-headers — injetado dinamicamente
+// Botão "?" nos page-headers — injetado dinamicamente.
+// Sem entrada pro Dashboard de propósito: o botão ficava com posição
+// absoluta no canto superior direito do dash-header e sobrepunha o sino
+// de notificações. O guia geral de "como usar" agora mora no botão fixo
+// da sidebar (ver #comoUsarBtn em index.html e GUIAS.comecar acima).
 function injetarBotoesGuia() {
   const mapeamento = {
-    "screen-dashboard":      "dashboard",
     "screen-contas":         "contas",
     "screen-lancamentos":    "lancamentos",
     "screen-transferencias": "transferencias",
