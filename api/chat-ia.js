@@ -357,14 +357,21 @@ export default async function handler(req, res) {
       .join("\n")
       .trim();
 
-    // A IA quer FAZER algo: devolvemos o pedido para o app executar e voltar
-    // aqui com o resultado. O conteúdo cru vai junto porque a próxima volta
-    // precisa reapresentá-lo à IA exatamente como veio.
-    const pedido = (dados.content || []).find(b => b.type === "tool_use");
-    if (pedido) {
+    // A IA quer FAZER algo: devolvemos o(s) pedido(s) para o app executar e
+    // voltar aqui com o resultado. O conteúdo cru vai junto porque a próxima
+    // volta precisa reapresentá-lo à IA exatamente como veio.
+    // IMPORTANTE: a Claude pode pedir MAIS DE UMA ferramenta na mesma
+    // resposta (ex: "10.000 no dinheiro e 15.000 no Pix" vira dois
+    // criar_lancamento em paralelo) — pegar só o primeiro e devolver
+    // conteudoIA inteiro deixava o segundo tool_use "órfão", sem
+    // tool_result correspondente, e a próxima chamada à API quebrava com
+    // erro (a Anthropic exige um tool_result pra cada tool_use da rodada
+    // anterior). Por isso devolvemos TODOS.
+    const pedidos = (dados.content || []).filter(b => b.type === "tool_use");
+    if (pedidos.length) {
       return res.status(200).json({
         resposta: texto,
-        acao: { id: pedido.id, nome: pedido.name, dados: pedido.input || {} },
+        acoes: pedidos.map(p => ({ id: p.id, nome: p.name, dados: p.input || {} })),
         conteudoIA: dados.content,
         usos: usosInfo
       });

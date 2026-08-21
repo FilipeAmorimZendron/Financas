@@ -14520,19 +14520,30 @@ async function executarAcaoIA(acao) {
           atualizarContadorIA(dados.usos.usados, dados.usos.limite);
         }
 
-        // A IA pediu para fazer algo: o app faz e volta com o resultado
-        if (dados.acao && typeof executarAcaoIA === "function") {
+        // A IA pediu para fazer uma ou mais coisas: o app faz e volta com o
+        // resultado. Pode vir mais de uma na mesma resposta (ex: "10.000 no
+        // dinheiro e 15.000 no Pix" vira dois criar_lancamento de uma vez) —
+        // executamos uma de cada vez, na ordem, e devolvemos um tool_result
+        // pra CADA UMA. Faltar o tool_result de alguma delas faz a próxima
+        // chamada à API ser rejeitada (é o que causava "Não foi possível
+        // obter a resposta da IA." bem no meio de um pedido dividido).
+        if (Array.isArray(dados.acoes) && dados.acoes.length && typeof executarAcaoIA === "function") {
           tirarCarregando();
           if (dados.resposta) addMsg(dados.resposta, "ia");
-          const resultado = await executarAcaoIA(dados.acao);
-          // Guarda se a ação deu certo: se a IA não escrever a frase final,
-          // o comprovante já está na tela e a resposta deve ser positiva —
-          // nunca "não consegui", que assustaria mesmo tendo dado certo.
-          ultimaAcaoOk = /^FEITO COM SUCESSO/.test(resultado);
+          const resultados = [];
+          for (const acaoAtual of dados.acoes) {
+            const resultado = await executarAcaoIA(acaoAtual);
+            resultados.push({ id: acaoAtual.id, resultado });
+          }
+          // Guarda se TODAS as ações deram certo: se a IA não escrever a
+          // frase final, os comprovantes já estão na tela e a resposta deve
+          // ser positiva — nunca "não consegui", que assustaria mesmo tendo
+          // dado certo. Se alguma falhou, melhor deixar a IA explicar.
+          ultimaAcaoOk = resultados.every(r => /^FEITO COM SUCESSO/.test(r.resultado));
           extras.push({ role: "assistant", content: dados.conteudoIA });
           extras.push({
             role: "user",
-            content: [{ type: "tool_result", tool_use_id: dados.acao.id, content: resultado }]
+            content: resultados.map(r => ({ type: "tool_result", tool_use_id: r.id, content: r.resultado }))
           });
           carregando = criarIndicadorDigitando();
           continue;
