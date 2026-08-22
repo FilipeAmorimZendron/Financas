@@ -5657,8 +5657,11 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 
 /* ============================================================
-   MARCA DA CONTA (v16)
-   Sem logos de banco (marcas registradas). Cor + inicial.
+   MARCA DA CONTA (v16, com logos reais desde v52)
+   Padrão: cor + inicial. Quem escolher no seletor de marca, pode
+   mostrar o logo oficial de um banco/exchange conhecido, ou um selo
+   colorido com a sigla — ver .marca-conta-logo abaixo e o seletor de
+   marca mais adiante neste arquivo.
    ============================================================ */
 
 .marca-conta {
@@ -5932,6 +5935,124 @@ body.sem-internet .layout { padding-top: 34px; }
   .conta-box-num { width: 100%; text-align: left; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-soft); }
   .conta-box-acoes { opacity: 1; }
   .cor-grade-modal { grid-template-columns: repeat(6, 1fr); }
+}
+
+/* ============================================================
+   SELETOR DE MARCA DO BANCO (v52)
+   Mesmo padrão visual do seletor de cor (botão → popover/grade),
+   só que cada opção é maior (tem nome embaixo) e há uma busca —
+   o catálogo tem dezenas de instituições, precisa dar pra filtrar.
+   ============================================================ */
+
+.marca-btn-amostra {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.marca-btn-amostra .marca-conta-sm { margin-right: 0; }
+
+.marca-pop { width: 300px; }
+
+.marca-busca {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  margin-bottom: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+}
+.marca-busca:focus { border-color: var(--accent); }
+
+.marca-grade {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.marca-grade-modal { grid-template-columns: repeat(4, 1fr); }
+
+.marca-opcao {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 4px;
+  background: var(--surface2);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.14s, border-color 0.16s, background 0.16s;
+}
+.marca-opcao:hover { background: var(--accent-dim); }
+.marca-opcao.ativa { border-color: var(--accent); background: var(--accent-dim); }
+
+.marca-opcao-badge {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  font-family: 'Sora', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.marca-opcao-auto,
+.marca-opcao-nenhuma {
+  background: var(--surface3, var(--surface2));
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+}
+.marca-opcao-auto svg { width: 14px; height: 14px; }
+.marca-opcao-nome {
+  font-size: 10px;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--text-muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.marca-opcao.ativa .marca-opcao-nome { color: var(--text); }
+
+.marca-vazio {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  padding: 14px 0;
+}
+
+/* A marca com logo oficial: imagem inteira dentro de um selo branco —
+   funciona tanto pra ícone quadrado (Nubank, Binance) quanto pra
+   logotipo largo (Bradesco, Santander), sem precisar recortar cada um
+   na mão. object-fit:contain garante que nunca distorce. */
+.marca-conta-logo,
+.marca-opcao-badge.marca-opcao-logo {
+  background: #FFFFFF;
+  padding: 4px;
+}
+.marca-conta-sm.marca-conta-logo { padding: 2px; }
+.marca-conta-logo img,
+.marca-opcao-badge.marca-opcao-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+@media (max-width: 560px) {
+  .marca-pop { width: 100%; left: 0; right: 0; }
+  .marca-grade-modal { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* Botões de ação em ícone (editar, excluir) */

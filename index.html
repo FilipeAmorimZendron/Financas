@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202608210009" />
+  <link rel="stylesheet" href="style.css?v=202608221216" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -312,6 +312,18 @@
                   </select>
                 </div>
                 <div class="field field-cor">
+                  <label for="btnMarca">Marca</label>
+                  <button type="button" class="cor-btn" id="btnMarca" onclick="abrirMarcaPop()" title="Escolher a marca do banco">
+                    <span class="marca-btn-amostra" id="marcaAmostra"></span>
+                    <svg class="cor-btn-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div class="cor-pop marca-pop" id="marcaPop">
+                    <div class="cor-pop-titulo">Marca do banco</div>
+                    <input type="text" class="marca-busca" id="marcaBusca" placeholder="Buscar banco, cartão, corretora..." />
+                    <div class="marca-grade" id="marcaPicker"></div>
+                  </div>
+                </div>
+                <div class="field field-cor">
                   <label for="btnCor">Cor</label>
                   <button type="button" class="cor-btn" id="btnCor" onclick="abrirCorPop('corPop')" title="Escolher cor">
                     <span class="cor-btn-amostra" id="corAmostra"></span>
@@ -323,6 +335,7 @@
                   </div>
                 </div>
               </div>
+              <p class="form-nota-conta">A marca é só um selo visual pra reconhecer a conta de longe — não é obrigatório escolher, o app tenta identificar sozinho pelo nome digitado.</p>
 
               <div class="form-conta-grid">
                 <div class="field">
@@ -1831,6 +1844,11 @@
           </div>
         </div>
         <div class="field">
+          <label>Marca do banco</label>
+          <input type="text" class="marca-busca" id="editMarcaBusca" placeholder="Buscar banco, cartão, corretora..." />
+          <div class="marca-grade marca-grade-modal" id="editMarcaPicker"></div>
+        </div>
+        <div class="field">
           <label>Cor</label>
           <div class="cor-grade cor-grade-modal" id="editCorPicker"></div>
         </div>
@@ -3183,6 +3201,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202608211448"></script>
+  <script src="app.js?v=202608221216"></script>
 </body>
 </html>

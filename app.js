@@ -929,7 +929,7 @@ async function carregarDadosNuvem() {
     const doContexto = linha => (linha.contexto || "pessoal") === ctx;
 
     // Mapear campos do banco para o formato do app
-    state.bancos         = contas.filter(doContexto).map(c => ({ id:c.id, nome:c.nome, tipo:c.tipo, saldoInicial: Number(c.saldo_inicial), saldoData: c.saldo_data || null, cor: c.cor || null, temCartao: c.tem_cartao || false, limite: c.limite != null ? Number(c.limite) : null, diaFechamento: c.dia_fechamento || null, diaVencimento: c.dia_vencimento || null }));
+    state.bancos         = contas.filter(doContexto).map(c => ({ id:c.id, nome:c.nome, tipo:c.tipo, saldoInicial: Number(c.saldo_inicial), saldoData: c.saldo_data || null, cor: c.cor || null, logoId: c.logo_id ?? null, temCartao: c.tem_cartao || false, limite: c.limite != null ? Number(c.limite) : null, diaFechamento: c.dia_fechamento || null, diaVencimento: c.dia_vencimento || null }));
     state.movimentos     = movimentos.filter(doContexto).map(m => ({ id:m.id, descricao:m.descricao, bancoId:m.conta_id, data:m.data, valor:Number(m.valor), tipo:m.tipo, categoria:m.categoria, recorrenciaId:m.recorrencia_id, status:m.status||"pago", vencimento:m.vencimento||null, pagoEm:m.pago_em||null, formaPagamento:m.forma_pagamento||null, cartaoId:m.cartao_id||null, faturaMes:m.fatura_mes||null, parcelaNum:m.parcela_num||null, parcelaTotal:m.parcela_total||null, compraId:m.compra_id||null }));
     state.transferencias = transferencias.filter(doContexto).map(t => ({ id:t.id, origem:t.conta_origem, destino:t.conta_destino, valor:Number(t.valor), data:t.data, descricao:t.descricao||"" }));
     state.faturasPagas   = (faturasPagas||[]).filter(doContexto).map(f => ({ id:f.id, cartaoId:f.cartao_id, faturaMes:f.fatura_mes, contaId:f.conta_id||null, valor:Number(f.valor), pagoEm:f.pago_em }));
@@ -4216,6 +4216,7 @@ formBanco?.addEventListener("submit", async e => {
       saldo_inicial: saldoInicial,
       saldo_data: saldoData,
       cor: _corEscolhida,
+      logo_id: _logoEscolhida,
       tem_cartao: temCartao
     };
     if (temCartao) {
@@ -4228,6 +4229,7 @@ formBanco?.addEventListener("submit", async e => {
       id:novo.id, nome:novo.nome, tipo:novo.tipo,
       saldoInicial:Number(novo.saldo_inicial), saldoData: novo.saldo_data || null,
       cor: novo.cor || null,
+      logoId: novo.logo_id ?? null,
       temCartao: novo.tem_cartao || false,
       limite: novo.limite != null ? Number(novo.limite) : null,
       diaFechamento: novo.dia_fechamento || null,
@@ -4275,7 +4277,8 @@ formBanco?.addEventListener("submit", async e => {
     const campoData = document.getElementById("saldoData");
     if (campoData) campoData.value = hojeISO();
     _corEscolhida = null;
-    atualizarAmostraCor(); renderTudo();
+    _logoEscolhida = null;
+    atualizarAmostraCor(); atualizarAmostraMarca(); renderTudo();
     toast(`Conta "${nome}" adicionada!${faturaMsg}`,"success");
   } catch(err) { tratarErro(err); }
 });
@@ -6341,6 +6344,7 @@ function abrirEditarConta(id) {
   if (ven) ven.value = b.diaVencimento || "";
   toggleEditCartao();
   iniciarCorPickerEdit(b.cor || null);
+  iniciarMarcaPickerEdit(b.logoId ?? null);
   abrirModal("conta");
 }
 
@@ -6360,6 +6364,7 @@ document.getElementById("formEditarConta")?.addEventListener("submit", async e =
     saldo_inicial: Number(document.getElementById("editContaSaldo").value),
     saldo_data: document.getElementById("editContaSaldoData")?.value || hojeISO(),
     cor:          _corEscolhidaEdit,
+    logo_id:      _logoEscolhidaEdit,
     tem_cartao:   temCartao,
     limite:         temCartao ? (Number(document.getElementById("editCartaoLimite")?.value) || 0) : null,
     dia_fechamento: temCartao ? (Number(document.getElementById("editCartaoFechamento")?.value) || null) : null,
@@ -6368,7 +6373,7 @@ document.getElementById("formEditarConta")?.addEventListener("submit", async e =
   try {
     const att = await dbUpdate("contas", id, dados);
     const idx = state.bancos.findIndex(b=>b.id===id);
-    if (idx>=0) state.bancos[idx] = { id:att.id, nome:att.nome, tipo:att.tipo, saldoInicial:Number(att.saldo_inicial), saldoData: att.saldo_data || null, cor: att.cor || null, temCartao: att.tem_cartao || false, limite: att.limite != null ? Number(att.limite) : null, diaFechamento: att.dia_fechamento || null, diaVencimento: att.dia_vencimento || null };
+    if (idx>=0) state.bancos[idx] = { id:att.id, nome:att.nome, tipo:att.tipo, saldoInicial:Number(att.saldo_inicial), saldoData: att.saldo_data || null, cor: att.cor || null, logoId: att.logo_id ?? null, temCartao: att.tem_cartao || false, limite: att.limite != null ? Number(att.limite) : null, diaFechamento: att.dia_fechamento || null, diaVencimento: att.dia_vencimento || null };
 
     // Se informou uma fatura em aberto, registra como compra no crédito
     // (vinculada ao cartão) — mesmo motivo do cadastro de conta: um
@@ -9999,11 +10004,83 @@ function irParaContas()       { trocarTela("contas"); }
 
 
 /* ============================================================
-   IDENTIDADE VISUAL DAS CONTAS (v16)
-   Sem logos de banco (marcas registradas — risco jurídico).
-   Cada conta ganha uma cor derivada do nome + a inicial.
-   O usuário pode trocar a cor se quiser.
+   IDENTIDADE VISUAL DAS CONTAS (v16, marcas reais desde v52)
+   Por padrão, cada conta ganha uma cor derivada do nome + a inicial
+   (função de sempre, ver corDoNome/marcaConta). Quem quiser, pode
+   escolher a marca de um banco/corretora conhecido no seletor do
+   formulário — pra um grupo pequeno (Nubank, Itaú, BB, Bradesco,
+   Santander, Caixa, Inter, Binance) usamos o logo oficial de verdade
+   (arquivos em /logos, baixados do Wikimedia Commons); pro resto do
+   catálogo (fintechs, corretoras, exchanges), um selo colorido com a
+   sigla — não é o logo oficial, só uma referência visual reconhecível.
+   Nada disso é obrigatório: o padrão automático (cor + inicial) nunca
+   muda pra quem não mexer no seletor.
    ============================================================ */
+
+/* Catálogo de instituições conhecidas. `logo` = arquivo de logo oficial
+   real (só pros bancos/exchanges mais usados); sem `logo`, cai no selo
+   colorido com `sigla`. `aliases` é usado pra sugerir a marca sozinha
+   conforme o nome digitado no formulário (ver detectarBancoPorNome). */
+const BANCOS_CATALOGO = [
+  // ── Com logo oficial real ──
+  { id: "nubank",    nome: "Nubank",              logo: "logos/nubank.svg",    cor: "#820AD1", sigla: "NU", aliases: ["nubank", "nu"] },
+  { id: "itau",      nome: "Itaú",                logo: "logos/itau.svg",      cor: "#EC7000", sigla: "IT", aliases: ["itau"] },
+  { id: "bb",        nome: "Banco do Brasil",     logo: "logos/bb.svg",        cor: "#FFEF38", sigla: "BB", aliases: ["banco do brasil", "bb"] },
+  { id: "bradesco",  nome: "Bradesco",            logo: "logos/bradesco.svg",  cor: "#CC092F", sigla: "BR", aliases: ["bradesco"] },
+  { id: "santander", nome: "Santander",           logo: "logos/santander.svg", cor: "#EC0000", sigla: "SA", aliases: ["santander"] },
+  { id: "caixa",     nome: "Caixa",               logo: "logos/caixa.svg",     cor: "#0033A0", sigla: "CX", aliases: ["caixa", "caixa economica", "caixa economica federal", "cef"] },
+  { id: "inter",     nome: "Banco Inter",         logo: "logos/inter.svg",     cor: "#FF7A00", sigla: "IN", aliases: ["inter", "banco inter"] },
+  { id: "binance",   nome: "Binance",             logo: "logos/binance.svg",   cor: "#F0B90B", sigla: "BN", aliases: ["binance"] },
+  // ── Selo colorido (sem logo oficial) ──
+  { id: "c6",        nome: "C6 Bank",             cor: "#000000", sigla: "C6", aliases: ["c6", "c6 bank"] },
+  { id: "picpay",    nome: "PicPay",              cor: "#21C25E", sigla: "PP", aliases: ["picpay"] },
+  { id: "mercadopago", nome: "Mercado Pago",      cor: "#009EE3", sigla: "MP", aliases: ["mercado pago", "mercadopago"] },
+  { id: "neon",      nome: "Neon",                cor: "#00A8E3", sigla: "NE", aliases: ["neon"] },
+  { id: "next",      nome: "Next",                cor: "#00FF6B", sigla: "NX", aliases: ["next"] },
+  { id: "btg",       nome: "BTG Pactual",         cor: "#001E62", sigla: "BP", aliases: ["btg", "btg pactual"] },
+  { id: "original",  nome: "Banco Original",      cor: "#7A1FA2", sigla: "OR", aliases: ["original", "banco original"] },
+  { id: "sicoob",    nome: "Sicoob",              cor: "#00A651", sigla: "SB", aliases: ["sicoob"] },
+  { id: "sicredi",   nome: "Sicredi",             cor: "#7DB61C", sigla: "SD", aliases: ["sicredi"] },
+  { id: "safra",     nome: "Banco Safra",         cor: "#003057", sigla: "SF", aliases: ["safra", "banco safra"] },
+  { id: "xp",        nome: "XP Investimentos",    cor: "#000000", sigla: "XP", aliases: ["xp", "xp investimentos"] },
+  { id: "will",      nome: "Will Bank",           cor: "#FFD200", sigla: "WB", aliases: ["will", "will bank"] },
+  { id: "pagbank",   nome: "PagBank",             cor: "#65A300", sigla: "PB", aliases: ["pagbank", "pagseguro"] },
+  { id: "pan",       nome: "Banco Pan",           cor: "#00953B", sigla: "PN", aliases: ["pan", "banco pan"] },
+  { id: "digio",     nome: "Digio",               cor: "#C4007A", sigla: "DG", aliases: ["digio"] },
+  { id: "nomad",     nome: "Nomad",               cor: "#6C4CE3", sigla: "NO", aliases: ["nomad"] },
+  { id: "wise",      nome: "Wise",                cor: "#9FE870", sigla: "WI", aliases: ["wise"] },
+  { id: "coinbase",  nome: "Coinbase",            cor: "#0052FF", sigla: "CB", aliases: ["coinbase"] },
+  { id: "foxbit",    nome: "Foxbit",              cor: "#FF6A00", sigla: "FX", aliases: ["foxbit"] },
+  { id: "mercadobitcoin", nome: "Mercado Bitcoin", cor: "#F7931A", sigla: "MB", aliases: ["mercado bitcoin", "mercadobitcoin"] },
+  { id: "bitso",     nome: "Bitso",               cor: "#00C298", sigla: "BT", aliases: ["bitso"] },
+  { id: "rico",      nome: "Rico Investimentos",  cor: "#00D563", sigla: "RI", aliases: ["rico", "rico investimentos"] },
+  { id: "clear",     nome: "Clear Corretora",     cor: "#000000", sigla: "CL", aliases: ["clear", "clear corretora"] },
+  { id: "99pay",     nome: "99Pay",               cor: "#FFD400", sigla: "99", aliases: ["99pay", "99"] },
+  { id: "ame",       nome: "Ame Digital",         cor: "#FFB000", sigla: "AM", aliases: ["ame", "ame digital"] },
+];
+
+/* Sugere uma instituição do catálogo a partir do nome digitado —
+   por palavra inteira, pra "xp" não "roubar" o match de "expresso"
+   nem coisa parecida. Não é obrigatório: é só o valor automático
+   quando o usuário não escolheu nada no seletor de marca. */
+function detectarBancoPorNome(nome) {
+  const n = normIA(nome);
+  if (!n) return null;
+  for (const b of BANCOS_CATALOGO) {
+    if (b.aliases.some(a => new RegExp(`\\b${a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(n))) return b;
+  }
+  return null;
+}
+
+/* A instituição efetiva de uma conta:
+   - b.logoId === ""  → usuário escolheu explicitamente "sem marca"
+   - b.logoId (id)    → usuário escolheu essa instituição no seletor
+   - b.logoId ausente → automático, tenta reconhecer pelo nome */
+function bancoDaConta(b) {
+  if (b?.logoId === "") return null;
+  if (b?.logoId) return BANCOS_CATALOGO.find(x => x.id === b.logoId) || null;
+  return detectarBancoPorNome(b?.nome);
+}
 
 const CORES_CONTA = [
   "#8B5CF6",  // roxo
@@ -10054,11 +10131,23 @@ function textoSobre(hex) {
   return lum > 0.6 ? "#0A0F1A" : "#FFFFFF";
 }
 
-/* A "marca" da conta: quadrado colorido com a inicial */
+/* A "marca" da conta: logo oficial (se reconhecida), selo colorido com
+   sigla (bancos/exchanges sem logo real no catálogo), ou o padrão de
+   sempre — quadrado colorido com a inicial do nome. */
 function marcaConta(b, tam) {
+  const classe = tam === "sm" ? "marca-conta marca-conta-sm" : "marca-conta";
+  const banco = bancoDaConta(b);
+
+  if (banco?.logo) {
+    return `<span class="${classe} marca-conta-logo"><img src="${banco.logo}" alt="${esc(banco.nome)}" loading="lazy" /></span>`;
+  }
+  if (banco) {
+    const tamSigla = banco.sigla.length > 2 ? "font-size:.72em;" : "";
+    return `<span class="${classe}" style="background:${banco.cor};color:${textoSobre(banco.cor)};${tamSigla}">${esc(banco.sigla)}</span>`;
+  }
+
   const cor = corDaConta(b);
   const letra = (b?.nome || "?").trim()[0]?.toUpperCase() || "?";
-  const classe = tam === "sm" ? "marca-conta marca-conta-sm" : "marca-conta";
   return `<span class="${classe}" style="background:${cor};color:${textoSobre(cor)}">${esc(letra)}</span>`;
 }
 
@@ -10233,6 +10322,132 @@ function iniciarCorPickerEdit(corAtual) {
     montarCorPicker("editCorPicker", _corEscolhidaEdit, c => { _corEscolhidaEdit = c; });
   });
 }
+
+/* ─── Seletor de marca do banco ──────────────────────────
+   Mesmo padrão do seletor de cor: botão discreto → popover no
+   formulário de criação, grade aberta no modal de edição. Por
+   padrão fica em "Automática" (null), que tenta reconhecer o banco
+   pelo nome digitado — ver detectarBancoPorNome. Sem efeito nenhum
+   pra quem nunca abrir esse seletor. */
+
+let _logoEscolhida = null;      // null = automática | "" = sem marca | id do catálogo
+let _logoEscolhidaEdit = null;
+
+function _marcaBadgeHTML(banco) {
+  if (banco === null) {
+    return `<span class="marca-opcao-badge marca-opcao-auto">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4"/></svg>
+    </span>`;
+  }
+  if (banco.logo) return `<span class="marca-opcao-badge marca-opcao-logo"><img src="${banco.logo}" alt="" loading="lazy" /></span>`;
+  return `<span class="marca-opcao-badge" style="background:${banco.cor};color:${textoSobre(banco.cor)}">${esc(banco.sigla)}</span>`;
+}
+
+/* Monta a grade de instituições (com busca opcional) */
+function montarMarcaPicker(elId, logoIdAtual, onPick, filtro) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+
+  const termo = normIA(filtro || "");
+  const lista = termo
+    ? BANCOS_CATALOGO.filter(b => normIA(b.nome).includes(termo) || b.aliases.some(a => a.includes(termo)))
+    : BANCOS_CATALOGO;
+
+  let html = "";
+  if (!termo) {
+    html += `
+      <button type="button" class="marca-opcao ${logoIdAtual == null ? "ativa" : ""}" data-id="__auto__" title="Automática, pelo nome digitado">
+        ${_marcaBadgeHTML(null)}
+        <span class="marca-opcao-nome">Automática</span>
+      </button>
+      <button type="button" class="marca-opcao ${logoIdAtual === "" ? "ativa" : ""}" data-id="__nenhuma__" title="Sem marca — só cor e inicial">
+        <span class="marca-opcao-badge marca-opcao-nenhuma">—</span>
+        <span class="marca-opcao-nome">Sem marca</span>
+      </button>`;
+  }
+  html += lista.map(b => `
+    <button type="button" class="marca-opcao ${logoIdAtual === b.id ? "ativa" : ""}" data-id="${b.id}" title="${esc(b.nome)}">
+      ${_marcaBadgeHTML(b)}
+      <span class="marca-opcao-nome">${esc(b.nome)}</span>
+    </button>
+  `).join("");
+  if (termo && !lista.length) html = `<p class="marca-vazio">Nenhum banco encontrado.</p>`;
+
+  el.innerHTML = html;
+  el.querySelectorAll(".marca-opcao").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      onPick(id === "__auto__" ? null : id === "__nenhuma__" ? "" : id);
+    });
+  });
+}
+
+/* A amostra no botão do formulário de criação */
+function atualizarAmostraMarca() {
+  const am = document.getElementById("marcaAmostra");
+  if (!am) return;
+  const nome = document.getElementById("nomeBanco")?.value || "";
+  am.innerHTML = marcaConta({ nome, logoId: _logoEscolhida }, "sm");
+}
+
+function renderMarcaCreate() {
+  const busca = document.getElementById("marcaBusca");
+  montarMarcaPicker("marcaPicker", _logoEscolhida, c => {
+    _logoEscolhida = c;
+    atualizarAmostraMarca();
+    fecharMarcaPop();
+  }, busca?.value || "");
+}
+
+function iniciarMarcaPicker() {
+  atualizarAmostraMarca();
+  document.getElementById("nomeBanco")?.addEventListener("input", () => {
+    atualizarAmostraMarca();
+    if (document.getElementById("marcaPop")?.classList.contains("aberto")) renderMarcaCreate();
+  });
+  document.getElementById("marcaBusca")?.addEventListener("input", () => renderMarcaCreate());
+}
+
+function abrirMarcaPop() {
+  const pop = document.getElementById("marcaPop");
+  if (!pop) return;
+  const abrindo = !pop.classList.contains("aberto");
+  pop.classList.toggle("aberto", abrindo);
+  pop.closest(".form-panel")?.classList.toggle("tem-pop-aberto", abrindo);
+  if (abrindo) {
+    const busca = document.getElementById("marcaBusca");
+    if (busca) busca.value = "";
+    renderMarcaCreate();
+    busca?.focus();
+  }
+}
+function fecharMarcaPop() {
+  const pop = document.getElementById("marcaPop");
+  pop?.classList.remove("aberto");
+  pop?.closest(".form-panel")?.classList.remove("tem-pop-aberto");
+}
+document.addEventListener("click", e => {
+  const pop = document.getElementById("marcaPop");
+  const btn = document.getElementById("btnMarca");
+  if (!pop?.classList.contains("aberto")) return;
+  if (!pop.contains(e.target) && !btn?.contains(e.target)) fecharMarcaPop();
+});
+
+/* Modal de edição — grade aberta com busca, sem popover */
+function renderMarcaEdit() {
+  const busca = document.getElementById("editMarcaBusca");
+  montarMarcaPicker("editMarcaPicker", _logoEscolhidaEdit, c => {
+    _logoEscolhidaEdit = c;
+    renderMarcaEdit();
+  }, busca?.value || "");
+}
+function iniciarMarcaPickerEdit(logoIdAtual) {
+  _logoEscolhidaEdit = logoIdAtual ?? null;
+  const busca = document.getElementById("editMarcaBusca");
+  if (busca) busca.value = "";
+  renderMarcaEdit();
+}
+document.getElementById("editMarcaBusca")?.addEventListener("input", () => renderMarcaEdit());
 
 
 
@@ -11321,6 +11536,7 @@ async function iniciar() {
   trocarAbaMeta(localStorage.getItem("fp_meta_aba") || "limites");
   restaurarPaineis();
   iniciarCorPicker();
+  iniciarMarcaPicker();
   const ri = document.getElementById("recInicio");
   if (ri && !ri.value) ri.value = hojeISO();
   const tema = localStorage.getItem("fp_tema") || "dark";
@@ -12725,12 +12941,15 @@ const ACOES_IA = {
         saldo_inicial: p.saldo,
         saldo_data: hojeISO(),
         cor: null,          // null = cor automática derivada do nome
+        // logo_id não é enviado de propósito: fica null no banco, que já é o
+        // "automático" — a marca é reconhecida sozinha pelo nome (ver
+        // bancoDaConta/detectarBancoPorNome), sem precisar a IA escolher.
         tem_cartao: false   // cartão de crédito o usuário liga depois, na tela
       });
       state.bancos.push({
         id: novo.id, nome: novo.nome, tipo: novo.tipo,
         saldoInicial: Number(novo.saldo_inicial), saldoData: novo.saldo_data || null,
-        cor: novo.cor || null, temCartao: false,
+        cor: novo.cor || null, logoId: novo.logo_id ?? null, temCartao: false,
         limite: null, diaFechamento: null, diaVencimento: null
       });
       renderTudo();
