@@ -5014,6 +5014,22 @@ function categoriasRevisao() {
 }
 
 let revisaoDados = { itens: [], duvidas: [], bancoId: null };
+// Qual dúvida está em foco no carrossel "um de cada vez" (ver renderRevisao).
+let duvidaAtualIdx = 0;
+
+/* Depois de responder uma dúvida, pula pra próxima que ainda não foi
+   respondida — em vez de deixar a pessoa procurando na lista, o carrossel
+   já vai levando ela pela etapa seguinte sozinho. Se não sobrar nenhuma
+   pendente, fica onde está. */
+function avancarParaProximaPendente() {
+  const total = revisaoDados.duvidas.length;
+  if (!total) return;
+  for (let passo = 1; passo <= total; passo++) {
+    const idx = (duvidaAtualIdx + passo) % total;
+    if (!revisaoDados.duvidas[idx].resposta) { duvidaAtualIdx = idx; return; }
+  }
+}
+
 // Guarda o que foi importado por último, para a IA saber responder
 // perguntas como "quanto gastei nesse extrato que enviei?".
 let ultimaImportacao = null;
@@ -5122,6 +5138,7 @@ function abrirRevisao(lancamentos, duvidas, resumo, bancoId) {
     duvidas: duvidasRestantes.sort(porData),
     bancoId
   };
+  duvidaAtualIdx = 0;
 
   // Registra o extrato que a IA acabou de ler, para responder perguntas
   // como "quanto gastei nesse extrato?" mesmo antes de o usuário salvar.
@@ -5176,23 +5193,37 @@ function renderRevisao() {
   const pendentes = revisaoDados.duvidas.filter(d => !d.resposta);
   let html = "";
 
-  // 1) O que a IA não soube — precisa da ajuda do usuário
+  // 1) O que a IA não soube — precisa da ajuda do usuário. Mostra uma
+  // dúvida de cada vez (carrossel), não a lista inteira empilhada — mais
+  // fácil de acompanhar quando são muitas.
   if (revisaoDados.duvidas.length) {
-    html += `<div class="rev-bloco-duvidas">
-      <div class="rev-bloco-titulo">${pendentes.length
-        ? `${pendentes.length} ${pendentes.length === 1 ? "item precisa" : "itens precisam"} da sua ajuda`
-        : "Tudo respondido, obrigado!"}</div>`;
+    const totalDuvidas = revisaoDados.duvidas.length;
+    if (duvidaAtualIdx >= totalDuvidas) duvidaAtualIdx = totalDuvidas - 1;
+    if (duvidaAtualIdx < 0) duvidaAtualIdx = 0;
+    const i = duvidaAtualIdx;
+    const d = revisaoDados.duvidas[i];
 
-    revisaoDados.duvidas.forEach((d, i) => {
-      const respondida = !!d.resposta;
-      const opcoes = opcoesDaDuvida(d);
-      let confirmacaoTransf = "";
-      if (d.resposta === "__transferencia" && d.transferencia) {
-        const bo = state.bancos.find(b => b.id === d.transferencia.origem);
-        const bd = state.bancos.find(b => b.id === d.transferencia.destino);
-        confirmacaoTransf = `<div class="rev-transf-ok">↔ Transferência: ${esc(bo?.nome || "conta")} → ${esc(bd?.nome || "conta")}. Não conta como gasto.</div>`;
-      }
-      html += `<div class="rev-duvida ${respondida ? "rev-duvida-ok" : "rev-duvida-pendente"}" id="rev-duvida-${i}">
+    const respondida = !!d.resposta;
+    const opcoes = opcoesDaDuvida(d);
+    let confirmacaoTransf = "";
+    if (d.resposta === "__transferencia" && d.transferencia) {
+      const bo = state.bancos.find(b => b.id === d.transferencia.origem);
+      const bd = state.bancos.find(b => b.id === d.transferencia.destino);
+      confirmacaoTransf = `<div class="rev-transf-ok">↔ Transferência: ${esc(bo?.nome || "conta")} → ${esc(bd?.nome || "conta")}. Não conta como gasto.</div>`;
+    }
+
+    html += `<div class="rev-bloco-duvidas">
+      <div class="rev-stepper-head">
+        <div class="rev-bloco-titulo">${pendentes.length
+          ? `${pendentes.length} ${pendentes.length === 1 ? "item precisa" : "itens precisam"} da sua ajuda`
+          : "Tudo respondido, obrigado!"}</div>
+        <div class="rev-stepper-contador">${i + 1} de ${totalDuvidas}</div>
+      </div>
+      <div class="rev-stepper-dots">
+        ${revisaoDados.duvidas.map((dd, di) => `<button type="button" class="rev-stepper-dot ${di === i ? "rev-stepper-dot-atual" : ""} ${dd.resposta ? "rev-stepper-dot-ok" : ""}" data-ir-duvida="${di}" title="Item ${di + 1} de ${totalDuvidas}" aria-label="Ir para o item ${di + 1}"></button>`).join("")}
+      </div>
+
+      <div class="rev-duvida ${respondida ? "rev-duvida-ok" : "rev-duvida-pendente"}" id="rev-duvida-${i}">
         <div class="rev-duvida-topo">
           <span class="rev-duvida-desc">${esc(d.descricao || "")}</span>
           <span class="rev-duvida-val ${d.tipo === "entrada" ? "rev-val-entrada" : "rev-val-saida"}">
@@ -5213,9 +5244,13 @@ function renderRevisao() {
           <button type="button" class="rev-opcao rev-opcao-ignorar ${d.resposta === "__ignorar" ? "rev-opcao-ativa" : ""}"
             data-duvida="${i}" data-opcao="-1">Não importar</button>
         </div>
-      </div>`;
-    });
-    html += `</div>`;
+      </div>
+
+      <div class="rev-stepper-nav">
+        <button type="button" class="rev-stepper-btn rev-stepper-prev" data-stepper-prev ${i === 0 ? "disabled" : ""}>‹ Anterior</button>
+        <button type="button" class="rev-stepper-btn rev-stepper-next" data-stepper-next ${i === totalDuvidas - 1 ? "disabled" : ""}>Próxima ›</button>
+      </div>
+    </div>`;
   }
 
   // 2) O que a IA já resolveu — conferir e corrigir se quiser
@@ -5255,6 +5290,23 @@ function renderRevisao() {
   // elimina o bug de "sempre cair no último item".
   if (!corpo.dataset.ligado) {
     corpo.addEventListener("click", (e) => {
+      // Navegação do carrossel de dúvidas: anterior / próxima / bolinha
+      const btnPrev = e.target.closest("[data-stepper-prev]");
+      if (btnPrev) {
+        if (!btnPrev.disabled) { duvidaAtualIdx = Math.max(0, duvidaAtualIdx - 1); renderRevisao(); }
+        return;
+      }
+      const btnNext = e.target.closest("[data-stepper-next]");
+      if (btnNext) {
+        if (!btnNext.disabled) { duvidaAtualIdx = Math.min(revisaoDados.duvidas.length - 1, duvidaAtualIdx + 1); renderRevisao(); }
+        return;
+      }
+      const dot = e.target.closest("[data-ir-duvida]");
+      if (dot) {
+        const di = Number(dot.dataset.irDuvida);
+        if (!Number.isNaN(di)) { duvidaAtualIdx = di; renderRevisao(); }
+        return;
+      }
       // Botão "Criar categoria agora": abre um campo para digitar e criar
       const btnCriar = e.target.closest(".rev-opcao-criar");
       if (btnCriar) {
@@ -5317,7 +5369,9 @@ function responderDuvida(indice, indiceOpcao) {
   if (!d) return;
   if (indiceOpcao === -1) {
     // Toggle: clicar de novo em "Não importar" desmarca
-    d.resposta = (d.resposta === "__ignorar") ? null : "__ignorar";
+    const ligando = d.resposta !== "__ignorar";
+    d.resposta = ligando ? "__ignorar" : null;
+    if (ligando) avancarParaProximaPendente();
   } else {
     const opcoes = opcoesDaDuvida(d);
     const escolha = opcoes[indiceOpcao] || "Outros";
@@ -5335,8 +5389,9 @@ function responderDuvida(indice, indiceOpcao) {
       d.transferencia = null;
       if (d.tipo === "entrada") {
         d.resposta = "Entrada";
+        avancarParaProximaPendente();
       } else {
-        // vira uma pergunta de categoria normal
+        // vira uma pergunta de categoria normal — ainda pendente, não avança
         d.opcoes = ["Alimentação", "Transporte", "Compras", "Outros"];
         d.resposta = null;
       }
@@ -5351,6 +5406,7 @@ function responderDuvida(indice, indiceOpcao) {
       d.resposta = escolha;
       // Aprende a escolha para não perguntar de novo na próxima importação
       gravarMemoriaCategoria(d.descricao, d.resposta);
+      avancarParaProximaPendente();
     }
   }
   renderRevisao();
@@ -5395,6 +5451,7 @@ function escolherContaTransferencia(indice) {
       d.resposta = "__transferencia";
       d.transferencia = { origem, destino, valor: Number(d.valor) || 0, data: d.data,
         descricao: d.descricao || "Transferência entre contas" };
+      avancarParaProximaPendente();
       renderRevisao();
     });
   });
@@ -5437,10 +5494,47 @@ function abrirTodasCategorias(indice) {
       d.transferencia = null;
       d.resposta = cat;
       gravarMemoriaCategoria(d.descricao, cat);   // aprende para o próximo extrato
+      avancarParaProximaPendente();
       renderRevisao();
     });
   });
   alvo.appendChild(box);
+}
+
+/* Manda pra IA o que a pessoa escreveu sobre um lançamento e devolve a
+   categoria certa: uma que já existe, ou o nome de uma nova pra criar.
+   Usado no "explicar" das dúvidas de transferência — a pessoa descreve o
+   que aconteceu (não digita literalmente o nome de uma categoria) e a IA
+   pensa em qual categoria combina melhor. */
+async function sugerirCategoriaIA(texto, d) {
+  try {
+    const token = localStorage.getItem("fp_token") || "";
+    const resp = await fetch("/api/sugerir-categoria", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        texto,
+        descricao: d?.descricao || "",
+        valor: d?.valor,
+        tipo: d?.tipo,
+        categorias: todasCategorias(),
+        token
+      })
+    });
+    const dados = await resp.json();
+    if (!resp.ok) {
+      if (dados.erro === "upgrade" || dados.erro === "limite") {
+        toast(dados.motivo || "Recurso indisponível agora.", "warning");
+      } else {
+        toast(dados.erro || "Não consegui pensar numa categoria.", "error");
+      }
+      return null;
+    }
+    return dados; // { categoria, nova }
+  } catch (e) {
+    toast("Deu um problema de conexão. Tente de novo.", "error");
+    return null;
+  }
 }
 
 /* Abre um campo para o usuário criar uma categoria na hora (botão "Criar
@@ -5473,23 +5567,49 @@ function abrirCriarCategoria(indice) {
   const btnOk = box.querySelector(".rev-criar-ok");
 
   async function confirmar() {
-    const nome = (input.value || "").trim();
-    if (!nome) { input.focus(); return; }
+    const texto = (input.value || "").trim();
+    if (!texto) { input.focus(); return; }
     btnOk.disabled = true;
-    btnOk.textContent = "Criando…";
-    const criada = await criarCategoriaIA(nome);
-    if (criada) {
-      // Se veio de uma pergunta de transferência, sair do modo transferência —
-      // agora é um lançamento normal, com a categoria que a pessoa explicou.
+
+    if (d.ehTransferencia) {
+      // Aqui a pessoa DESCREVEU o que aconteceu (não digitou o nome de uma
+      // categoria) — manda pra IA pensar na categoria certa, existente ou nova.
+      btnOk.textContent = "Pensando…";
+      const sugestao = await sugerirCategoriaIA(texto, d);
+      if (!sugestao) { btnOk.disabled = false; btnOk.textContent = "Usar"; return; }
+
+      let categoriaFinal = sugestao.categoria;
+      if (sugestao.nova) {
+        const criada = await criarCategoriaIA(categoriaFinal);
+        if (!criada) {
+          btnOk.disabled = false; btnOk.textContent = "Usar";
+          alert("Não consegui criar a categoria sugerida. Tente descrever de outro jeito.");
+          return;
+        }
+        categoriaFinal = criada;
+      }
+      // Sai do modo transferência — agora é um lançamento normal, categorizado.
       d.ehTransferencia = false;
       d.transferencia = null;
-      d.resposta = criada;
-      gravarMemoriaCategoria(d.descricao, criada);   // aprende para o próximo extrato
+      d.resposta = categoriaFinal;
+      gravarMemoriaCategoria(d.descricao, categoriaFinal);
+      avancarParaProximaPendente();
       renderRevisao();
     } else {
-      btnOk.disabled = false;
-      btnOk.textContent = "Criar e usar";
-      alert("Não consegui criar a categoria. Tente outro nome.");
+      // "Criar categoria agora": aqui a pessoa está nomeando a categoria de
+      // propósito — usa o texto do jeito que ela escreveu, sem passar pela IA.
+      btnOk.textContent = "Criando…";
+      const criada = await criarCategoriaIA(texto);
+      if (criada) {
+        d.resposta = criada;
+        gravarMemoriaCategoria(d.descricao, criada);
+        avancarParaProximaPendente();
+        renderRevisao();
+      } else {
+        btnOk.disabled = false;
+        btnOk.textContent = "Criar e usar";
+        alert("Não consegui criar a categoria. Tente outro nome.");
+      }
     }
   }
 
