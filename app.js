@@ -4137,26 +4137,6 @@ function exportarCSV(movs) {
   a.download = `lancamentos_${hojeISO()}.csv`; a.click();
 }
 
-/* ─── CSV Import helpers ─────────────────────────────────── */
-const _normData = s => {
-  if (!s) return null;
-  s = s.trim();
-  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return iso[0];
-  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
-  return null;
-};
-const _normValor = s => {
-  if (!s) return null;
-  let t = s.toString().trim().replace(/\s/g,"").replace(/R\$\s*/,"");
-  const neg = t.includes("-"); t = t.replace(/-/g,"");
-  if (t.includes(",")&&t.includes(".")) t = t.replace(/\./g,"").replace(",",".");
-  else if (t.includes(",")) t = t.replace(",",".");
-  const n = Number(t); return isNaN(n) ? null : neg ? -Math.abs(n) : n;
-};
-
-
 /* ─── Render global ──────────────────────────────────────── */
 function renderTudo() {
   invalidarCacheSaldos();
@@ -4340,25 +4320,6 @@ formBanco?.addEventListener("submit", async e => {
 /* Descobre em qual fatura (AAAA-MM) uma compra cai, pela data e dia de fechamento.
    Compra até o dia do fechamento entra na fatura do mês corrente;
    depois do fechamento, entra na fatura do mês seguinte. */
-function proximoVencimentoCartao(diaVencimento) {
-  // Se não há dia de vencimento, usa 10 dias a partir de hoje como padrão
-  const hoje = new Date();
-  if (!diaVencimento) {
-    const d = new Date(hoje);
-    d.setDate(d.getDate() + 10);
-    return d.toISOString().slice(0, 10);
-  }
-  // Próxima ocorrência do dia de vencimento (este mês se ainda não passou, senão mês que vem)
-  let ano = hoje.getFullYear();
-  let mes = hoje.getMonth();
-  if (hoje.getDate() >= diaVencimento) mes += 1;  // já passou este mês → mês seguinte
-  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
-  const dia = Math.min(diaVencimento, ultimoDia);  // respeita meses curtos
-  const d = new Date(ano, mes, dia);
-  const pad = n => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
 function faturaDaCompra(dataCompra, diaFechamento) {
   const [ano, mes, dia] = String(dataCompra).split("-").map(Number);
   let m = mes, a = ano;
@@ -5007,10 +4968,6 @@ function opcoesDaDuvida(d) {
     if (!juntas.some(x => x.toLowerCase() === nome.toLowerCase())) juntas.push(nome);
   });
   return juntas;
-}
-
-function categoriasRevisao() {
-  return todasCategorias();
 }
 
 let revisaoDados = { itens: [], duvidas: [], bancoId: null };
@@ -7781,13 +7738,6 @@ function mapInvestimento(i) {
   };
 }
 
-/* Nome da instituição a partir do id da conta */
-function nomeInstituicao(contaId) {
-  if (!contaId) return null;
-  const c = state.bancos.find(b => b.id === contaId);
-  return c ? c.nome : null;
-}
-
 /* ============================================================
    SIMULADOR DE RENDIMENTO
    ============================================================ */
@@ -9186,19 +9136,6 @@ function iniciarNavScroll() {
 /* ─── Rolagem suave para âncoras ─────────────────────────── */
 function rolarPara(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-/* Menu hambúrguer da landing no mobile */
-function lpToggleMenu() {
-  const menu = document.getElementById("lpNavMenuMobile");
-  const btn = document.getElementById("lpHamburguer");
-  if (!menu || !btn) return;
-  const aberto = menu.classList.toggle("aberto");
-  btn.classList.toggle("aberto", aberto);
-}
-function lpFecharMenu() {
-  document.getElementById("lpNavMenuMobile")?.classList.remove("aberto");
-  document.getElementById("lpHamburguer")?.classList.remove("aberto");
 }
 
 /* Toggle Mensal/Anual dos planos na landing */
