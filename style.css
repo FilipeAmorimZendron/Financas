@@ -5955,51 +5955,93 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .marca-btn-amostra .marca-conta-sm { margin-right: 0; }
 
-.marca-pop { width: 300px; }
+/* Popover único: marca em cima, cor embaixo — uma coisa só, um botão só */
+.identidade-pop { width: 344px; padding: 16px; }
 
+.identidade-secao + .identidade-secao {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-soft);
+}
+.identidade-secao .cor-pop-titulo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.identidade-secao .cor-pop-titulo svg { width: 13px; height: 13px; opacity: 0.7; }
+
+.identidade-nota {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  margin: -2px 0 10px;
+}
+
+/* Busca com lupa embutida */
+.marca-busca-wrap { position: relative; margin-bottom: 10px; }
+.marca-busca-wrap svg {
+  position: absolute;
+  left: 11px; top: 50%;
+  transform: translateY(-50%);
+  width: 14px; height: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
 .marca-busca {
   width: 100%;
-  height: 36px;
-  padding: 0 12px;
-  margin-bottom: 10px;
+  height: 38px;
+  padding: 0 12px 0 32px;
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
   font-size: 13px;
+  transition: border-color 0.16s, box-shadow 0.16s;
 }
-.marca-busca:focus { border-color: var(--accent); }
+.marca-busca:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
 
 .marca-grade {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  max-height: 260px;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 7px;
+  max-height: 252px;
   overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
 }
-.marca-grade-modal { grid-template-columns: repeat(4, 1fr); }
+.marca-grade-modal {
+  grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  max-height: 300px;
+}
 
 .marca-opcao {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  padding: 8px 4px;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px 4px 8px;
   background: var(--surface2);
-  border: 2px solid transparent;
-  border-radius: 10px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
   cursor: pointer;
-  transition: transform 0.14s, border-color 0.16s, background 0.16s;
+  transition: transform 0.14s, border-color 0.16s, background 0.16s, box-shadow 0.16s;
 }
-.marca-opcao:hover { background: var(--accent-dim); }
-.marca-opcao.ativa { border-color: var(--accent); background: var(--accent-dim); }
+.marca-opcao:hover { background: var(--accent-dim); transform: translateY(-1px); }
+.marca-opcao.ativa {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 4px 14px -6px rgba(0,0,0,0.35);
+}
 
 .marca-opcao-badge {
-  width: 30px;
-  height: 30px;
+  position: relative;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
-  border-radius: 9px;
+  border-radius: 10px;
   font-family: 'Sora', sans-serif;
   font-size: 12px;
   font-weight: 700;
@@ -6012,9 +6054,9 @@ body.sem-internet .layout { padding-top: 34px; }
   color: var(--text-muted);
   border: 1px dashed var(--border);
 }
-.marca-opcao-auto svg { width: 14px; height: 14px; }
+.marca-opcao-auto svg { width: 15px; height: 15px; }
 .marca-opcao-nome {
-  font-size: 10px;
+  font-size: 10.5px;
   line-height: 1.2;
   text-align: center;
   color: var(--text-muted);
@@ -6023,24 +6065,37 @@ body.sem-internet .layout { padding-top: 34px; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.marca-opcao.ativa .marca-opcao-nome { color: var(--text); }
+.marca-opcao.ativa .marca-opcao-nome { color: var(--text); font-weight: 600; }
+
+/* Marquinha de "selecionado" no canto do selo — mais claro que só a borda */
+.marca-opcao.ativa .marca-opcao-badge::after {
+  content: "";
+  position: absolute;
+  top: -4px; right: -4px;
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23011025' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/60% no-repeat;
+  border: 2px solid var(--surface);
+}
 
 .marca-vazio {
   grid-column: 1 / -1;
   text-align: center;
   font-size: 12.5px;
   color: var(--text-muted);
-  padding: 14px 0;
+  padding: 18px 0;
 }
 
 /* A marca com logo oficial: imagem inteira dentro de um selo branco —
    funciona tanto pra ícone quadrado (Nubank, Binance) quanto pra
    logotipo largo (Bradesco, Santander), sem precisar recortar cada um
-   na mão. object-fit:contain garante que nunca distorce. */
+   na mão. object-fit:contain garante que nunca distorce. Sombra suave
+   pra descolar do fundo branco do selo, tipo "adesivo". */
 .marca-conta-logo,
 .marca-opcao-badge.marca-opcao-logo {
   background: #FFFFFF;
   padding: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(0,0,0,0.04);
 }
 .marca-conta-sm.marca-conta-logo { padding: 2px; }
 .marca-conta-logo img,
@@ -6051,8 +6106,25 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 
 @media (max-width: 560px) {
-  .marca-pop { width: 100%; left: 0; right: 0; }
-  .marca-grade-modal { grid-template-columns: repeat(3, 1fr); }
+  .identidade-pop { width: 100%; left: 0; right: 0; }
+  .marca-grade-modal { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+}
+
+/* No modal de edição não há popover — as duas seções (marca e cor)
+   ficam juntas num cartão só, sem parecerem dois campos separados. */
+.field-identidade-edit {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+.field-identidade-edit > label {
+  margin-bottom: 10px;
+}
+.field-identidade-edit .identidade-secao + .identidade-secao {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
 }
 
 /* Botões de ação em ícone (editar, excluir) */

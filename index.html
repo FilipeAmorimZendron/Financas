@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202608221216" />
+  <link rel="stylesheet" href="style.css?v=202608241130" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -312,26 +312,25 @@
                   </select>
                 </div>
                 <div class="field field-cor">
-                  <label for="btnMarca">Marca</label>
-                  <button type="button" class="cor-btn" id="btnMarca" onclick="abrirMarcaPop()" title="Escolher a marca do banco">
+                  <label for="btnMarca">Marca e cor</label>
+                  <button type="button" class="cor-btn" id="btnMarca" onclick="abrirMarcaPop()" title="Escolher a marca e a cor da conta">
                     <span class="marca-btn-amostra" id="marcaAmostra"></span>
                     <svg class="cor-btn-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
-                  <div class="cor-pop marca-pop" id="marcaPop">
-                    <div class="cor-pop-titulo">Marca do banco</div>
-                    <input type="text" class="marca-busca" id="marcaBusca" placeholder="Buscar banco, cartão, corretora..." />
-                    <div class="marca-grade" id="marcaPicker"></div>
-                  </div>
-                </div>
-                <div class="field field-cor">
-                  <label for="btnCor">Cor</label>
-                  <button type="button" class="cor-btn" id="btnCor" onclick="abrirCorPop('corPop')" title="Escolher cor">
-                    <span class="cor-btn-amostra" id="corAmostra"></span>
-                    <svg class="cor-btn-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-                  </button>
-                  <div class="cor-pop" id="corPop">
-                    <div class="cor-pop-titulo">Cor da conta</div>
-                    <div class="cor-grade" id="corPicker"></div>
+                  <div class="cor-pop identidade-pop" id="marcaPop">
+                    <div class="identidade-secao">
+                      <div class="cor-pop-titulo">Marca do banco</div>
+                      <div class="marca-busca-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" class="marca-busca" id="marcaBusca" placeholder="Buscar banco, cartão, corretora..." />
+                      </div>
+                      <div class="marca-grade" id="marcaPicker"></div>
+                    </div>
+                    <div class="identidade-secao">
+                      <div class="cor-pop-titulo">Cor de fundo</div>
+                      <p class="identidade-nota">Só aparece quando não há uma marca (automática ou "Sem marca").</p>
+                      <div class="cor-grade" id="corPicker"></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1843,14 +1842,21 @@
             </div>
           </div>
         </div>
-        <div class="field">
-          <label>Marca do banco</label>
-          <input type="text" class="marca-busca" id="editMarcaBusca" placeholder="Buscar banco, cartão, corretora..." />
-          <div class="marca-grade marca-grade-modal" id="editMarcaPicker"></div>
-        </div>
-        <div class="field">
-          <label>Cor</label>
-          <div class="cor-grade cor-grade-modal" id="editCorPicker"></div>
+        <div class="field field-identidade-edit">
+          <label>Marca e cor</label>
+          <div class="identidade-secao">
+            <div class="cor-pop-titulo">Marca do banco</div>
+            <div class="marca-busca-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" class="marca-busca" id="editMarcaBusca" placeholder="Buscar banco, cartão, corretora..." />
+            </div>
+            <div class="marca-grade marca-grade-modal" id="editMarcaPicker"></div>
+          </div>
+          <div class="identidade-secao">
+            <div class="cor-pop-titulo">Cor de fundo</div>
+            <p class="identidade-nota">Só aparece quando não há uma marca (automática ou "Sem marca").</p>
+            <div class="cor-grade cor-grade-modal" id="editCorPicker"></div>
+          </div>
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-ghost" id="cancelarEditarConta">Cancelar</button>
@@ -3201,6 +3207,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202608221216"></script>
+  <script src="app.js?v=202608241130"></script>
 </body>
 </html>

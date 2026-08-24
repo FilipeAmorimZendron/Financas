@@ -4278,7 +4278,7 @@ formBanco?.addEventListener("submit", async e => {
     if (campoData) campoData.value = hojeISO();
     _corEscolhida = null;
     _logoEscolhida = null;
-    atualizarAmostraCor(); atualizarAmostraMarca(); renderTudo();
+    atualizarAmostraMarca(); renderTudo();
     toast(`Conta "${nome}" adicionada!${faturaMsg}`,"success");
   } catch(err) { tratarErro(err); }
 });
@@ -10057,6 +10057,25 @@ const BANCOS_CATALOGO = [
   { id: "clear",     nome: "Clear Corretora",     cor: "#000000", sigla: "CL", aliases: ["clear", "clear corretora"] },
   { id: "99pay",     nome: "99Pay",               cor: "#FFD400", sigla: "99", aliases: ["99pay", "99"] },
   { id: "ame",       nome: "Ame Digital",         cor: "#FFB000", sigla: "AM", aliases: ["ame", "ame digital"] },
+  { id: "banrisul",  nome: "Banrisul",            cor: "#005CA9", sigla: "BS", aliases: ["banrisul"] },
+  { id: "bv",        nome: "Banco BV",            cor: "#002561", sigla: "BV", aliases: ["bv", "banco bv", "votorantim"] },
+  { id: "paypal",    nome: "PayPal",              cor: "#003087", sigla: "PY", aliases: ["paypal"] },
+  { id: "stone",     nome: "Stone",               cor: "#00A868", sigla: "ST", aliases: ["stone"] },
+  { id: "pjbank",    nome: "PJBank",               cor: "#0B3D91", sigla: "PJ", aliases: ["pjbank"] },
+  { id: "iti",       nome: "Iti (Itaú)",          cor: "#FF6900", sigla: "ITI", aliases: ["iti"] },
+  { id: "bmg",       nome: "Banco BMG",           cor: "#F58220", sigla: "BM", aliases: ["bmg", "banco bmg"] },
+  { id: "sofisa",    nome: "Banco Sofisa",        cor: "#ED1C24", sigla: "SO", aliases: ["sofisa", "banco sofisa"] },
+  { id: "daycoval",  nome: "Banco Daycoval",      cor: "#004A93", sigla: "DC", aliases: ["daycoval", "banco daycoval"] },
+  { id: "cora",      nome: "Cora",                cor: "#1A1A1A", sigla: "CO", aliases: ["cora"] },
+  { id: "zrobank",   nome: "Zro Bank",            cor: "#7B2FF7", sigla: "ZR", aliases: ["zro", "zro bank"] },
+  { id: "superdigital", nome: "Superdigital",     cor: "#EE2E24", sigla: "SU", aliases: ["superdigital"] },
+  { id: "warren",    nome: "Warren",              cor: "#000000", sigla: "WA", aliases: ["warren"] },
+  { id: "toro",      nome: "Toro Investimentos",  cor: "#0B5FFF", sigla: "TO", aliases: ["toro", "toro investimentos"] },
+  { id: "genial",    nome: "Genial Investimentos", cor: "#FF4400", sigla: "GE", aliases: ["genial", "genial investimentos"] },
+  { id: "ativa",     nome: "Ativa Investimentos", cor: "#003DA5", sigla: "AT", aliases: ["ativa", "ativa investimentos"] },
+  { id: "orama",     nome: "Órama",               cor: "#6A1B9A", sigla: "OM", aliases: ["orama"] },
+  { id: "modalmais", nome: "Modalmais",           cor: "#002B5C", sigla: "MM", aliases: ["modalmais", "modal mais"] },
+  { id: "ourinvest", nome: "Ourinvest",           cor: "#B8860B", sigla: "OU", aliases: ["ourinvest"] },
 ];
 
 /* Sugere uma instituição do catálogo a partir do nome digitado —
@@ -10178,8 +10197,10 @@ function nomeConta(b) {
 
 
 /* ─── Seletor de cor ─────────────────────────────────────
-   No formulário é um botão discreto que abre um popover.
-   Cor é detalhe cosmético — não deve competir com nome e saldo. */
+   A grade em si (usada tanto no formulário de criação quanto no
+   modal de edição). No formulário, ela mora dentro do popover
+   único de "Marca e cor" (ver mais abaixo); Cor é detalhe cosmético
+   — só aparece quando não há marca reconhecida. */
 
 let _corEscolhida = null;      // null = automática (derivada do nome)
 let _corEscolhidaEdit = null;
@@ -10243,7 +10264,7 @@ function montarCorPicker(elId, corAtual, onPick) {
     if (!validarHex(v)) { toast("Código inválido. Use o formato #FF5733.", "error"); return; }
     onPick(v);
     el.querySelectorAll(".cor-opcao").forEach(x => x.classList.remove("ativa"));
-    if (elId === "corPicker") { atualizarAmostraCor(); fecharCorPop(); }
+    if (elId === "corPicker") { atualizarAmostraMarca(); fecharMarcaPop(); }
     else { toast("Cor personalizada aplicada.", "success"); }
   };
   hexOk.addEventListener("click", aplicarHex);
@@ -10258,59 +10279,10 @@ function montarCorPicker(elId, corAtual, onPick) {
       if (hexInput) hexInput.value = "";
       if (hexAmostra) hexAmostra.style.background = "transparent";
       if (elId === "corPicker") {
-        atualizarAmostraCor();
-        fecharCorPop();
+        atualizarAmostraMarca();
+        fecharMarcaPop();
       }
     });
-  });
-}
-
-/* A amostra no botão do formulário */
-function atualizarAmostraCor() {
-  const am = document.getElementById("corAmostra");
-  if (!am) return;
-  const nome = document.getElementById("nomeBanco")?.value || "";
-  const cor = _corEscolhida || corDoNome(nome);
-  am.style.background = cor;
-  am.classList.toggle("auto", !_corEscolhida);
-}
-
-/* Popover */
-function abrirCorPop() {
-  const pop = document.getElementById("corPop");
-  if (!pop) return;
-  const abrindo = !pop.classList.contains("aberto");
-  pop.classList.toggle("aberto", abrindo);
-
-  // O painel precisa subir na pilha, senão o popover fica cortado
-  pop.closest(".form-panel")?.classList.toggle("tem-pop-aberto", abrindo);
-
-  if (abrindo) montarCorPicker("corPicker", _corEscolhida, c => { _corEscolhida = c; });
-}
-function fecharCorPop() {
-  const pop = document.getElementById("corPop");
-  pop?.classList.remove("aberto");
-  pop?.closest(".form-panel")?.classList.remove("tem-pop-aberto");
-}
-
-/* Fecha ao clicar fora */
-document.addEventListener("click", e => {
-  const pop = document.getElementById("corPop");
-  const btn = document.getElementById("btnCor");
-  if (!pop?.classList.contains("aberto")) return;
-  if (!pop.contains(e.target) && !btn?.contains(e.target)) fecharCorPop();
-});
-
-/* A cor automática muda conforme o nome */
-function iniciarCorPicker() {
-  atualizarAmostraCor();
-  document.getElementById("nomeBanco")?.addEventListener("input", () => {
-    atualizarAmostraCor();
-    // se o popover estiver aberto, atualiza a opção "auto"
-    const pop = document.getElementById("corPop");
-    if (pop?.classList.contains("aberto")) {
-      montarCorPicker("corPicker", _corEscolhida, c => { _corEscolhida = c; });
-    }
   });
 }
 
@@ -10323,12 +10295,16 @@ function iniciarCorPickerEdit(corAtual) {
   });
 }
 
-/* ─── Seletor de marca do banco ──────────────────────────
-   Mesmo padrão do seletor de cor: botão discreto → popover no
-   formulário de criação, grade aberta no modal de edição. Por
-   padrão fica em "Automática" (null), que tenta reconhecer o banco
-   pelo nome digitado — ver detectarBancoPorNome. Sem efeito nenhum
-   pra quem nunca abrir esse seletor. */
+/* ─── Seletor de marca e cor da conta ─────────────────────
+   Um botão só, um popover só (no formulário de criação): marca do
+   banco em cima, cor de fundo embaixo — a cor só entra em jogo
+   quando não há marca reconhecida (automática sem correspondência,
+   ou "Sem marca" escolhido de propósito). No modal de edição, as
+   duas grades ficam abertas direto, uma embaixo da outra (tem
+   espaço, não precisa de popover). Por padrão a marca fica
+   "Automática" (null), que tenta reconhecer o banco pelo nome
+   digitado — ver detectarBancoPorNome. Sem efeito nenhum pra quem
+   nunca abrir esse seletor. */
 
 let _logoEscolhida = null;      // null = automática | "" = sem marca | id do catálogo
 let _logoEscolhidaEdit = null;
@@ -10382,12 +10358,13 @@ function montarMarcaPicker(elId, logoIdAtual, onPick, filtro) {
   });
 }
 
-/* A amostra no botão do formulário de criação */
+/* A amostra no botão do formulário: reflete a marca OU a cor,
+   o que estiver valendo pra essa conta no momento. */
 function atualizarAmostraMarca() {
   const am = document.getElementById("marcaAmostra");
   if (!am) return;
   const nome = document.getElementById("nomeBanco")?.value || "";
-  am.innerHTML = marcaConta({ nome, logoId: _logoEscolhida }, "sm");
+  am.innerHTML = marcaConta({ nome, logoId: _logoEscolhida, cor: _corEscolhida }, "sm");
 }
 
 function renderMarcaCreate() {
@@ -10399,11 +10376,18 @@ function renderMarcaCreate() {
   }, busca?.value || "");
 }
 
+function renderCorCreate() {
+  montarCorPicker("corPicker", _corEscolhida, c => { _corEscolhida = c; });
+}
+
 function iniciarMarcaPicker() {
   atualizarAmostraMarca();
   document.getElementById("nomeBanco")?.addEventListener("input", () => {
     atualizarAmostraMarca();
-    if (document.getElementById("marcaPop")?.classList.contains("aberto")) renderMarcaCreate();
+    if (document.getElementById("marcaPop")?.classList.contains("aberto")) {
+      renderMarcaCreate();
+      renderCorCreate();
+    }
   });
   document.getElementById("marcaBusca")?.addEventListener("input", () => renderMarcaCreate());
 }
@@ -10418,6 +10402,7 @@ function abrirMarcaPop() {
     const busca = document.getElementById("marcaBusca");
     if (busca) busca.value = "";
     renderMarcaCreate();
+    renderCorCreate();
     busca?.focus();
   }
 }
@@ -11535,7 +11520,6 @@ async function iniciar() {
   restaurarDicas();
   trocarAbaMeta(localStorage.getItem("fp_meta_aba") || "limites");
   restaurarPaineis();
-  iniciarCorPicker();
   iniciarMarcaPicker();
   const ri = document.getElementById("recInicio");
   if (ri && !ri.value) ri.value = hojeISO();
