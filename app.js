@@ -5372,10 +5372,15 @@ function responderDuvida(indice, indiceOpcao) {
         escolherContaTransferencia(indice);   // abre a escolha da outra conta
         return;
       }
-      // "Não": deixa de ser transferência; se era gasto/entrada, precisa de categoria
+      // "Não": deixa de ser transferência; se era gasto/entrada, precisa de categoria.
+      // Importante: d.opcoes precisa CONTER o valor que vai em d.resposta —
+      // senão nenhum botão bate com a resposta e ela só marca visualmente
+      // depois de um segundo clique (o primeiro clique já salva certo, só
+      // não aparecia marcado).
       d.ehTransferencia = false;
       d.transferencia = null;
       if (d.tipo === "entrada") {
+        d.opcoes = ["Entrada"];
         d.resposta = "Entrada";
       } else {
         // vira uma pergunta de categoria normal
