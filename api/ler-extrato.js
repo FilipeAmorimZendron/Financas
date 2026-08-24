@@ -348,8 +348,40 @@ export default async function handler(req, res) {
       ...categoriasUsuario.map(c => c.toLowerCase()),
       "entrada"
     ]);
-    const lancBrutos = Array.isArray(resultado.lancamentos) ? resultado.lancamentos : [];
     const duvidasBrutas = Array.isArray(resultado.duvidas) ? resultado.duvidas : [];
+
+    // ── Rede de segurança pra transferência interna ──
+    // A instrução no prompt pede pra IA marcar isso como dúvida, mas o
+    // modelo às vezes esquece e solta como gasto/entrada normal (visto ao
+    // vivo: um "Transferência interna" virou -R$3.000 de gasto direto,
+    // sem perguntar nada). Confiar só no prompt não é confiável o
+    // suficiente — quem bater com esse padrão de descrição SEMPRE vira
+    // dúvida aqui, não importa o que a IA decidiu.
+    const REGEX_TRANSF_INTERNA = /transfer[eê]ncia\s*interna|internal\s*transfer|movimenta[cç][aã]o\s*entre\s*(saldos?|carteiras?)|entre\s*carteiras|wallet\s*transfer|convers[aã]o\s*de\s*saldo/i;
+
+    const lancBrutos = [];
+    (Array.isArray(resultado.lancamentos) ? resultado.lancamentos : []).forEach(l => {
+      if (l && typeof l === "object" && REGEX_TRANSF_INTERNA.test(String(l.descricao || ""))) {
+        duvidasBrutas.push({
+          data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo || "gasto",
+          ehTransferenciaPropria: true,
+          pergunta: `Esta é uma transferência entre suas próprias contas/carteiras (mencionada como "${l.descricao}") ou um gasto/recebimento real?`,
+          opcoes: ["Sim, é transferência entre minhas contas", "Não, é um gasto/recebimento normal"]
+        });
+      } else {
+        lancBrutos.push(l);
+      }
+    });
+    // Mesma trava pra quem a IA já mandou como dúvida, mas sem marcar
+    // ehTransferenciaPropria (ou com opções de categoria erradas pra essa
+    // pergunta).
+    duvidasBrutas.forEach(d => {
+      if (d && typeof d === "object" && !d.ehTransferenciaPropria && REGEX_TRANSF_INTERNA.test(String(d.descricao || ""))) {
+        d.ehTransferenciaPropria = true;
+        d.pergunta = `Esta é uma transferência entre suas próprias contas/carteiras (mencionada como "${d.descricao}") ou um gasto/recebimento real?`;
+        d.opcoes = ["Sim, é transferência entre minhas contas", "Não, é um gasto/recebimento normal"];
+      }
+    });
 
     const lancamentosOk = [];
     lancBrutos.forEach(l => {
