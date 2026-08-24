@@ -4631,7 +4631,8 @@ formImportarExtrato?.addEventListener("submit", async e => {
                 token: localStorage.getItem("fp_token") || "",
                 hoje: hojeISO(),
                 titular: state.perfil?.nome || "",
-                contas: (state.bancos || []).map(b => b.nome)
+                contas: (state.bancos || []).map(b => b.nome),
+                categorias: todasCategorias()
               })
             });
             if (respIA.ok) {
@@ -4673,6 +4674,7 @@ formImportarExtrato?.addEventListener("submit", async e => {
     corpo.hoje = hojeISO();
     corpo.titular = state.perfil?.nome || "";
     corpo.contas = (state.bancos || []).map(b => b.nome);
+    corpo.categorias = todasCategorias();
 
     const resp = await fetch("/api/ler-extrato", {
       method: "POST",
@@ -4869,6 +4871,7 @@ async function processarExtratosChat(arquivos, bancoId, addChat) {
       corpo.hoje = hojeISO();
       corpo.titular = state.perfil?.nome || "";       // ajuda a IA a detectar transferências suas
       corpo.contas = (state.bancos || []).map(b => b.nome); // nomes das contas do usuário
+      corpo.categorias = todasCategorias(); // pra IA usar as categorias dele (ex: "ADS"), não só as genéricas
 
       const resp = await fetch("/api/ler-extrato", {
         method: "POST",

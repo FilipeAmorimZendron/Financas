@@ -121,7 +121,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { texto, arquivoBase64, tipoArquivo, token, hoje, titular, contas } = req.body || {};
+    const { texto, arquivoBase64, tipoArquivo, token, hoje, titular, contas, categorias } = req.body || {};
 
     if (!texto && !arquivoBase64) {
       return res.status(400).json({ erro: "Envie o conteúdo do extrato." });
@@ -195,6 +195,18 @@ export default async function handler(req, res) {
 
     const dataHoje = hoje || new Date().toISOString().slice(0, 10);
 
+    // Categorias do próprio usuário (fixas do espaço ativo + as que ele criou,
+    // ex: "ADS"), além das 9 oficiais acima. Sem isso a IA nunca sabia que
+    // essas existiam e chutava a categoria genérica mais parecida (ex: um
+    // gasto com Facebook Ads virava "Lazer" em vez de "ADS").
+    const categoriasUsuario = Array.isArray(categorias)
+      ? [...new Set(
+          categorias
+            .map(c => String(c || "").trim())
+            .filter(c => c && !CATEGORIAS.some(o => o.toLowerCase() === c.toLowerCase()))
+        )]
+      : [];
+
     const systemPrompt = [
       "Você é o leitor de extratos do FAZ Finanças, um app brasileiro de finanças pessoais.",
       "Sua tarefa: ler o extrato bancário enviado e transformar cada transação em um lançamento organizado.",
@@ -207,6 +219,9 @@ export default async function handler(req, res) {
       "- Descrição: limpe o texto do banco deixando legível. Ex: 'PAG*IFOOD 4412' vira 'iFood'.",
       "- Ignore linhas que não são transações (saldo anterior, saldo final, cabeçalhos, totais).",
       `- Categorias possíveis: ${CATEGORIAS.join(", ")}. Para entradas, use \"Entrada\".`,
+      categoriasUsuario.length
+        ? `- ALÉM dessas, esta pessoa também tem categorias próprias criadas por ela: ${categoriasUsuario.join(", ")}. Se uma delas descrever o gasto MELHOR que as categorias oficiais acima, use a categoria dela — é a escolha certa nesse caso, não a genérica. Ex.: se ela tem uma categoria "ADS" e o gasto é com Facebook Ads/Google Ads/impulsionamento, use "ADS", não "Lazer" ou "Serviços".`
+        : "",
       "",
       "COMO CATEGORIZAR (use seu conhecimento de marcas e serviços brasileiros):",
       "- Alimentação: supermercados (Pão de Açúcar, Carrefour, Assaí, Extra), restaurantes, lanchonetes, padarias, iFood, Rappi, açougue, hortifruti, delivery de comida.",
@@ -318,7 +333,11 @@ export default async function handler(req, res) {
     // Toda categoria fora da lista oficial é rejeitada: o lançamento vira uma
     // DÚVIDA, para o usuário escolher a categoria nos botões — nunca salvamos
     // uma categoria inventada.
-    const CATS_VALIDAS = new Set([...CATEGORIAS.map(c => c.toLowerCase()), "entrada"]);
+    const CATS_VALIDAS = new Set([
+      ...CATEGORIAS.map(c => c.toLowerCase()),
+      ...categoriasUsuario.map(c => c.toLowerCase()),
+      "entrada"
+    ]);
     const lancBrutos = Array.isArray(resultado.lancamentos) ? resultado.lancamentos : [];
     const duvidasBrutas = Array.isArray(resultado.duvidas) ? resultado.duvidas : [];
 
