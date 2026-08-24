@@ -22,7 +22,7 @@ const CORTE_PLANO_UNICO = "2026-08-13T17:50:58Z";
 // Lê o perfil do usuário no Supabase (usando a service key)
 async function lerPerfil(userId, serviceKey) {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${userId}&select=plano,assinatura_status,ia_usos,ia_reset_em`,
+    `${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${userId}&select=plano,assinatura_status,ia_usos,ia_reset_em,admin`,
     {
       headers: {
         "apikey": serviceKey,
@@ -120,37 +120,44 @@ export default async function handler(req, res) {
         return res.status(403).json({ erro: "upgrade", motivo: "O assistente de IA está disponível pra quem assina o FAZ Finanças." });
       }
 
-      const limite = LIMITES[plano];
-      let usos = perfil.ia_usos || 0;
-      let resetEm = perfil.ia_reset_em ? new Date(perfil.ia_reset_em) : new Date();
-      const agora = new Date();
+      // Conta marcada como admin (ver CLAUDE.md): sem limite de uso e sem
+      // contar/gravar nada em ia_usos. Uso interno (dono testando o app),
+      // nunca ativado por quem assina — não existe caminho no app pra isso.
+      if (perfil.admin) {
+        usosInfo = { usados: 0, limite: Infinity, plano: plano, admin: true };
+      } else {
+        const limite = LIMITES[plano];
+        let usos = perfil.ia_usos || 0;
+        let resetEm = perfil.ia_reset_em ? new Date(perfil.ia_reset_em) : new Date();
+        const agora = new Date();
 
-      if (continuacao) {
-        // Esta chamada é a volta de uma AÇÃO que a IA já executou — faz parte
-        // da mesma pergunta, que já foi cobrada. Não conta de novo e não pode
-        // esbarrar no limite, senão a ação aconteceria sem a IA confirmar.
-        usosInfo = { usados: usos, limite: limite, plano: plano };
-      } else if (usos >= limite) {
-        // Cota zerou: só libera de novo depois de HORAS_RECARGA horas
-        const horasPassadas = (agora - resetEm) / (1000 * 60 * 60);
-        if (horasPassadas >= HORAS_RECARGA) {
-          usos = 0;
-          resetEm = agora;
-        } else {
-          const faltam = Math.ceil(HORAS_RECARGA - horasPassadas);
-          return res.status(429).json({
-            erro: "limite",
-            plano: plano,
-            motivo: `Você atingiu o limite de ${limite} perguntas. Suas próximas perguntas são liberadas em aproximadamente ${faltam} hora(s).`
-          });
+        if (continuacao) {
+          // Esta chamada é a volta de uma AÇÃO que a IA já executou — faz parte
+          // da mesma pergunta, que já foi cobrada. Não conta de novo e não pode
+          // esbarrar no limite, senão a ação aconteceria sem a IA confirmar.
+          usosInfo = { usados: usos, limite: limite, plano: plano };
+        } else if (usos >= limite) {
+          // Cota zerou: só libera de novo depois de HORAS_RECARGA horas
+          const horasPassadas = (agora - resetEm) / (1000 * 60 * 60);
+          if (horasPassadas >= HORAS_RECARGA) {
+            usos = 0;
+            resetEm = agora;
+          } else {
+            const faltam = Math.ceil(HORAS_RECARGA - horasPassadas);
+            return res.status(429).json({
+              erro: "limite",
+              plano: plano,
+              motivo: `Você atingiu o limite de ${limite} perguntas. Suas próximas perguntas são liberadas em aproximadamente ${faltam} hora(s).`
+            });
+          }
         }
-      }
 
-      // Consome uma pergunta (só na primeira volta)
-      if (!continuacao) {
-        usos += 1;
-        await atualizarUso(userId, serviceKey, usos, resetEm.toISOString());
-        usosInfo = { usados: usos, limite: limite, plano: plano };
+        // Consome uma pergunta (só na primeira volta)
+        if (!continuacao) {
+          usos += 1;
+          await atualizarUso(userId, serviceKey, usos, resetEm.toISOString());
+          usosInfo = { usados: usos, limite: limite, plano: plano };
+        }
       }
     }
 

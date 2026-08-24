@@ -55,7 +55,7 @@ async function validarUsuario(token, anonKey) {
 // Lê o perfil (plano) do usuário
 async function lerPerfil(userId, serviceKey) {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${userId}&select=plano,assinatura_status,ia_usos,ia_reset_em`,
+    `${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${userId}&select=plano,assinatura_status,ia_usos,ia_reset_em,admin`,
     { headers: { "apikey": serviceKey, "Authorization": `Bearer ${serviceKey}` } }
   );
   if (!res.ok) return null;
@@ -159,38 +159,44 @@ export default async function handler(req, res) {
         });
       }
 
-      const limite = LIMITES[plano];
-      let usos = perfil.ia_usos || 0;
-      let resetEm = perfil.ia_reset_em ? new Date(perfil.ia_reset_em) : new Date();
-      const agora = new Date();
+      // Conta marcada como admin (ver CLAUDE.md): sem limite, não consome
+      // nem grava nada em ia_usos. Uso interno, nunca ativado pelo app.
+      if (perfil.admin) {
+        usosInfo = { usados: 0, limite: Infinity, plano, custoDesteUso: 0, admin: true };
+      } else {
+        const limite = LIMITES[plano];
+        let usos = perfil.ia_usos || 0;
+        let resetEm = perfil.ia_reset_em ? new Date(perfil.ia_reset_em) : new Date();
+        const agora = new Date();
 
-      // Cota zerou: só libera de novo depois de HORAS_RECARGA horas
-      if (usos >= limite) {
-        const horasPassadas = (agora - resetEm) / (1000 * 60 * 60);
-        if (horasPassadas >= HORAS_RECARGA) {
-          usos = 0; resetEm = agora;
-        } else {
-          const faltam = Math.ceil(HORAS_RECARGA - horasPassadas);
+        // Cota zerou: só libera de novo depois de HORAS_RECARGA horas
+        if (usos >= limite) {
+          const horasPassadas = (agora - resetEm) / (1000 * 60 * 60);
+          if (horasPassadas >= HORAS_RECARGA) {
+            usos = 0; resetEm = agora;
+          } else {
+            const faltam = Math.ceil(HORAS_RECARGA - horasPassadas);
+            return res.status(429).json({
+              erro: "limite", plano,
+              motivo: `Você atingiu o limite de ${limite} usos. Serão liberados em aproximadamente ${faltam} hora(s).`
+            });
+          }
+        }
+
+        // Precisa ter saldo suficiente para o custo desta leitura
+        if (usos + custo > limite) {
+          const restante = Math.max(0, limite - usos);
           return res.status(429).json({
-            erro: "limite", plano,
-            motivo: `Você atingiu o limite de ${limite} usos. Serão liberados em aproximadamente ${faltam} hora(s).`
+            erro: "limite",
+            plano,
+            motivo: `Ler este extrato consome ${custo} do seu limite, mas você tem apenas ${restante} restante(s) neste período.`
           });
         }
-      }
 
-      // Precisa ter saldo suficiente para o custo desta leitura
-      if (usos + custo > limite) {
-        const restante = Math.max(0, limite - usos);
-        return res.status(429).json({
-          erro: "limite",
-          plano,
-          motivo: `Ler este extrato consome ${custo} do seu limite, mas você tem apenas ${restante} restante(s) neste período.`
-        });
+        usos += custo;
+        await atualizarUso(userId, serviceKey, usos, resetEm.toISOString());
+        usosInfo = { usados: usos, limite, plano, custoDesteUso: custo };
       }
-
-      usos += custo;
-      await atualizarUso(userId, serviceKey, usos, resetEm.toISOString());
-      usosInfo = { usados: usos, limite, plano, custoDesteUso: custo };
     }
 
     const dataHoje = hoje || new Date().toISOString().slice(0, 10);
