@@ -218,6 +218,9 @@ export default async function handler(req, res) {
       "- tipo: \"gasto\" para gastos/débitos, \"entrada\" para receitas/créditos. Use exatamente essas duas palavras.",
       "- Descrição: limpe o texto do banco deixando legível. Ex: 'PAG*IFOOD 4412' vira 'iFood'.",
       "- Ignore linhas que não são transações (saldo anterior, saldo final, cabeçalhos, totais).",
+      "- Taxas/impostos ligados a uma compra internacional (linhas como 'IOF Compra Internacional', 'Spread IOF Compra Internacional', 'IOF', 'Imposto sobre operação de câmbio') NÃO viram lançamento separado — são custo embutido da compra vizinha no extrato (geralmente aparecem logo antes/depois dela, mesma data/hora). Ignore essas linhas por completo (nem em \"lancamentos\", nem em \"duvidas\").",
+      "- Pré-autorização de cartão revertida: quando aparece um crédito e um débito do MESMO valor, bem perto um do outro no tempo, com termos como 'AUTH HOLD', 'HOLD TEMPORARY', 'PENDING AUTHORIZATION', 'PRÉ-AUTORIZAÇÃO' — é uma reserva temporária que foi cancelada/liberada, dinheiro nenhum saiu ou entrou de verdade. Ignore o par inteiro (nem o crédito nem o débito viram lançamento).",
+      "- Vendedor/serviço com grafia inconsistente no mesmo extrato (ex.: 'WWW.HOSTINGER.COM', 'hostingercom' e 'hostinger.com' na mesma pessoa) é o MESMO estabelecimento — normalize sempre para o mesmo nome limpo (ex.: 'Hostinger'), pra não espalhar o mesmo gasto em nomes diferentes.",
       `- Categorias possíveis: ${CATEGORIAS.join(", ")}. Para entradas, use \"Entrada\".`,
       categoriasUsuario.length
         ? `- ALÉM dessas, esta pessoa também tem categorias próprias criadas por ela: ${categoriasUsuario.join(", ")}. Se uma delas descrever o gasto MELHOR que as categorias oficiais acima, use a categoria dela — é a escolha certa nesse caso, não a genérica. Ex.: se ela tem uma categoria "ADS" e o gasto é com Facebook Ads/Google Ads/impulsionamento, use "ADS", não "Lazer" ou "Serviços".`
@@ -252,7 +255,7 @@ export default async function handler(req, res) {
       "- Você também pode perguntar sobre QUALQUER outra coisa que te deixe insegura: uma data ambígua,",
       "  um valor que pode ser estorno, uma transferência que talvez não deva virar lançamento, uma",
       "  transação duplicada, etc. Use o campo \"pergunta\" para explicar em português claro e simples.",
-      "- Em cada dúvida, ofereça de 2 a 4 opções curtas para o usuário escolher.",
+      "- Em cada dúvida, ofereça de 2 a 4 opções curtas para o usuário escolher — e as opções têm que combinar com a PERGUNTA: se a dúvida é sobre categoria, ofereça categorias; se é sobre outra coisa (é estorno? é duplicado? a data está certa?), ofereça as respostas certas pra ISSO (ex.: [\"É um estorno\", \"É uma transação real\"]) — nunca ofereça opções de categoria para uma pergunta que não é sobre categoria.",
       "",
       "FORMATO DA RESPOSTA (responda APENAS com JSON válido, sem markdown, sem cercas de código):",
       "{",
