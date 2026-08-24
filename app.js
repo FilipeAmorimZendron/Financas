@@ -5017,17 +5017,15 @@ let revisaoDados = { itens: [], duvidas: [], bancoId: null };
 // Qual dúvida está em foco no carrossel "um de cada vez" (ver renderRevisao).
 let duvidaAtualIdx = 0;
 
-/* Depois de responder uma dúvida, pula pra próxima que ainda não foi
-   respondida — em vez de deixar a pessoa procurando na lista, o carrossel
-   já vai levando ela pela etapa seguinte sozinho. Se não sobrar nenhuma
-   pendente, fica onde está. */
+/* Depois de responder uma dúvida, avança UMA etapa — sempre a próxima da
+   sequência (mesma direção do botão "Próxima"), nunca pulando pra uma
+   pendente lá na frente fora de ordem. Isso mantém o carrossel e as
+   bolinhas sempre andando 1, 2, 3, 4... na ordem que a pessoa vê na tela.
+   Se já estiver na última, fica nela (não dá pra avançar mais). */
 function avancarParaProximaPendente() {
   const total = revisaoDados.duvidas.length;
   if (!total) return;
-  for (let passo = 1; passo <= total; passo++) {
-    const idx = (duvidaAtualIdx + passo) % total;
-    if (!revisaoDados.duvidas[idx].resposta) { duvidaAtualIdx = idx; return; }
-  }
+  duvidaAtualIdx = Math.min(duvidaAtualIdx + 1, total - 1);
 }
 
 // Guarda o que foi importado por último, para a IA saber responder
