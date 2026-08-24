@@ -10638,8 +10638,23 @@ body.scroll-travado {
 .revisao-corpo {
   padding: 18px 22px;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
+  /* Scrollbar fina e discreta (mesmo padrão do menu e do chat da IA) —
+     sem isso, a barra padrão do navegador fica grossa/destoa e ainda
+     "empurra" os botões, deixando o layout com cara de quebrado quando
+     tem muitas dúvidas pra rolar. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-soft) transparent;
+  scrollbar-gutter: stable;
 }
+.revisao-corpo::-webkit-scrollbar { width: 6px; }
+.revisao-corpo::-webkit-scrollbar-track { background: transparent; }
+.revisao-corpo::-webkit-scrollbar-thumb {
+  background: var(--border-soft);
+  border-radius: 100px;
+}
+.revisao-corpo::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 .revisao-rodape {
   display: flex;
   justify-content: flex-end;

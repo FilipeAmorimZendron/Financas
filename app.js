@@ -5208,6 +5208,7 @@ function renderRevisao() {
               data-duvida="${i}" data-opcao="${oi}">${ehSugerida ? "★ " : ""}${esc(op)}</button>`;
           }).join("")}
           ${d.ehTransferencia ? `<button type="button" class="rev-opcao rev-opcao-criar" data-duvida-criar="${i}">✎ Não, é outra coisa (explicar)</button>` : `<button type="button" class="rev-opcao rev-opcao-criar" data-duvida-criar="${i}">➕ Criar categoria agora</button>`}
+          <button type="button" class="rev-opcao rev-opcao-todas" data-duvida-todas="${i}">📋 Selecionar outra categoria</button>
           ${d.ehTransferencia ? "" : `<button type="button" class="rev-opcao rev-opcao-transf" data-duvida-transf="${i}">↔ Transferência entre contas</button>`}
           <button type="button" class="rev-opcao rev-opcao-ignorar ${d.resposta === "__ignorar" ? "rev-opcao-ativa" : ""}"
             data-duvida="${i}" data-opcao="-1">Não importar</button>
@@ -5259,6 +5260,13 @@ function renderRevisao() {
       if (btnCriar) {
         const iDuvida = Number(btnCriar.dataset.duvidaCriar);
         if (!Number.isNaN(iDuvida)) abrirCriarCategoria(iDuvida);
+        return;
+      }
+      // Botão "Selecionar outra categoria": abre a lista completa (fixas + do usuário)
+      const btnTodas = e.target.closest(".rev-opcao-todas");
+      if (btnTodas) {
+        const iDuvida = Number(btnTodas.dataset.duvidaTodas);
+        if (!Number.isNaN(iDuvida)) abrirTodasCategorias(iDuvida);
         return;
       }
       // Botão "Transferência entre contas": reaproveita o fluxo de escolher a conta
@@ -5423,6 +5431,10 @@ function abrirTodasCategorias(indice) {
   box.querySelectorAll("[data-cat-completa]").forEach(btn => {
     btn.addEventListener("click", () => {
       const cat = btn.dataset.catCompleta;
+      // Se veio de uma pergunta de transferência, sair do modo transferência —
+      // agora é um lançamento normal, com a categoria escolhida.
+      d.ehTransferencia = false;
+      d.transferencia = null;
       d.resposta = cat;
       gravarMemoriaCategoria(d.descricao, cat);   // aprende para o próximo extrato
       renderRevisao();
