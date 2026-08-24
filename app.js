@@ -5015,18 +5015,10 @@ function categoriasRevisao() {
 
 let revisaoDados = { itens: [], duvidas: [], bancoId: null };
 // Qual dúvida está em foco no carrossel "um de cada vez" (ver renderRevisao).
+// Responder uma dúvida NÃO troca de item sozinho — quem decide ir pra
+// próxima é a pessoa, clicando "Próxima" ou numa bolinha. Assim ela sempre
+// vê o botão marcado antes de seguir em frente.
 let duvidaAtualIdx = 0;
-
-/* Depois de responder uma dúvida, avança UMA etapa — sempre a próxima da
-   sequência (mesma direção do botão "Próxima"), nunca pulando pra uma
-   pendente lá na frente fora de ordem. Isso mantém o carrossel e as
-   bolinhas sempre andando 1, 2, 3, 4... na ordem que a pessoa vê na tela.
-   Se já estiver na última, fica nela (não dá pra avançar mais). */
-function avancarParaProximaPendente() {
-  const total = revisaoDados.duvidas.length;
-  if (!total) return;
-  duvidaAtualIdx = Math.min(duvidaAtualIdx + 1, total - 1);
-}
 
 // Guarda o que foi importado por último, para a IA saber responder
 // perguntas como "quanto gastei nesse extrato que enviei?".
@@ -5367,9 +5359,7 @@ function responderDuvida(indice, indiceOpcao) {
   if (!d) return;
   if (indiceOpcao === -1) {
     // Toggle: clicar de novo em "Não importar" desmarca
-    const ligando = d.resposta !== "__ignorar";
-    d.resposta = ligando ? "__ignorar" : null;
-    if (ligando) avancarParaProximaPendente();
+    d.resposta = (d.resposta === "__ignorar") ? null : "__ignorar";
   } else {
     const opcoes = opcoesDaDuvida(d);
     const escolha = opcoes[indiceOpcao] || "Outros";
@@ -5387,9 +5377,8 @@ function responderDuvida(indice, indiceOpcao) {
       d.transferencia = null;
       if (d.tipo === "entrada") {
         d.resposta = "Entrada";
-        avancarParaProximaPendente();
       } else {
-        // vira uma pergunta de categoria normal — ainda pendente, não avança
+        // vira uma pergunta de categoria normal
         d.opcoes = ["Alimentação", "Transporte", "Compras", "Outros"];
         d.resposta = null;
       }
@@ -5404,7 +5393,6 @@ function responderDuvida(indice, indiceOpcao) {
       d.resposta = escolha;
       // Aprende a escolha para não perguntar de novo na próxima importação
       gravarMemoriaCategoria(d.descricao, d.resposta);
-      avancarParaProximaPendente();
     }
   }
   renderRevisao();
@@ -5449,7 +5437,6 @@ function escolherContaTransferencia(indice) {
       d.resposta = "__transferencia";
       d.transferencia = { origem, destino, valor: Number(d.valor) || 0, data: d.data,
         descricao: d.descricao || "Transferência entre contas" };
-      avancarParaProximaPendente();
       renderRevisao();
     });
   });
@@ -5492,7 +5479,6 @@ function abrirTodasCategorias(indice) {
       d.transferencia = null;
       d.resposta = cat;
       gravarMemoriaCategoria(d.descricao, cat);   // aprende para o próximo extrato
-      avancarParaProximaPendente();
       renderRevisao();
     });
   });
@@ -5591,7 +5577,6 @@ function abrirCriarCategoria(indice) {
       d.transferencia = null;
       d.resposta = categoriaFinal;
       gravarMemoriaCategoria(d.descricao, categoriaFinal);
-      avancarParaProximaPendente();
       renderRevisao();
     } else {
       // "Criar categoria agora": aqui a pessoa está nomeando a categoria de
@@ -5601,7 +5586,6 @@ function abrirCriarCategoria(indice) {
       if (criada) {
         d.resposta = criada;
         gravarMemoriaCategoria(d.descricao, criada);
-        avancarParaProximaPendente();
         renderRevisao();
       } else {
         btnOk.disabled = false;
