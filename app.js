@@ -45,6 +45,56 @@ const state = {
   })()
 };
 
+/* ── DIAGNÓSTICO TEMPORÁRIO (v53) ──────────────────────────
+   Investigando um bug relatado: depois de importar um extrato,
+   "contas" fantasmas (nome vazio, tipo "gasto"/"entrada" — cara de
+   lançamento, não de conta) aparecem em state.bancos só na memória
+   do navegador (nunca gravam no banco, somem com F5). Não achei o
+   ponto exato revisando o código à mão, então isso aqui grava um log
+   no localStorage (sobrevive a F5!) no instante em que state.bancos
+   crescer de um jeito suspeito, com a pilha de chamadas de onde veio.
+   Não muda nenhum comportamento do app — é só um alarme.
+   Remover depois de achar a causa. */
+(function instalarDiagnosticoBancos() {
+  const pareceMovimento = (o) => o && typeof o === "object" && "descricao" in o && !("nome" in o);
+  const armar = (arr) => {
+    const origPush = arr.push.bind(arr);
+    arr.push = function (...args) {
+      const antes = arr.length;
+      const r = origPush(...args);
+      if (args.length > 3 || args.some(pareceMovimento)) {
+        try {
+          localStorage.setItem("fp_debug_bancos", JSON.stringify({
+            quando: new Date().toISOString(), tipo: "push",
+            antes, depois: arr.length, args: args.slice(0, 3),
+            stack: new Error().stack
+          }));
+        } catch (e) {}
+      }
+      return r;
+    };
+    return arr;
+  };
+  let _real = armar(state.bancos);
+  Object.defineProperty(state, "bancos", {
+    enumerable: true,
+    configurable: true,
+    get() { return _real; },
+    set(v) {
+      if (Array.isArray(v) && v !== _real && _real && v.length > _real.length + 3) {
+        try {
+          localStorage.setItem("fp_debug_bancos", JSON.stringify({
+            quando: new Date().toISOString(), tipo: "reassign",
+            antes: _real.length, depois: v.length, amostra: v.slice(0, 3),
+            stack: new Error().stack
+          }));
+        } catch (e) {}
+      }
+      _real = Array.isArray(v) ? armar(v) : v;
+    }
+  });
+})();
+
 let chartCategoriasPlanilha = null;
 let chartFluxoPlanilha      = null;
 let chartEvolucao           = null;
@@ -4946,6 +4996,11 @@ const CATEGORIAS_BASICAS_REVISAO = ["Alimentação", "Transporte", "Moradia", "C
    categoria criada num item aparece como botão em todos os outros. */
 function opcoesDaDuvida(d) {
   const base = (d && d.opcoes) ? d.opcoes.slice() : CATEGORIAS_BASICAS_REVISAO.slice();
+  // Perguntas que não são de categoria (transferência entre contas próprias,
+  // "isso é estorno?", etc.) têm opções fixas — colar categorias aqui deixaria
+  // botões sem sentido (e a resposta seria interpretada errado: o app só olha
+  // se foi a opção 0 ou não, então "ADS" seria lido como "Não").
+  if (d && d.ehTransferencia) return base;
   const personalizadas = (state.categorias || []).map(c => c.nome);
   const juntas = [...base];
   personalizadas.forEach(nome => {
@@ -5152,7 +5207,7 @@ function renderRevisao() {
             return `<button type="button" class="rev-opcao ${d.resposta === op ? "rev-opcao-ativa" : ""} ${ehSugerida ? "rev-opcao-sugerida" : ""}"
               data-duvida="${i}" data-opcao="${oi}">${ehSugerida ? "★ " : ""}${esc(op)}</button>`;
           }).join("")}
-          ${d.ehTransferencia ? "" : `<button type="button" class="rev-opcao rev-opcao-criar" data-duvida-criar="${i}">➕ Criar categoria agora</button>`}
+          ${d.ehTransferencia ? `<button type="button" class="rev-opcao rev-opcao-criar" data-duvida-criar="${i}">✎ Não, é outra coisa (explicar)</button>` : `<button type="button" class="rev-opcao rev-opcao-criar" data-duvida-criar="${i}">➕ Criar categoria agora</button>`}
           ${d.ehTransferencia ? "" : `<button type="button" class="rev-opcao rev-opcao-transf" data-duvida-transf="${i}">↔ Transferência entre contas</button>`}
           <button type="button" class="rev-opcao rev-opcao-ignorar ${d.resposta === "__ignorar" ? "rev-opcao-ativa" : ""}"
             data-duvida="${i}" data-opcao="-1">Não importar</button>
@@ -5388,7 +5443,14 @@ function abrirCriarCategoria(indice) {
 
   const box = document.createElement("div");
   box.className = "rev-criar-cat";
-  box.innerHTML = `
+  box.innerHTML = d.ehTransferencia
+    ? `
+    <div class="rev-criar-rotulo">O que é, de verdade? (vira a categoria do lançamento)</div>
+    <div class="rev-criar-linha">
+      <input type="text" class="rev-criar-input" maxlength="40" placeholder="Ex: reembolso de fornecedor, pagamento de cliente..." />
+      <button type="button" class="rev-criar-ok">Usar</button>
+    </div>`
+    : `
     <div class="rev-criar-rotulo">Nome da nova categoria:</div>
     <div class="rev-criar-linha">
       <input type="text" class="rev-criar-input" maxlength="40" placeholder="Ex: Pets, Assinaturas, Viagem" />
@@ -5405,6 +5467,10 @@ function abrirCriarCategoria(indice) {
     btnOk.textContent = "Criando…";
     const criada = await criarCategoriaIA(nome);
     if (criada) {
+      // Se veio de uma pergunta de transferência, sair do modo transferência —
+      // agora é um lançamento normal, com a categoria que a pessoa explicou.
+      d.ehTransferencia = false;
+      d.transferencia = null;
       d.resposta = criada;
       gravarMemoriaCategoria(d.descricao, criada);   // aprende para o próximo extrato
       renderRevisao();
