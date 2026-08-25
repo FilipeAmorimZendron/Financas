@@ -9577,15 +9577,26 @@ body.sem-internet .layout { padding-top: 34px; }
   background: #08152A;
   border: 2px solid rgba(245,165,36,0.55);
   border-radius: 24px;
-  padding: 48px 38px 40px;
+  padding: 32px 30px 26px;
   text-align: center;
   box-shadow: 0 0 0 4px rgba(245,165,36,0.12), 0 50px 120px -30px rgba(0,0,0,0.4);
 }
+/* Moldura interna — uma segunda borda mais fina, um pouco pra dentro,
+   dando o efeito de "quadro emoldurado" em vez de um card liso. */
+.lp-assinar-shell::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border: 1px solid rgba(245,165,36,0.25);
+  border-radius: 16px;
+  pointer-events: none;
+}
+.lp-assinar-shell-empresarial::before { border-color: rgba(30,246,221,0.25); }
 .lp-assinar-badge {
   display: block;
   width: fit-content;
   padding: 4px 15px;
-  margin: 0 auto 18px;
+  margin: 0 auto 12px;
   border-radius: 100px;
   background: linear-gradient(135deg, #FDB750, var(--lp-amber));
   color: #1a1205;
@@ -9595,14 +9606,14 @@ body.sem-internet .layout { padding-top: 34px; }
   letter-spacing: 0.03em;
   box-shadow: 0 4px 18px rgba(245,165,36,0.45);
 }
-.lp-assinar-logo { height: 26px; margin-bottom: 20px; }
+.lp-assinar-logo { height: 26px; margin-bottom: 14px; }
 /* Ícone Pessoal/Empresarial no topo do card — mesmo desenho do seletor
    da sidebar (.contexto-btn), em vez do logo (que fica com fundo
    estranho em cima de fundo escuro). */
 .lp-assinar-icone {
-  width: 46px;
-  height: 46px;
-  margin: 0 auto 18px;
+  width: 38px;
+  height: 38px;
+  margin: 0 auto 12px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -9611,7 +9622,7 @@ body.sem-internet .layout { padding-top: 34px; }
   border: 1px solid rgba(245,165,36,0.35);
   color: var(--lp-amber);
 }
-.lp-assinar-icone svg { width: 22px; height: 22px; }
+.lp-assinar-icone svg { width: 18px; height: 18px; }
 .lp-assinar-icone-empresarial {
   background: rgba(30,246,221,0.12);
   border-color: rgba(30,246,221,0.35);
@@ -9619,49 +9630,50 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .lp-assinar-titulo {
   font-family: 'Sora', sans-serif;
-  font-size: 25px;
+  font-size: 21px;
   font-weight: 700;
   color: var(--lp-text);
-  margin: 0 0 9px;
+  margin: 0 0 5px;
 }
-.lp-assinar-sub { font-size: 15px; color: var(--lp-text-dim); margin: 0 0 26px; line-height: 1.5; }
+.lp-assinar-sub { font-size: 14px; color: var(--lp-text-dim); margin: 0 0 16px; line-height: 1.45; }
 .lp-assinar-preco {
   display: flex;
   align-items: baseline;
   justify-content: center;
   gap: 3px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
-.lp-assinar-preco-moeda { font-size: 17px; font-weight: 700; color: var(--lp-teal); }
-.lp-assinar-preco-valor { font-size: 46px; font-weight: 800; color: var(--lp-teal); line-height: 1; }
-.lp-assinar-preco-ciclo { font-size: 15px; color: var(--lp-text-dim); margin-left: 2px; }
+.lp-assinar-preco-moeda { font-size: 16px; font-weight: 700; color: var(--lp-teal); }
+.lp-assinar-preco-valor { font-size: 38px; font-weight: 800; color: var(--lp-teal); line-height: 1; }
+.lp-assinar-preco-ciclo { font-size: 14px; color: var(--lp-text-dim); margin-left: 2px; }
 .lp-assinar-preco-nota {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--lp-amber);
-  margin: 0 0 28px;
+  margin: 0 0 14px;
 }
+.lp-assinar-shell .cupom-box { margin: 0 0 14px; }
 .lp-assinar-lista {
   list-style: none;
-  margin: 0 0 30px;
+  margin: 0 0 20px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 10px;
   text-align: left;
 }
 .lp-assinar-lista li {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--lp-text);
-  line-height: 1.48;
+  line-height: 1.42;
 }
-.lp-assinar-lista li svg { width: 17px; height: 17px; flex-shrink: 0; margin-top: 1px; color: var(--lp-teal); }
+.lp-assinar-lista li svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; color: var(--lp-teal); }
 .lp-assinar-btn {
   width: 100%;
-  padding: 17px;
+  padding: 15px;
   background: linear-gradient(135deg, #FDB750, var(--lp-amber));
   color: #1a1205;
   border: none;
@@ -9677,9 +9689,10 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-assinar-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 38px rgba(245,165,36,0.55); }
 @media (hover: none) { .lp-assinar-btn:hover { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .lp-assinar-btn { animation: none; } }
-.lp-assinar-rodape { margin: 16px 0 0; font-size: 12.5px; font-weight: 600; color: var(--lp-text-dim); line-height: 1.5; }
+.lp-assinar-rodape { margin: 10px 0 0; font-size: 12.5px; font-weight: 600; color: var(--lp-text-dim); line-height: 1.5; }
 @media (max-width: 480px) {
-  .lp-assinar-shell { padding: 36px 24px 28px; }
+  .lp-assinar-shell { padding: 28px 22px 22px; }
+  .lp-assinar-shell::before { inset: 7px; }
 }
 
 /* Card Empresarial: mesmo desenho do Pessoal, mas em teal (a cor da marca)
