@@ -8953,7 +8953,10 @@ body.sem-internet .layout { padding-top: 34px; }
 .planos-grid-duo {
   grid-template-columns: repeat(2, minmax(0, 380px));
   justify-content: center;
+  align-items: stretch;
 }
+.planos-grid-duo .plano-card { height: 100%; }
+.planos-grid-duo .plano-lista { margin-top: auto; }
 .plano-card {
   position: relative;
   padding: 24px 22px;
