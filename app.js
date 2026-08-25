@@ -9329,13 +9329,13 @@ function trocarCenarioDemo() {
    deixa tudo montado e PARADO por alguns segundos, depois limpa e recomeça.
    Evita a sobreposição/piscada que acontecia com só CSS. */
 const LP_CHAT_ROTEIRO = [
-  { tipo: "ia",  texto: 'Olá! 👋 Sou o Assistente FAZ. Me conta um gasto que eu registro pra você.', hora: "12:40" },
+  { tipo: "ia",  texto: 'Olá! Sou o Assistente FAZ. Me conta um gasto que eu registro pra você 👋', hora: "12:40" },
   { tipo: "eu",  texto: 'gastei 200 de gasolina', hora: "12:41" },
   { tipo: "dig" },
   { tipo: "ia",  texto: 'Anotado! <strong>R$ 200,00</strong> em <strong>Transporte</strong>, hoje. Categorizei sozinho ✓', hora: "12:41", notifica: true },
   { tipo: "eu",  texto: 'quanto posso gastar até o fim do mês?', hora: "12:42" },
   { tipo: "dig" },
-  { tipo: "ia",  texto: 'Você ainda tem <strong>R$ 1.240,00</strong> de sobra real — já descontando as contas que faltam pagar.', hora: "12:42" },
+  { tipo: "ia",  texto: 'Você ainda tem <strong>R$ 1.240,00</strong> de sobra real, já descontando as contas que faltam pagar.', hora: "12:42" },
 ];
 
 let _lpChatTimers = [];
@@ -14867,17 +14867,14 @@ async function executarAcaoIA(acao) {
       const retomou = restaurarChat();
       if (!retomou) {
         const nome = primeiroNome();
-        const abertura = nome ? "Oi, " + nome + "! 👋" : "Oi! 👋";
+        const abertura = nome ? "Oi, " + nome + "!" : "Oi!";
         // Saudação muda conforme o espaço ativo — nunca mistura os dois na
         // mesma mensagem (ver ESPAÇOS PESSOAL E EMPRESARIAL em chat-ia.js).
+        // Curta, pontuação correta, sem travessão, terminando em emoji.
         const empresarial = state.contextoAtivo === "empresarial";
         const saudacao = empresarial
-          ? abertura + " Sou o Assistente FAZ, aqui no espaço **Empresarial** — registro gastos, contas, metas e mais da sua empresa, do jeito que você falar.\n\n" +
-            "Ex: \"paguei 800 de fornecedor\" ou \"o aluguel do escritório é 2500 todo dia 5\".\n\n" +
-            "O que você precisa?"
-          : abertura + " Sou o Assistente FAZ — registro gastos, contas, metas e mais, do jeito que você falar.\n\n" +
-            "Ex: \"gastei 50 no mercado\" ou \"meu aluguel é 1500 todo dia 10\".\n\n" +
-            "O que você precisa?";
+          ? abertura + " Sou o Assistente FAZ no espaço **Empresarial**. Me conta um gasto, tipo \"paguei 800 de fornecedor\", que eu registro pra você 👋"
+          : abertura + " Sou o Assistente FAZ. Me conta um gasto, tipo \"gastei 50 no mercado\", que eu registro pra você 👋";
         addMsg(saudacao, "ia");
         conversaIniciada = true;
       }
