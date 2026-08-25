@@ -9575,11 +9575,11 @@ body.sem-internet .layout { padding-top: 34px; }
   max-width: 440px;
   margin: 0 auto;
   background: #08152A;
-  border: 2px solid rgba(245,165,36,0.55);
+  border: 3px solid rgba(245,165,36,0.55);
   border-radius: 24px;
   padding: 32px 30px 26px;
   text-align: center;
-  box-shadow: 0 0 0 4px rgba(245,165,36,0.12), 0 50px 120px -30px rgba(0,0,0,0.4);
+  box-shadow: 0 50px 120px -30px rgba(0,0,0,0.4);
 }
 /* Moldura interna — uma segunda borda mais fina, um pouco pra dentro,
    dando o efeito de "quadro emoldurado" em vez de um card liso. */
@@ -9587,7 +9587,7 @@ body.sem-internet .layout { padding-top: 34px; }
   content: "";
   position: absolute;
   inset: 9px;
-  border: 1px solid rgba(245,165,36,0.25);
+  border: 2px solid rgba(245,165,36,0.25);
   border-radius: 16px;
   pointer-events: none;
 }
@@ -9700,7 +9700,7 @@ body.sem-internet .layout { padding-top: 34px; }
    "Empresarial" por escrito, e o botão tem texto diferente). */
 .lp-assinar-shell-empresarial {
   border-color: rgba(30,246,221,0.4);
-  box-shadow: 0 0 0 4px rgba(30,246,221,0.1), 0 50px 120px -30px rgba(0,0,0,0.4);
+  box-shadow: 0 50px 120px -30px rgba(0,0,0,0.4);
 }
 .lp-assinar-badge-empresarial {
   background: linear-gradient(135deg, var(--lp-teal-soft, #19D1BB), var(--lp-teal, #1EF6DD));
