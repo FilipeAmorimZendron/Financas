@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202608242310" />
+  <link rel="stylesheet" href="style.css?v=202608251226" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -2806,10 +2806,14 @@
       <p class="lp-eyebrow">Planos</p>
       <h2 class="lp-h2">Pessoal ou Empresarial.<br>Sem misturar as finanças.</h2>
       <p class="lp-p lp-planos-sub">Sem versão limitada, sem trava de recursos, sem letra miúda. Assine o que precisa — e pode ter os dois, cada um no seu próprio espaço.</p>
+      <div class="plano-selector" role="tablist" aria-label="Escolher tipo de plano">
+        <button type="button" class="plano-selector-opt ativo" data-plano="pessoal" role="tab" aria-selected="true" onclick="selecionarPlanoLanding('pessoal')">Pessoal</button>
+        <button type="button" class="plano-selector-opt" data-plano="empresarial" role="tab" aria-selected="false" onclick="selecionarPlanoLanding('empresarial')">Empresarial</button>
+      </div>
     </div>
 
-    <div class="lp-planos-grid lp-planos-grid-duo">
-      <div class="lp-assinar-shell reveal">
+    <div class="lp-planos-grid lp-planos-grid-selecionavel">
+      <div class="lp-assinar-shell ativo" data-plano="pessoal">
         <span class="lp-assinar-badge">Pessoal</span>
         <div class="lp-assinar-icone">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -2845,7 +2849,7 @@
         <p class="lp-assinar-rodape">✓ Cancele quando quiser &nbsp;·&nbsp; ✓ Pagamento seguro pelo Asaas</p>
       </div>
 
-      <div class="lp-assinar-shell lp-assinar-shell-empresarial reveal">
+      <div class="lp-assinar-shell lp-assinar-shell-empresarial" data-plano="empresarial">
         <span class="lp-assinar-badge lp-assinar-badge-empresarial">Empresarial</span>
         <div class="lp-assinar-icone lp-assinar-icone-empresarial">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg>
@@ -3207,6 +3211,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202608242310"></script>
+  <script src="app.js?v=202608251226"></script>
 </body>
 </html>

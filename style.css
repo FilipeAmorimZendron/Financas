@@ -9271,6 +9271,95 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .lp-planos-grid-duo .lp-assinar-shell { display: flex; flex-direction: column; height: 100%; }
 .lp-planos-grid-duo .lp-assinar-lista { flex: 1; }
+
+/* Seletor Pessoal/Empresarial da landing — só um card aparece por vez,
+   escolhido pelo botão logo abaixo do texto de título da seção. */
+.plano-selector {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-line);
+  border-radius: 100px;
+  padding: 4px;
+  margin: 22px auto 0;
+}
+.plano-selector-opt {
+  border: none;
+  background: transparent;
+  color: var(--lp-text-dim);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 9px 26px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.plano-selector-opt.ativo[data-plano="pessoal"] {
+  background: linear-gradient(135deg, #FDB750, var(--lp-amber));
+  color: #1a1205;
+}
+.plano-selector-opt.ativo[data-plano="empresarial"] {
+  background: linear-gradient(135deg, var(--lp-teal-soft, #19D1BB), var(--lp-teal, #1EF6DD));
+  color: #062420;
+}
+@media (max-width: 480px) {
+  .plano-selector-opt { padding: 8px 19px; font-size: 13px; }
+}
+
+/* Card único visível por vez: os dois ficam empilhados na mesma célula do
+   grid (grid-area igual pros dois) e o CSS troca opacidade/brilho/escala
+   de um pro outro — dá o efeito de "bloom" (estoura claro e assenta). */
+.lp-planos-grid-selecionavel {
+  grid-template-columns: minmax(0, 440px);
+  justify-content: center;
+}
+.lp-planos-grid-selecionavel .lp-assinar-shell {
+  grid-area: 1 / 1;
+  width: 100%;
+  opacity: 0;
+  transform: scale(0.94);
+  filter: brightness(1.9) blur(5px);
+  pointer-events: none;
+  transition: opacity 0.5s cubic-bezier(0.22, 0.8, 0.25, 1),
+              transform 0.5s cubic-bezier(0.22, 0.8, 0.25, 1),
+              filter 0.55s ease;
+}
+.lp-planos-grid-selecionavel .lp-assinar-shell.ativo {
+  opacity: 1;
+  transform: scale(1);
+  filter: brightness(1) blur(0);
+  pointer-events: auto;
+  z-index: 2;
+}
+/* Brilho que estoura ao redor do card quando ele entra (efeito bloom) */
+.lp-planos-grid-selecionavel .lp-assinar-shell::after {
+  content: "";
+  position: absolute;
+  inset: -30px;
+  border-radius: 32px;
+  background: radial-gradient(circle, var(--plano-glow, rgba(245,165,36,0.55)) 0%, transparent 72%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+.lp-planos-grid-selecionavel .lp-assinar-shell-empresarial { --plano-glow: rgba(30,246,221,0.55); }
+.lp-planos-grid-selecionavel .lp-assinar-shell.plano-bloom::after {
+  animation: planoBloomPulse 0.7s ease-out;
+}
+@keyframes planoBloomPulse {
+  0% { opacity: 0; transform: scale(0.7); }
+  40% { opacity: 0.9; transform: scale(1.15); }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-planos-grid-selecionavel .lp-assinar-shell {
+    transition: opacity 0.2s ease;
+    transform: none !important;
+    filter: none !important;
+  }
+  .lp-planos-grid-selecionavel .lp-assinar-shell.plano-bloom::after { animation: none; }
+}
 .lp-plano {
   position: relative;
   padding: 28px 24px;

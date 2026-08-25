@@ -9138,6 +9138,27 @@ function rolarPara(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+/* Seletor Pessoal/Empresarial dos cards de plano na landing — mostra só
+   um card por vez, com um brilho (bloom) na entrada do escolhido. */
+function selecionarPlanoLanding(tipo) {
+  document.querySelectorAll(".plano-selector-opt").forEach(b => {
+    const ativo = b.dataset.plano === tipo;
+    b.classList.toggle("ativo", ativo);
+    b.setAttribute("aria-selected", ativo ? "true" : "false");
+  });
+  document.querySelectorAll(".lp-planos-grid-selecionavel .lp-assinar-shell").forEach(card => {
+    const ativar = card.dataset.plano === tipo;
+    card.classList.toggle("ativo", ativar);
+    if (ativar) {
+      // Remove e força reflow antes de reaplicar, pra reiniciar a
+      // animação do brilho mesmo clicando rápido de novo no mesmo botão.
+      card.classList.remove("plano-bloom");
+      void card.offsetWidth;
+      card.classList.add("plano-bloom");
+    }
+  });
+}
+
 /* Toggle Mensal/Anual dos planos na landing */
 (function () {
   const toggle = document.getElementById("lpPlanosToggle");
