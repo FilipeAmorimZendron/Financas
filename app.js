@@ -9029,6 +9029,66 @@ async function iniciarExclusaoConta() {
   }
 }
 
+/* Cancelamento de assinatura self-service (Conta > Cancelar assinatura).
+   Dois passos: (1) um aviso com a data até quando o acesso continua e um
+   lembrete de que dá pra falar com o suporte antes de ir embora — chance
+   real de reconsiderar, sem travar quem já decidiu; (2) a confirmação
+   final, que só aí cancela de verdade. */
+async function cancelarAssinatura() {
+  const dataAcesso = state.perfil?.proximaCobranca
+    ? new Date(state.perfil.proximaCobranca + "T00:00:00").toLocaleDateString("pt-BR")
+    : null;
+
+  // Passo 1: aviso — não cancela nada ainda, só confirma que a pessoa quer seguir.
+  const seguir = await confirmar("Antes de cancelar", {
+    tipo: "neutro",
+    descricao: dataAcesso
+      ? `Você continua com acesso completo até <strong>${dataAcesso}</strong>, mesmo cancelando agora — não tem cobrança depois disso.<br><br>Se o motivo for o preço ou alguma dificuldade, manda um e-mail pra <strong>suporte@fazfinancas.com</strong> antes: às vezes dá pra resolver sem precisar cancelar.`
+      : `Você continua com acesso completo até o fim do período já pago — não tem cobrança depois disso.<br><br>Se o motivo for o preço ou alguma dificuldade, manda um e-mail pra <strong>suporte@fazfinancas.com</strong> antes: às vezes dá pra resolver sem precisar cancelar.`,
+    okLabel: "Quero cancelar mesmo assim",
+    cancelLabel: "Voltar",
+  });
+  if (!seguir) return;
+
+  // Passo 2: confirmação final — só aqui cancela de verdade.
+  const ok = await confirmar("Cancelar sua assinatura?", {
+    tipo: "perigo",
+    descricao: "Isso cancela a renovação automática — a cobrança do próximo mês não vai acontecer. Seus dados continuam salvos normalmente.",
+    okLabel: "Cancelar assinatura",
+    cancelLabel: "Manter assinatura",
+  });
+  if (!ok) return;
+
+  mostrarLoading(true);
+  try {
+    const resp = await fetch("/api/cancelar-assinatura", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: localStorage.getItem("fp_token") || "" })
+    });
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      throw new Error(dados.erro || "Não foi possível cancelar agora. Tente novamente em instantes.");
+    }
+
+    // Atualiza o estado local na hora — não espera o webhook pra refletir na tela.
+    if (state.perfil) state.perfil.assinaturaStatus = "cancelada_fim_ciclo";
+
+    const ateData = dados.acessoAte
+      ? new Date(dados.acessoAte + "T00:00:00").toLocaleDateString("pt-BR")
+      : dataAcesso;
+    toast(
+      ateData ? `Assinatura cancelada. Acesso mantido até ${ateData}.` : "Assinatura cancelada. Acesso mantido até o fim do período já pago.",
+      "success"
+    );
+    mostrarLoading(false);
+    renderConta();
+  } catch (err) {
+    mostrarLoading(false);
+    tratarErro(err);
+  }
+}
+
 /* Prompt de texto (para a confirmação de exclusão) */
 function promptTexto(msg, esperado) {
   return new Promise(resolve => {
@@ -9503,6 +9563,19 @@ function renderConta() {
     assinaturaDesc.textContent = (plano === "master" || plano === "premium")
       ? `Você está no plano ${nomePlano}`
       : "Você está no plano gratuito";
+  }
+
+  // Linha "Cancelar assinatura" — só aparece pra quem tem assinatura paga
+  // ativa de verdade (não pra quem tem acesso de graça por ser anterior ao
+  // plano único, nem pra quem já cancelou e está no período final de acesso).
+  const linhaCancelar = document.getElementById("contaLinhaCancelar");
+  if (linhaCancelar) {
+    linhaCancelar.hidden = state.perfil?.assinaturaStatus !== "ativa";
+    const cancelarDesc = document.getElementById("contaCancelarDesc");
+    if (cancelarDesc && state.perfil?.proximaCobranca) {
+      const data = new Date(state.perfil.proximaCobranca + "T00:00:00").toLocaleDateString("pt-BR");
+      cancelarDesc.textContent = `Sem multa, sem burocracia — acesso continua até ${data}`;
+    }
   }
 
   // Rótulo do tema

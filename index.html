@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202608251347" />
+  <link rel="stylesheet" href="style.css?v=202608251446" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -1490,6 +1490,18 @@
                 <div>
                   <div class="conta-linha-titulo">Assinatura</div>
                   <div class="conta-linha-desc" id="contaAssinaturaDesc">Você está no plano gratuito</div>
+                </div>
+              </div>
+              <svg class="conta-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <!-- Só aparece pra quem tem assinatura paga ativa (renderConta() controla o hidden) -->
+            <button class="conta-linha" id="contaLinhaCancelar" onclick="cancelarAssinatura()" hidden>
+              <div class="conta-linha-esq">
+                <span class="conta-linha-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg></span>
+                <div>
+                  <div class="conta-linha-titulo">Cancelar assinatura</div>
+                  <div class="conta-linha-desc" id="contaCancelarDesc">Sem multa, sem burocracia</div>
                 </div>
               </div>
               <svg class="conta-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -3217,6 +3229,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202608251347"></script>
+  <script src="app.js?v=202608251446"></script>
 </body>
 </html>

@@ -224,6 +224,15 @@ export default async function handler(req, res) {
       "- tipo: \"gasto\" para gastos/débitos, \"entrada\" para receitas/créditos. Use exatamente essas duas palavras.",
       "- Descrição: limpe o texto do banco deixando legível. Ex: 'PAG*IFOOD 4412' vira 'iFood'.",
       "- Ignore linhas que não são transações (saldo anterior, saldo final, cabeçalhos, totais).",
+      "",
+      "PDFS E FOTOS DE EXTRATO — cuidados extras (não se aplicam a CSV/OFX):",
+      "- Extratos em PDF costumam ter uma coluna de SALDO ao lado de cada transação (saldo do dia, saldo após aquele lançamento). Essa coluna é só contexto — nunca vira lançamento próprio, mesmo que o número mude linha a linha.",
+      "- PDF de várias páginas repete o cabeçalho da tabela (ex: 'Data | Histórico | Valor | Saldo') no topo de cada página nova — é o mesmo cabeçalho, não uma linha de dado; ignore todas as repetições, não só a primeira.",
+      "- Alguns bancos mostram valor negativo entre parênteses (ex: '(150,00)') ou com o sinal depois do número (ex: '150,00-') em vez de um '-' na frente. Reconheça os dois formatos como valor negativo/gasto normalmente.",
+      "- Extratos que juntam várias contas ou cartões num único PDF (ex: fatura de cartão com várias 'páginas' internas por portador, ou extrato consolidado com sub-blocos por conta) podem repetir o mesmo layout de tabela mais de uma vez no arquivo — leia todos os blocos, não só o primeiro.",
+      "- Texto de rodapé, aviso legal, propaganda do banco ou número de ouvidoria impresso no extrato não é transação — ignore qualquer texto solto que não esteja dentro do formato de linha da tabela (data + descrição + valor).",
+      "- Foto/scan de baixa qualidade: faça o possível pra ler cada linha mesmo com foto tremida, ângulo ruim ou brilho na página. Se uma linha específica estiver realmente ilegível (valor ou descrição cortados, embaçados demais pra ter certeza), NÃO invente o número nem descarte a linha silenciosamente — mande para \"duvidas\" pedindo pra pessoa confirmar ou digitar o valor certo. Perder uma transação por descartar é pior do que perguntar.",
+      "",
       "- Taxas/impostos ligados a uma compra internacional (linhas como 'IOF Compra Internacional', 'Spread IOF Compra Internacional', 'IOF', 'Imposto sobre operação de câmbio') NÃO viram lançamento separado — são custo embutido da compra vizinha no extrato (geralmente aparecem logo antes/depois dela, mesma data/hora). Ignore essas linhas por completo (nem em \"lancamentos\", nem em \"duvidas\").",
       "- Pré-autorização de cartão revertida: quando aparece um crédito e um débito do MESMO valor, bem perto um do outro no tempo, com termos como 'AUTH HOLD', 'HOLD TEMPORARY', 'PENDING AUTHORIZATION', 'PRÉ-AUTORIZAÇÃO' — é uma reserva temporária que foi cancelada/liberada, dinheiro nenhum saiu ou entrou de verdade. Ignore o par inteiro (nem o crédito nem o débito viram lançamento).",
       "- Vendedor/serviço com grafia inconsistente no mesmo extrato (ex.: 'WWW.HOSTINGER.COM', 'hostingercom' e 'hostinger.com' na mesma pessoa) é o MESMO estabelecimento — normalize sempre para o mesmo nome limpo (ex.: 'Hostinger'), pra não espalhar o mesmo gasto em nomes diferentes.",
@@ -290,6 +299,12 @@ export default async function handler(req, res) {
       conteudoUsuario = [{ type: "text", text: "Leia este extrato e devolva o JSON conforme as regras:\n\n" + texto.slice(0, 60000) }];
     }
 
+    // PDF/foto usa Sonnet (mais preciso em letra pequena, foto torta, tabela
+    // bagunçada) — vale o custo maior porque é justamente o formato mais
+    // difícil de ler direito. CSV/OFX em texto puro continua no Haiku:
+    // já vem bem estruturado, não precisa do modelo mais caro.
+    const modelo = arquivoBase64 ? "claude-sonnet-5" : "claude-haiku-4-5";
+
     const resposta = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -298,8 +313,8 @@ export default async function handler(req, res) {
         "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5",
-        max_tokens: 8000,
+        model: modelo,
+        max_tokens: 12000,
         system: systemPrompt,
         messages: [{ role: "user", content: conteudoUsuario }]
       })
