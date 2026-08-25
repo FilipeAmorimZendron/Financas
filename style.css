@@ -9318,12 +9318,12 @@ body.sem-internet .layout { padding-top: 34px; }
   grid-area: 1 / 1;
   width: 100%;
   opacity: 0;
-  transform: scale(0.94);
-  filter: brightness(1.9) blur(5px);
+  transform: scale(0.985);
+  filter: brightness(1.25) blur(1.5px);
   pointer-events: none;
-  transition: opacity 0.5s cubic-bezier(0.22, 0.8, 0.25, 1),
-              transform 0.5s cubic-bezier(0.22, 0.8, 0.25, 1),
-              filter 0.55s ease;
+  transition: opacity 0.4s cubic-bezier(0.22, 0.8, 0.25, 1),
+              transform 0.4s cubic-bezier(0.22, 0.8, 0.25, 1),
+              filter 0.4s ease;
 }
 .lp-planos-grid-selecionavel .lp-assinar-shell.ativo {
   opacity: 1;
@@ -9332,25 +9332,25 @@ body.sem-internet .layout { padding-top: 34px; }
   pointer-events: auto;
   z-index: 2;
 }
-/* Brilho que estoura ao redor do card quando ele entra (efeito bloom) */
+/* Brilho sutil que passa pelo card quando ele entra (efeito bloom, leve) */
 .lp-planos-grid-selecionavel .lp-assinar-shell::after {
   content: "";
   position: absolute;
-  inset: -30px;
-  border-radius: 32px;
-  background: radial-gradient(circle, var(--plano-glow, rgba(245,165,36,0.55)) 0%, transparent 72%);
+  inset: -14px;
+  border-radius: 28px;
+  background: radial-gradient(circle, var(--plano-glow, rgba(245,165,36,0.32)) 0%, transparent 72%);
   opacity: 0;
   pointer-events: none;
   z-index: -1;
 }
-.lp-planos-grid-selecionavel .lp-assinar-shell-empresarial { --plano-glow: rgba(30,246,221,0.55); }
+.lp-planos-grid-selecionavel .lp-assinar-shell-empresarial { --plano-glow: rgba(30,246,221,0.32); }
 .lp-planos-grid-selecionavel .lp-assinar-shell.plano-bloom::after {
-  animation: planoBloomPulse 0.7s ease-out;
+  animation: planoBloomPulse 0.5s ease-out;
 }
 @keyframes planoBloomPulse {
-  0% { opacity: 0; transform: scale(0.7); }
-  40% { opacity: 0.9; transform: scale(1.15); }
-  100% { opacity: 0; transform: scale(1.4); }
+  0% { opacity: 0; transform: scale(0.9); }
+  45% { opacity: 0.55; transform: scale(1.03); }
+  100% { opacity: 0; transform: scale(1.12); }
 }
 @media (prefers-reduced-motion: reduce) {
   .lp-planos-grid-selecionavel .lp-assinar-shell {
