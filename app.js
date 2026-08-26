@@ -5062,12 +5062,25 @@ function escolherContaExtratoEmail(pendente) {
 async function abrirRevisaoExtratoEmail() {
   const pendente = (state.extratosEmailPendentes || [])[0];
   if (!pendente) { toast("Nenhum extrato pendente no momento.", "info"); return; }
+
+  const painelSino = document.getElementById("sinoPainel");
+  if (painelSino) painelSino.hidden = true;
+
+  // O extrato tem o contexto (pessoal/empresarial) de quando chegou — se a
+  // pessoa estiver no espaço errado agora, as contas mostradas seriam do
+  // espaço ATIVO, não do espaço do extrato (ex: pendente é do Pessoal, mas
+  // ela está vendo o Empresarial). Troca pro espaço certo antes de perguntar
+  // qual conta é — alternarContexto() já não faz nada se já estiver no certo.
+  const contextoDoExtrato = pendente.contexto === "empresarial" ? "empresarial" : "pessoal";
+  if (contextoDoExtrato !== state.contextoAtivo) {
+    await alternarContexto(contextoDoExtrato);
+  }
+
   if (!state.bancos.length) {
     toast("Cadastre uma conta antes de revisar esse extrato.", "warning");
     return;
   }
-  const painelSino = document.getElementById("sinoPainel");
-  if (painelSino) painelSino.hidden = true;
+
   const bancoId = await escolherContaExtratoEmail(pendente);
   if (!bancoId) return; // a pessoa fechou sem escolher — continua pendente pra próxima vez
   const dados = pendente.dados || {};
