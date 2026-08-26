@@ -31,6 +31,10 @@ const state = {
   objetivos: [], investimentos: [], recPagamentos: [],
   notasFiscais: [],   // só usado no espaço Empresarial — ver TABELAS_COM_CONTEXTO
   contatos: [],       // clientes e fornecedores — idem
+  // Extratos que chegaram por e-mail (encaminhados pra extrato@...) e
+  // ainda não foram revisados — ver verificarExtratosPorEmail() e
+  // api/receber-extrato-email.js. Populado uma vez no carregamento.
+  extratosEmailPendentes: [],
   perfil: { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null },
   user: null,
   // true quando o espaço que NÃO está ativo agora tem algo vencido ou
@@ -758,6 +762,7 @@ async function verificarLoginOAuth() {
       trocarTela("dashboard");
       toast(`Bem-vindo, ${state.user.email}! 👋`, "success");
       atualizarCDI().then(() => renderTudo()).catch(() => {});
+      verificarExtratosPorEmail();
       if (!localStorage.getItem("fp_onboarding_done")) {
         setTimeout(() => mostrarOnboarding(), 600);
       }
@@ -1505,6 +1510,7 @@ document.getElementById("formLogin")?.addEventListener("submit", async e => {
       trocarTela("dashboard");
       toast(`Bem-vindo, ${email}! 👋`, "success");
       atualizarCDI().then(() => renderTudo()).catch(() => {});
+      verificarExtratosPorEmail();
       // Onboarding para novo usuário
       if (!localStorage.getItem("fp_onboarding_done")) {
         setTimeout(() => mostrarOnboarding(), 600);
@@ -2017,6 +2023,19 @@ function calcularAvisos() {
       });
     }
   });
+
+  // 1b-2. Extrato(s) recebido(s) por e-mail, esperando revisão
+  const pendentesEmail = state.extratosEmailPendentes || [];
+  if (pendentesEmail.length) {
+    avisos.push({
+      tipo: "extrato",
+      titulo: pendentesEmail.length === 1 ? "Extrato recebido por e-mail" : `${pendentesEmail.length} extratos recebidos por e-mail`,
+      texto: "Revise e confirme antes de salvar.",
+      prioridade: 2,
+      sempreVisivel: true,
+      acao: "abrirRevisaoExtratoEmail()"
+    });
+  }
 
   // 1c. Assinatura com problema de pagamento
   const perfilAviso = state.perfil || {};
@@ -4981,6 +5000,96 @@ let duvidaAtualIdx = 0;
 // perguntas como "quanto gastei nesse extrato que enviei?".
 let ultimaImportacao = null;
 
+/* ── Extrato recebido por e-mail ──────────────────────────────
+   Encaminhar (ou pedir pro banco mandar) o extrato pro e-mail do FAZ é
+   uma alternativa ao upload manual — api/receber-extrato-email.js lê e
+   grava como pendente; aqui é só buscar o que está esperando e abrir na
+   mesma tela de revisão de sempre. Ver conversa com o Filipe de 26/08/2026. */
+
+// Qual linha de extratos_email está sendo revisada agora, se a revisão
+// aberta veio de um e-mail (em vez de upload manual) — salvarRevisao()
+// usa isso pra marcar como resolvida depois de salvar.
+let revisaoOrigemEmailId = null;
+
+async function verificarExtratosPorEmail() {
+  try {
+    const linhas = await dbSelect("extratos_email");
+    state.extratosEmailPendentes = (linhas || []).filter(l => !l.revisado);
+  } catch (e) {
+    state.extratosEmailPendentes = [];
+  }
+  renderSino();
+}
+
+/* Como o e-mail não diz de qual conta é o extrato (diferente do upload
+   manual, onde a pessoa já escolhe a conta antes de enviar o arquivo),
+   pergunta isso antes de abrir a revisão de verdade. Reaproveita o
+   estilo visual de confirmar(), só que com um <select> no meio. */
+function escolherContaExtratoEmail(pendente) {
+  return new Promise(resolve => {
+    const opcoes = state.bancos.map(b => `<option value="${b.id}">${esc(b.nome)}</option>`).join("");
+    const ov = document.createElement("div");
+    ov.className = "confirm-ov";
+    ov.innerHTML = `
+      <div class="confirm-box is-neutro" role="alertdialog" aria-modal="true">
+        <h3 class="confirm-titulo">Extrato recebido por e-mail</h3>
+        <p class="confirm-msg">De qual conta é esse extrato${pendente.remetente ? ` (recebido de ${esc(pendente.remetente)})` : ""}?</p>
+        <div class="field" style="margin: 4px 0 18px; text-align:left;">
+          <select id="selectContaExtratoEmail">${opcoes}</select>
+        </div>
+        <div class="confirm-btns">
+          <button class="confirm-cancel">Agora não</button>
+          <button class="confirm-ok">Revisar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    requestAnimationFrame(() => ov.classList.add("open"));
+    const fechar = val => {
+      ov.classList.remove("open");
+      setTimeout(() => ov.remove(), 200);
+      resolve(val);
+    };
+    ov.querySelector(".confirm-ok").onclick = () => {
+      const sel = document.getElementById("selectContaExtratoEmail");
+      fechar(sel ? sel.value : null);
+    };
+    ov.querySelector(".confirm-cancel").onclick = () => fechar(null);
+    ov.addEventListener("click", e => { if (e.target === ov) fechar(null); });
+    ov.addEventListener("keydown", e => { if (e.key === "Escape") fechar(null); });
+  });
+}
+
+async function abrirRevisaoExtratoEmail() {
+  const pendente = (state.extratosEmailPendentes || [])[0];
+  if (!pendente) { toast("Nenhum extrato pendente no momento.", "info"); return; }
+  if (!state.bancos.length) {
+    toast("Cadastre uma conta antes de revisar esse extrato.", "warning");
+    return;
+  }
+  const painelSino = document.getElementById("sinoPainel");
+  if (painelSino) painelSino.hidden = true;
+  const bancoId = await escolherContaExtratoEmail(pendente);
+  if (!bancoId) return; // a pessoa fechou sem escolher — continua pendente pra próxima vez
+  const dados = pendente.dados || {};
+  revisaoOrigemEmailId = pendente.id;
+  abrirRevisao(dados.lancamentos || [], dados.duvidas || [], dados.resumo || "", bancoId);
+}
+
+/* Marca (apaga) a linha em extratos_email depois que a revisão foi
+   salva de verdade — não faz sentido guardar um extrato já processado. */
+async function marcarExtratoEmailResolvido(id) {
+  try {
+    await fetchSeguro(`${SUPABASE_URL}/rest/v1/extratos_email?id=eq.${id}`, {
+      method: "DELETE",
+      headers: { ..._h, ...getAuthHeader() }
+    });
+  } catch (e) {
+    console.error("Não consegui marcar o extrato por e-mail como resolvido:", e);
+  }
+  state.extratosEmailPendentes = (state.extratosEmailPendentes || []).filter(p => p.id !== id);
+  renderSino();
+}
+
 /* Memória de categorias: aprende as escolhas do usuário.
    Se ele já categorizou "PAG*JLM" como Serviços, não perguntamos de novo.
    A chave usa as primeiras palavras significativas, para que variações do
@@ -5723,6 +5832,12 @@ async function salvarRevisao() {
   const bancoId = revisaoDados.bancoId;
   if (!bancoId) return;
 
+  // Se essa revisão veio de um extrato recebido por e-mail, guarda o id
+  // agora — revisaoOrigemEmailId pode ser sobrescrito/limpo por uma
+  // próxima revisão aberta antes desta terminar de salvar.
+  const origemEmailId = revisaoOrigemEmailId;
+  revisaoOrigemEmailId = null;
+
   // Junta os itens já certos com as dúvidas respondidas
   const paraSalvar = revisaoDados.itens.slice();
   const transferencias = [];
@@ -5737,7 +5852,11 @@ async function salvarRevisao() {
     }
   });
 
-  if (!paraSalvar.length) { fecharRevisao(); return; }
+  if (!paraSalvar.length) {
+    fecharRevisao();
+    if (origemEmailId) marcarExtratoEmailResolvido(origemEmailId);
+    return;
+  }
 
   // Descarta qualquer item malformado que a IA tenha devolvido
   const validos = paraSalvar.filter(lancamentoValido);
@@ -5762,6 +5881,7 @@ async function salvarRevisao() {
   if (!novos.length && !transferencias.length) {
     toast("Todos esses lançamentos já estavam no app.", "info");
     fecharRevisao();
+    if (origemEmailId) marcarExtratoEmailResolvido(origemEmailId);
     return;
   }
 
@@ -5799,6 +5919,7 @@ async function salvarRevisao() {
     fecharRevisao();
     formImportarExtrato?.reset();
     resetarDropImport();
+    if (origemEmailId) marcarExtratoEmailResolvido(origemEmailId);
 
     // A memória do extrato já foi registrada na abertura da revisão.
     // Aqui só marcamos que foi efetivamente salvo e quantos entraram.
@@ -11845,6 +11966,7 @@ async function iniciar() {
         // Busca a taxa CDI atual em segundo plano (não trava a tela).
         // Sem isso, os rendimentos de CDB/LCI/Tesouro usariam o valor fixo do código.
         atualizarCDI().then(() => renderTudo()).catch(() => {});
+        verificarExtratosPorEmail();
       }
     } catch(e) {
       localStorage.removeItem("fp_token");
