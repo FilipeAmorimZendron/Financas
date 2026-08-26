@@ -5021,6 +5021,40 @@ async function verificarExtratosPorEmail() {
   renderSino();
 }
 
+/* Só chamada pra quem tem o espaço Empresarial liberado (perfil.empresarial)
+   — pergunta se o extrato que chegou por e-mail é do espaço Pessoal ou do
+   Empresarial, já que isso não dá pra saber só pelo remetente. Devolve
+   "pessoal" | "empresarial" | null (fechou sem escolher — continua pendente). */
+function escolherEspacoExtratoEmail(pendente) {
+  return new Promise(resolve => {
+    const ov = document.createElement("div");
+    ov.className = "confirm-ov";
+    ov.innerHTML = `
+      <div class="confirm-box is-neutro" role="alertdialog" aria-modal="true">
+        <h3 class="confirm-titulo">Extrato recebido por e-mail</h3>
+        <p class="confirm-msg">Esse extrato${pendente.remetente ? ` (recebido de ${esc(pendente.remetente)})` : ""} é do espaço Pessoal ou do Empresarial?</p>
+        <div class="confirm-btns">
+          <button class="confirm-cancel">Pessoal</button>
+          <button class="confirm-ok">Empresarial</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    requestAnimationFrame(() => ov.classList.add("open"));
+    const fechar = val => {
+      ov.classList.remove("open");
+      setTimeout(() => ov.remove(), 200);
+      resolve(val);
+    };
+    ov.querySelector(".confirm-ok").onclick = () => fechar("empresarial");
+    ov.querySelector(".confirm-cancel").onclick = () => fechar("pessoal");
+    // Fechar clicando fora não deve escolher "Pessoal" silenciosamente —
+    // aqui os dois botões já SÃO escolhas de verdade, então fechar sem
+    // clicar em nenhum dos dois devolve null (continua pendente).
+    ov.addEventListener("click", e => { if (e.target === ov) fechar(null); });
+    ov.addEventListener("keydown", e => { if (e.key === "Escape") fechar(null); });
+  });
+}
+
 /* Como o e-mail não diz de qual conta é o extrato (diferente do upload
    manual, onde a pessoa já escolhe a conta antes de enviar o arquivo),
    pergunta isso antes de abrir a revisão de verdade. Reaproveita o
@@ -5066,12 +5100,17 @@ async function abrirRevisaoExtratoEmail() {
   const painelSino = document.getElementById("sinoPainel");
   if (painelSino) painelSino.hidden = true;
 
-  // O extrato tem o contexto (pessoal/empresarial) de quando chegou — se a
-  // pessoa estiver no espaço errado agora, as contas mostradas seriam do
-  // espaço ATIVO, não do espaço do extrato (ex: pendente é do Pessoal, mas
-  // ela está vendo o Empresarial). Troca pro espaço certo antes de perguntar
-  // qual conta é — alternarContexto() já não faz nada se já estiver no certo.
-  const contextoDoExtrato = pendente.contexto === "empresarial" ? "empresarial" : "pessoal";
+  // O e-mail sozinho não diz se o extrato é do espaço Pessoal ou do
+  // Empresarial — só quem tem os dois espaços liberados (perfil.empresarial)
+  // precisa escolher; quem só tem o Pessoal nem vê essa pergunta, vai direto
+  // sem fricção à toa (é o caso da imensa maioria das contas).
+  let contextoDoExtrato = "pessoal";
+  if (state.perfil?.empresarial) {
+    const escolha = await escolherEspacoExtratoEmail(pendente);
+    if (!escolha) return; // fechou sem escolher — continua pendente pra próxima vez
+    contextoDoExtrato = escolha;
+  }
+
   if (contextoDoExtrato !== state.contextoAtivo) {
     await alternarContexto(contextoDoExtrato);
   }
