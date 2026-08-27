@@ -1,42 +1,31 @@
 // api/receber-extrato-email.js
 // Webhook chamado pelo Resend toda vez que chega um e-mail no endereço de
-// extratos (ex: extrato@extrato.fazfinancas.com). Identifica de quem é
-// pelo remetente, lê o anexo (ou o corpo do e-mail) com o mesmo motor que
-// já lê extrato no app, e guarda o resultado como PENDENTE — a pessoa só
-// vê e confirma quando abrir o app (tabela extratos_email, tela de
-// revisão de sempre). Nada é salvo como lançamento de verdade aqui.
+// extratos (ex: extrato@extrato.fazfinancas.com).
 //
-// Fluxo completo (ver conversa com o Filipe de 26/08/2026):
-//   1. Pessoa encaminha (ou pede pro banco mandar) o extrato pro e-mail
-//      do FAZ, saindo do MESMO e-mail cadastrado na conta dela.
-//   2. Resend recebe, verifica que é de verdade e nos avisa aqui.
-//   3. A gente bate o remetente com perfil.email pra achar de quem é.
-//   4. Lê o anexo (ou o texto do e-mail, se não tiver anexo) com a IA.
-//   5. Grava pendente. Da próxima vez que ela abrir o app, aparece um
-//      aviso — ela revisa e confirma antes de qualquer coisa ser salva.
+// IMPORTANTE — por que isso é "rápido, sem IA": o Resend espera uma
+// resposta em poucos segundos, e chamar a IA (principalmente com Sonnet,
+// pra PDF/foto) pode levar dezenas de segundos — o Resend cortava como
+// "timeout" e ficava tentando de nada. A leitura de verdade acontece
+// depois, em api/processar-extrato-email-pendente.js, disparada quando a
+// pessoa abre o app — sem ninguém esperando o Resend.
+//
+// O que ESTE arquivo faz (rápido):
+//   1. Verifica a assinatura (padrão Svix).
+//   2. Acha de quem é pelo remetente (bate com perfil.email).
+//   3. Baixa o anexo (ou pega o corpo do e-mail) — só baixa, não lê com IA.
+//   4. Grava PENDENTE (processado = false) e responde na hora.
 
 import crypto from "crypto";
-import { lerExtratoCore } from "./_lerExtratoCore.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://yuvhkrwksdnajfautkru.supabase.co";
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_WEBHOOK_SECRET = process.env.RESEND_WEBHOOK_SECRET;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 // Mesma data de corte do plano único usada em app.js/ler-extrato.js/chat-ia.js.
 const CORTE_PLANO_UNICO = "2026-08-13T17:50:58Z";
 
-// Mesmo custo de ler um PDF/foto no app (ver CUSTO_ARQUIVO em ler-extrato.js) —
-// pra não virar um jeito de ler extrato de graça, ignorando o limite normal.
-const CUSTO_ARQUIVO = 4;
-const CUSTO_TEXTO = 2;
-const LIMITES = { premium: 100, master: 100 };
-const HORAS_RECARGA = 3;
-
-// Precisamos do corpo cru (não JSON.parse) pra verificar a assinatura —
-// desliga o bodyParser padrão da Vercel pra isso.
-export const config = { api: { bodyParser: false }, maxDuration: 60 };
+export const config = { api: { bodyParser: false }, maxDuration: 30 };
 
 function lerCorpoCru(req) {
   return new Promise((resolve, reject) => {
@@ -49,8 +38,7 @@ function lerCorpoCru(req) {
 
 /* Verificação de assinatura no padrão Svix (é o que o Resend usa):
    HMAC-SHA256 de "{svix-id}.{svix-timestamp}.{corpo}", com a chave sendo
-   o segredo "whsec_..." sem o prefixo, decodificado de base64. O cabeçalho
-   pode trazer mais de uma assinatura (separadas por espaço); basta uma bater. */
+   o segredo "whsec_..." sem o prefixo, decodificado de base64. */
 function assinaturaValida(svixId, svixTimestamp, corpoCru, svixSignature, segredo) {
   if (!svixId || !svixTimestamp || !svixSignature || !segredo) return false;
   try {
@@ -70,8 +58,6 @@ function assinaturaValida(svixId, svixTimestamp, corpoCru, svixSignature, segred
   }
 }
 
-/* Extrai só o endereço de dentro de "Nome <email@dominio.com>" (ou devolve
-   a string como está, se não vier nesse formato). */
 function extrairEmail(bruto) {
   const m = String(bruto || "").match(/<([^>]+)>/);
   return (m ? m[1] : bruto || "").trim().toLowerCase();
@@ -79,7 +65,7 @@ function extrairEmail(bruto) {
 
 async function buscarPerfilPorEmail(email) {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/perfil?email=eq.${encodeURIComponent(email)}&select=user_id,nome,plano,assinatura_status,admin,ia_usos,ia_reset_em`,
+    `${SUPABASE_URL}/rest/v1/perfil?email=eq.${encodeURIComponent(email)}&select=user_id,plano,assinatura_status,admin`,
     { headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` } }
   );
   if (!res.ok) return null;
@@ -87,8 +73,6 @@ async function buscarPerfilPorEmail(email) {
   return linhas[0] || null;
 }
 
-/* Data de criação da conta (auth.users), pra saber se é anterior ao corte
-   do plano único (acesso de graça garantido — ver CORTE_PLANO_UNICO). */
 async function buscarDataCriacao(userId) {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
     headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` }
@@ -98,58 +82,45 @@ async function buscarDataCriacao(userId) {
   return dados.created_at || null;
 }
 
-async function buscarContasECategorias(userId) {
-  const [rContas, rCategorias] = await Promise.all([
-    fetch(`${SUPABASE_URL}/rest/v1/contas?user_id=eq.${userId}&contexto=eq.pessoal&select=nome`,
-      { headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` } }),
-    fetch(`${SUPABASE_URL}/rest/v1/categorias?user_id=eq.${userId}&contexto=eq.pessoal&select=nome`,
-      { headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` } }),
-  ]);
-  const contas = rContas.ok ? (await rContas.json()).map(c => c.nome).filter(Boolean) : [];
-  const categorias = rCategorias.ok ? (await rCategorias.json()).map(c => c.nome).filter(Boolean) : [];
-  return { contas, categorias };
+/* Já existe uma linha pra este email_id? O Resend reenvia o mesmo evento
+   várias vezes se não receber 200 rápido o bastante — sem essa checagem,
+   um reenvio depois de já termos gravado criaria uma linha duplicada. */
+async function jaExisteParaEsteEmail(emailId) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/extratos_email?email_id=eq.${encodeURIComponent(emailId)}&select=id&limit=1`,
+    { headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` } }
+  );
+  if (!res.ok) return false;
+  const linhas = await res.json();
+  return linhas.length > 0;
 }
 
-async function atualizarUso(userId, usos, resetEm) {
-  await fetch(`${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${userId}`, {
-    method: "PATCH",
-    headers: {
-      apikey: SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
-      "content-type": "application/json",
-      Prefer: "return=minimal"
-    },
-    body: JSON.stringify({ ia_usos: usos, ia_reset_em: resetEm })
-  });
+/* Escolhe o melhor anexo pra usar: PDF > imagem > qualquer outro (OFX,
+   CSV, TXT — trata como texto, igual ao upload manual faz pra tudo que
+   não é PDF/imagem). Devolve null se não tiver nenhum anexo. */
+function escolherMelhorAnexo(anexos) {
+  if (!Array.isArray(anexos) || !anexos.length) return null;
+  const ehPdf = a => (a.content_type || a.contentType || "").toLowerCase().includes("pdf")
+    || (a.filename || "").toLowerCase().endsWith(".pdf");
+  const ehImagem = a => (a.content_type || a.contentType || "").toLowerCase().startsWith("image/")
+    || /\.(png|jpe?g|webp|heic)$/i.test(a.filename || "");
+  const pdf = anexos.find(ehPdf);
+  if (pdf) return { attachment: pdf, tipo: "pdf" };
+  const img = anexos.find(ehImagem);
+  if (img) return { attachment: img, tipo: "imagem" };
+  // Sobrou: OFX, CSV, TXT ou qualquer outra coisa — tenta como texto.
+  return { attachment: anexos[0], tipo: "texto" };
 }
 
-/* Busca os anexos do e-mail recebido e baixa o primeiro (PDF ou imagem).
-   O Resend não manda o conteúdo no próprio webhook — só um id; o
-   conteúdo vem de uma chamada separada à API deles. */
-async function baixarPrimeiroAnexo(emailId) {
+async function baixarAnexos(emailId) {
   const resp = await fetch(`https://api.resend.com/emails/receiving/${emailId}/attachments`, {
     headers: { Authorization: `Bearer ${RESEND_API_KEY}` }
   });
-  if (!resp.ok) return null;
+  if (!resp.ok) return [];
   const dados = await resp.json();
-  const anexos = Array.isArray(dados.data) ? dados.data : (Array.isArray(dados) ? dados : []);
-  // Prioriza PDF; se não tiver, pega a primeira imagem.
-  const candidato = anexos.find(a => (a.content_type || a.contentType || "").includes("pdf"))
-    || anexos.find(a => (a.content_type || a.contentType || "").startsWith("image/"));
-  if (!candidato || !candidato.download_url) return null;
-
-  const respArquivo = await fetch(candidato.download_url);
-  if (!respArquivo.ok) return null;
-  const buffer = Buffer.from(await respArquivo.arrayBuffer());
-  return {
-    base64: buffer.toString("base64"),
-    tipo: candidato.content_type || candidato.contentType || "application/pdf"
-  };
+  return Array.isArray(dados.data) ? dados.data : (Array.isArray(dados) ? dados : []);
 }
 
-/* Corpo do e-mail (texto), pra quando a pessoa cola o extrato direto na
-   mensagem em vez de mandar um PDF anexado — ou quando é o próprio banco
-   mandando o extrato como texto no corpo do e-mail. */
 async function buscarCorpoEmail(emailId) {
   const resp = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
     headers: { Authorization: `Bearer ${RESEND_API_KEY}` }
@@ -163,9 +134,8 @@ export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ erro: "Método não permitido" });
   }
-  if (!SUPABASE_SERVICE_KEY || !RESEND_API_KEY || !RESEND_WEBHOOK_SECRET || !ANTHROPIC_API_KEY) {
+  if (!SUPABASE_SERVICE_KEY || !RESEND_API_KEY || !RESEND_WEBHOOK_SECRET) {
     console.error("receber-extrato-email: faltam variáveis de ambiente na Vercel");
-    // 200 pra não deixar o Resend martelando retry — o problema é nosso, não do remetente
     return res.status(200).json({ ok: false, motivo: "servidor sem configuração" });
   }
 
@@ -186,8 +156,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ erro: "JSON inválido" });
   }
 
-  // Só nos interessa e-mail recebido — ignora qualquer outro tipo de evento
-  // que o Resend possa mandar pro mesmo endpoint (envio, entrega, etc.).
   if (evento.type !== "email.received") {
     return res.status(200).json({ ok: true, ignorado: evento.type });
   }
@@ -199,6 +167,11 @@ export default async function handler(req, res) {
     if (!emailId || !remetente) {
       console.log("receber-extrato-email: payload sem email_id ou remetente");
       return res.status(200).json({ ok: true, motivo: "payload incompleto" });
+    }
+
+    if (await jaExisteParaEsteEmail(emailId)) {
+      console.log("receber-extrato-email: reenvio do Resend pra um e-mail já registrado —", emailId);
+      return res.status(200).json({ ok: true, motivo: "já registrado" });
     }
 
     const perfil = await buscarPerfilPorEmail(remetente);
@@ -217,65 +190,45 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, motivo: "conta sem assinatura ativa" });
     }
 
-    // Anexo primeiro (é o caso comum: PDF do extrato). Sem anexo, usa o
-    // corpo do e-mail como texto — cobre quem cola o extrato direto na
-    // mensagem, ou bancos que mandam o extrato como texto no corpo.
-    const anexo = await baixarPrimeiroAnexo(emailId);
-    let entradaExtrato;
-    if (anexo) {
-      entradaExtrato = { arquivoBase64: anexo.base64, tipoArquivo: anexo.tipo };
+    // Anexo primeiro (PDF, imagem, OFX, CSV — o que vier). Sem anexo, usa
+    // o corpo do e-mail como texto.
+    const anexos = await baixarAnexos(emailId);
+    const escolhido = escolherMelhorAnexo(anexos);
+
+    const linha = {
+      user_id: perfil.user_id,
+      contexto: "pessoal", // ajustado na revisão, se a pessoa tiver o Empresarial liberado
+      remetente,
+      email_id: emailId,
+      processado: false,
+      dados: null,
+    };
+
+    if (escolhido) {
+      const respArquivo = await fetch(escolhido.attachment.download_url);
+      if (!respArquivo.ok) {
+        console.log("receber-extrato-email: falha ao baixar anexo —", remetente);
+        return res.status(200).json({ ok: true, motivo: "falha ao baixar anexo" });
+      }
+      const buffer = Buffer.from(await respArquivo.arrayBuffer());
+      if (escolhido.tipo === "texto") {
+        linha.texto_bruto = buffer.toString("utf8");
+      } else {
+        linha.anexo_base64 = buffer.toString("base64");
+        linha.anexo_tipo = escolhido.tipo === "pdf"
+          ? "application/pdf"
+          : (escolhido.attachment.content_type || escolhido.attachment.contentType || "image/jpeg");
+      }
     } else {
       const corpo = await buscarCorpoEmail(emailId);
       if (!corpo || !corpo.trim()) {
         console.log("receber-extrato-email: e-mail sem anexo e sem corpo de texto —", remetente);
         return res.status(200).json({ ok: true, motivo: "e-mail vazio" });
       }
-      entradaExtrato = { texto: corpo };
+      linha.texto_bruto = corpo;
     }
 
-    // Limite de uso — mesma regra do upload manual (ver ler-extrato.js).
-    // Conta admin nunca gasta nem é bloqueada.
-    if (!perfil.admin) {
-      const custo = anexo ? CUSTO_ARQUIVO : CUSTO_TEXTO;
-      const limite = LIMITES[plano];
-      let usos = perfil.ia_usos || 0;
-      let resetEm = perfil.ia_reset_em ? new Date(perfil.ia_reset_em) : new Date();
-      const agora = new Date();
-      if (usos >= limite) {
-        const horasPassadas = (agora - resetEm) / (1000 * 60 * 60);
-        if (horasPassadas >= HORAS_RECARGA) { usos = 0; resetEm = agora; }
-        else {
-          console.log("receber-extrato-email: limite de IA atingido —", remetente);
-          return res.status(200).json({ ok: true, motivo: "limite de IA atingido" });
-        }
-      }
-      if (usos + custo > limite) {
-        console.log("receber-extrato-email: sem saldo suficiente no limite —", remetente);
-        return res.status(200).json({ ok: true, motivo: "saldo insuficiente no limite" });
-      }
-      usos += custo;
-      await atualizarUso(perfil.user_id, usos, resetEm.toISOString());
-    }
-
-    const { contas, categorias } = await buscarContasECategorias(perfil.user_id);
-
-    const resultado = await lerExtratoCore({
-      ...entradaExtrato,
-      dataHoje: new Date().toISOString().slice(0, 10),
-      titular: perfil.nome || "",
-      contas,
-      categorias,
-      apiKey: ANTHROPIC_API_KEY
-    });
-
-    if (!resultado.lancamentos.length && !resultado.duvidas.length) {
-      console.log("receber-extrato-email: nada reconhecido como extrato —", remetente);
-      return res.status(200).json({ ok: true, motivo: "nada reconhecido" });
-    }
-
-    // Grava pendente — a pessoa só vê e confirma quando abrir o app
-    // (tabela extratos_email, RLS: cada um só lê a própria linha).
-    await fetch(`${SUPABASE_URL}/rest/v1/extratos_email`, {
+    const respInsert = await fetch(`${SUPABASE_URL}/rest/v1/extratos_email`, {
       method: "POST",
       headers: {
         apikey: SUPABASE_SERVICE_KEY,
@@ -283,18 +236,15 @@ export default async function handler(req, res) {
         "content-type": "application/json",
         Prefer: "return=minimal"
       },
-      body: JSON.stringify({
-        user_id: perfil.user_id,
-        contexto: "pessoal",
-        remetente,
-        dados: resultado,
-        resumo: resultado.resumo || ""
-      })
+      body: JSON.stringify(linha)
     });
+    if (!respInsert.ok) {
+      const txt = await respInsert.text();
+      console.error("receber-extrato-email: falha ao gravar linha —", respInsert.status, txt.slice(0, 300));
+      return res.status(200).json({ ok: false, motivo: "falha ao gravar" });
+    }
 
-    console.log("receber-extrato-email: extrato pendente gravado para", remetente,
-      "-", resultado.lancamentos.length, "lançamento(s),", resultado.duvidas.length, "dúvida(s)");
-
+    console.log("receber-extrato-email: pendente registrado (aguardando processamento) para", remetente);
     return res.status(200).json({ ok: true });
 
   } catch (e) {

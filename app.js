@@ -5013,8 +5013,30 @@ let revisaoOrigemEmailId = null;
 
 async function verificarExtratosPorEmail() {
   try {
-    const linhas = await dbSelect("extratos_email");
-    state.extratosEmailPendentes = (linhas || []).filter(l => !l.revisado);
+    let linhas = await dbSelect("extratos_email");
+
+    // Tem algo que o webhook já recebeu mas a IA ainda não leu (ver
+    // api/receber-extrato-email.js — o webhook só baixa o anexo e grava
+    // rápido, não roda a IA na hora). Dispara o processamento agora,
+    // aproveitando que a pessoa está com o app aberto — sem isso, ela
+    // nunca veria o aviso de revisão.
+    if ((linhas || []).some(l => !l.processado)) {
+      try {
+        await fetch("/api/processar-extrato-email-pendente", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            token: localStorage.getItem("fp_token") || "",
+            nome: state.perfil?.nome || ""
+          })
+        });
+        linhas = await dbSelect("extratos_email"); // busca de novo, já processado
+      } catch (e) {
+        console.warn("Não consegui processar extratos pendentes agora:", e);
+      }
+    }
+
+    state.extratosEmailPendentes = (linhas || []).filter(l => l.processado && !l.revisado);
   } catch (e) {
     state.extratosEmailPendentes = [];
   }
