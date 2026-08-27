@@ -70,7 +70,10 @@ async function buscarContasECategorias(userId, contexto, serviceKey) {
   return { contas, categorias };
 }
 
-export const config = { maxDuration: 60 };
+// Extratos de PDF grandes (várias páginas) podem levar mais que 60s pra IA
+// ler tudo e gerar a resposta — dá mais margem aqui, já que ninguém fica
+// esperando isso na hora (é chamado em segundo plano quando o app abre).
+export const config = { maxDuration: 120 };
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
