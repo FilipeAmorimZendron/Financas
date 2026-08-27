@@ -161,11 +161,20 @@ export async function lerExtratoCore({
     conteudoUsuario = [{ type: "text", text: "Leia este extrato e devolva o JSON conforme as regras:\n\n" + String(texto || "").slice(0, 60000) }];
   }
 
-  // PDF/foto usa Sonnet (mais preciso em letra pequena, foto torta, tabela
-  // bagunçada) — vale o custo maior porque é justamente o formato mais
-  // difícil de ler direito. CSV/OFX/texto puro continua no Haiku: já vem
-  // bem estruturado, não precisa do modelo mais caro.
-  const modelo = arquivoBase64 ? "claude-sonnet-5" : "claude-haiku-4-5";
+  // PDF/foto usaria Sonnet com prazer (mais preciso em letra pequena, foto
+  // torta, tabela bagunçada) — MAS testado ao vivo em produção: um PDF de
+  // 8 páginas com Sonnet estourou o teto real de duração de função do
+  // plano Hobby da Vercel (FUNCTION_INVOCATION_TIMEOUT, ~60s, não importa
+  // o que configuramos em maxDuration — é limite da plataforma, não do
+  // código). Uma leitura que nunca termina vale menos que uma um pouco
+  // menos precisa que sempre termina, então por padrão fica no Haiku
+  // (bem mais rápido) até migrarmos pra Vercel Pro (já é um pendente do
+  // projeto, por causa do checkout também). Depois da migração, é só
+  // configurar USAR_SONNET_PDF=1 na Vercel pra ligar o Sonnet de novo —
+  // não precisa mexer em mais nada aqui.
+  const modelo = (arquivoBase64 && process.env.USAR_SONNET_PDF === "1")
+    ? "claude-sonnet-5"
+    : "claude-haiku-4-5";
 
   const resposta = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
