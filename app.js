@@ -5138,7 +5138,12 @@ async function abrirRevisaoExtratoEmail() {
   }
 
   if (!state.bancos.length) {
-    toast("Cadastre uma conta antes de revisar esse extrato.", "warning");
+    // Sem conta cadastrada não dá pra revisar — em vez de só avisar e
+    // deixar a pessoa procurar sozinha, já leva direto pra tela de criar
+    // conta. O extrato continua pendente; ela volta pro sino depois.
+    toast("Cadastre uma conta pra revisar esse extrato — te levei direto pra tela.", "info");
+    trocarTela("contas");
+    setTimeout(() => document.getElementById("nomeBanco")?.focus(), 200);
     return;
   }
 
