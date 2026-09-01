@@ -6769,13 +6769,19 @@ async function excluirMovimento(id) {
 }
 
 async function excluirConta(id) {
-  const temMovs = state.movimentos.some(m=>m.bancoId===id);
-  const ok = await confirmar("Excluir esta conta?", { tipo: "perigo", descricao: temMovs ? "Ela tem movimentações vinculadas, que também serão removidas." : "A conta e seus dados serão removidos.", okLabel: "Excluir" });
+  const movsVinculados = state.movimentos.filter(m=>m.bancoId===id);
+  const ok = await confirmar("Excluir esta conta?", { tipo: "perigo", descricao: movsVinculados.length ? `Ela tem ${movsVinculados.length} movimentação(ões) vinculada(s), que também serão removidas.` : "A conta e seus dados serão removidos.", okLabel: "Excluir" });
   if (!ok) return;
   const label = state.bancos.find(b=>b.id===id)?.nome || "Conta";
   _salvarUndo();
   try {
+    // O aviso já dizia que os lançamentos vinculados também sumiam, mas o
+    // código só apagava a conta — os lançamentos ficavam órfãos no banco
+    // (sem cascata garantida). Agora apaga os dois de verdade, igual ao
+    // que "Excluir todas as contas" (excluirTodasContasBtn) já faz.
+    await Promise.all(movsVinculados.map(m => dbDelete("movimentos", m.id)));
     await dbDelete("contas", id);
+    state.movimentos = state.movimentos.filter(m=>m.bancoId!==id);
     state.bancos = state.bancos.filter(b=>b.id!==id);
     renderTudo(); toast(`Conta "${label}" excluída.`, "info", true);
   } catch(err) { tratarErro(err); }
