@@ -8,8 +8,9 @@
 // começa com "_" só pra deixar isso claro no diretório api/.
 
 export const CATEGORIAS = [
-  "Alimentação", "Transporte", "Moradia", "Saúde",
-  "Lazer", "Educação", "Serviços", "Compras", "Outros"
+  "Alimentação", "Mercado", "Transporte", "Moradia", "Saúde",
+  "Lazer", "Educação", "Serviços", "Compras", "Cartão de Crédito",
+  "Pets", "Vestuário", "Cuidados Pessoais", "Outros"
 ];
 
 /* Tenta consertar um JSON levemente quebrado vindo da IA.
@@ -105,14 +106,19 @@ export async function lerExtratoCore({
       : "",
     "",
     "COMO CATEGORIZAR (use seu conhecimento de marcas e serviços brasileiros):",
-    "- Alimentação: supermercados (Pão de Açúcar, Carrefour, Assaí, Extra), restaurantes, lanchonetes, padarias, iFood, Rappi, açougue, hortifruti, delivery de comida. IMPORTANTE: mesmo sem reconhecer a marca, se a descrição tiver palavras como 'restaurante', 'lanchonete', 'padaria', 'bar', 'churrascaria', 'pizzaria', 'hamburgueria', 'cafeteria', 'doceria', 'sorveteria', 'buffet', 'espetinho' — é Alimentação, mesmo sendo um estabelecimento pequeno ou desconhecido. Essas palavras valem MAIS que tentar reconhecer a marca.",
+    "- Alimentação: restaurantes, lanchonetes, padarias, iFood, Rappi, delivery de comida, cafés, bares — é COMER, seja no local ou pedido em casa. IMPORTANTE: mesmo sem reconhecer a marca, se a descrição tiver palavras como 'restaurante', 'lanchonete', 'padaria', 'bar', 'churrascaria', 'pizzaria', 'hamburgueria', 'cafeteria', 'doceria', 'sorveteria', 'buffet', 'espetinho' — é Alimentação, mesmo sendo um estabelecimento pequeno ou desconhecido. Essas palavras valem MAIS que tentar reconhecer a marca.",
+    "- Mercado: supermercados (Pão de Açúcar, Carrefour, Assaí, Extra, Dia, Sendas, Zaffari), açougue, hortifruti, feira — é a COMPRA pra cozinhar em casa, diferente de Alimentação (que é comer pronto). Não confunda as duas: um supermercado nunca é Alimentação.",
     "- Transporte: Uber, 99, combustível (Shell, Ipiranga, Petrobras, posto), estacionamento, pedágio, metrô, ônibus, passagem, mecânico, oficina.",
     "- Moradia: aluguel, condomínio, conta de luz (Enel, CPFL), água (Sabesp), gás, internet residencial, IPTU, reforma, móveis, material de construção.",
     "- Saúde: farmácias (Drogasil, Raia, Pacheco, Drogaria), consultas, exames, plano de saúde, academia, dentista, ótica, terapia.",
     "- Lazer: cinema, streaming (Netflix, Spotify, Disney+, Prime, HBO), shows, bares, viagens, hotéis, jogos, parques, assinaturas de entretenimento.",
     "- Educação: escola, faculdade, cursos, livros, material escolar, Udemy, Alura, mensalidade, idiomas.",
-    "- Serviços: assinaturas de software, telefonia (Vivo, Claro, Tim, Oi), seguros, serviços bancários, tarifas, cabeleireiro, lavanderia, profissionais autônomos.",
-    "- Compras: roupas, calçados, eletrônicos, Amazon, Mercado Livre, Shopee, AliExpress, lojas de departamento, presentes, cosméticos.",
+    "- Serviços: assinaturas de software, telefonia (Vivo, Claro, Tim, Oi), seguros, serviços bancários, tarifas, lavanderia, profissionais autônomos (advogado, contador etc.) — NÃO inclui cabeleireiro/barbearia/manicure/estética, que agora são Cuidados Pessoais.",
+    "- Compras: eletrônicos, Amazon, Mercado Livre, Shopee, AliExpress, lojas de departamento, presentes, móveis avulsos — coisas em geral. NÃO inclui roupas/calçados (agora é Vestuário), nem petshop (agora é Pets), nem cosméticos/perfumaria (agora é Cuidados Pessoais).",
+    "- Cartão de Crédito: NUNCA use essa categoria direto por conta própria — só entra aqui pela regra de 'PAGAMENTO DE FATURA DE CARTÃO DE CRÉDITO' logo abaixo, que sempre vira dúvida antes.",
+    "- Pets: petshop, ração, veterinário, banho e tosa, produtos e serviços pro animal de estimação (Petz, Cobasi).",
+    "- Vestuário: roupas, calçados, tênis, acessórios de vestir (Renner, Riachuelo, C&A, Zara, Hering, Centauro, Nike, Adidas).",
+    "- Cuidados Pessoais: salão de beleza, cabeleireiro, barbearia, manicure/pedicure, estética, spa, massagem, perfumaria e cosméticos (Boticário, Natura, Sephora, Avon).",
     "- Outros: SÓ quando realmente não se encaixa em nenhuma acima. Evite ao máximo usar 'Outros' — quase toda transação tem uma categoria melhor. Se reconhecer a marca ou o tipo de estabelecimento, use a categoria certa.",
     "",
     "IMPORTANTE SOBRE 'OUTROS': é a categoria de último recurso. Antes de usá-la, pense no que aquele estabelecimento vende. Um nome como 'DROGA RAIA' é Saúde, 'POSTO SHELL' é Transporte, 'NETFLIX' é Lazer. Só use 'Outros' se, mesmo pensando, não der para saber o ramo — e nesse caso prefira mandar para 'duvidas' e perguntar.",
@@ -136,7 +142,7 @@ export async function lerExtratoCore({
     "- Linhas como 'PAGAMENTO FATURA CARTÃO', 'PGTO FATURA', 'PGTO CARTÃO DE CRÉDITO', 'PAGAMENTO DE CARTAO DE CREDITO' são o pagamento da fatura INTEIRA do cartão — um valor grande, sem detalhar o que foi comprado, bem diferente de uma compra específica no cartão.",
     "- Isso é ambíguo: o FAZ Finanças tem um jeito próprio de acompanhar cartão de crédito e fatura (separado da leitura de extrato) — se a pessoa já registra as compras desse cartão por lá, contar esse pagamento como gasto de novo aqui duplicaria o valor. Você não tem como saber se ela já registra ou não.",
     "- Por isso, NUNCA chute a categoria nem finja que é um gasto normal — SEMPRE vira 'duvidas'. Use uma pergunta parecida com: \"Isso parece o pagamento da fatura do cartão de crédito. Você já registra as compras desse cartão aqui no FAZ? Se sim, clique em 'Não importar' pra não contar em dobro. Se esse extrato é a única forma de acompanhar esses gastos, escolha a categoria.\"",
-    "- Nas opções: se a pessoa já tiver uma categoria própria criada pra isso (procure por algo como 'Cartão', 'Fatura', 'Cartão de Crédito' na lista de categorias dela), use SEMPRE essa mesma categoria como primeira opção — nunca invente um nome novo parecido tipo 'Fatura do cartão' quando ela já tem 'Cartão de Crédito' (ou vice-versa). Duas categorias quase iguais pra mesma coisa é exatamente o que NÃO pode acontecer.",
+    "- Nas opções: se a pessoa já tiver uma categoria própria criada pra isso (procure por algo como 'Cartão', 'Fatura', 'Cartão de Crédito' na lista de categorias dela), use SEMPRE essa mesma categoria como primeira opção — nunca invente um nome novo parecido. Sem categoria própria, use a categoria fixa 'Cartão de Crédito' do próprio app como primeira opção.",
     "",
     "QUANDO VOCÊ TIVER DÚVIDA:",
     "- Se não conseguir categorizar com segurança mesmo usando o guia acima, NÃO jogue em 'Outros'. Coloque o item em \"duvidas\" e pergunte.",
@@ -149,7 +155,7 @@ export async function lerExtratoCore({
     "FORMATO DA RESPOSTA (responda APENAS com JSON válido, sem markdown, sem cercas de código):",
     "{",
     '  "lancamentos": [',
-    '    { "data": "2026-07-10", "descricao": "Supermercado Pão de Açúcar", "valor": 234.50, "tipo": "gasto", "categoria": "Alimentação" }',
+    '    { "data": "2026-07-10", "descricao": "Supermercado Pão de Açúcar", "valor": 234.50, "tipo": "gasto", "categoria": "Mercado" }',
     "  ],",
     '  "duvidas": [',
     '    { "data": "2026-07-12", "descricao": "JLM Serviços", "descricaoOriginal": "PAG*JLM SERVICOS 4412", "valor": 89.90, "tipo": "gasto",',
@@ -310,7 +316,7 @@ export async function lerExtratoCore({
   const categoriaFaturaExistente = categoriasUsuario.find(c => /cart|fatura/i.test(c));
   const opcoesFatura = categoriaFaturaExistente
     ? [categoriaFaturaExistente, "Compras", "Serviços", "Outros"]
-    : ["Compras", "Serviços", "Alimentação", "Outros"];
+    : ["Cartão de Crédito", "Compras", "Serviços", "Outros"];
   const perguntaFatura = desc => `Isso parece o pagamento da fatura do cartão de crédito (mencionado como "${desc}"). Se você já registra as compras desse cartão aqui no FAZ, clique em "Não importar" pra não contar em dobro. Se esse extrato é a única forma de acompanhar esses gastos, escolha a categoria.`;
 
   for (let i = lancBrutos.length - 1; i >= 0; i--) {

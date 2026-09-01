@@ -114,6 +114,11 @@ const ICONE_CAT = {
   "Lazer":            _sv('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v16M17 4v16M2 9h5M2 15h5M17 9h5M17 15h5"/>'),
   "Transporte":       _sv('<path d="M5 13l1.5-5A2 2 0 0 1 8.4 6.5h7.2a2 2 0 0 1 1.9 1.5L19 13"/><path d="M5 13h14v4a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H8v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="15.5" r="0.6"/><circle cx="16.5" cy="15.5" r="0.6"/>'),
   "Compras":          _sv('<circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.5 3h2l2.2 12.4a1.5 1.5 0 0 0 1.5 1.2h9.3a1.5 1.5 0 0 0 1.5-1.2L21 7H6"/>'),
+  "Mercado":          _sv('<path d="M4 10h16l-1.6 9.3a2 2 0 0 1-2 1.7H7.6a2 2 0 0 1-2-1.7L4 10z"/><path d="M9 10 7.5 4M15 10l1.5-6M2.5 10h19"/>'),
+  "Cartão de Crédito": _sv('<rect x="2" y="5" width="20" height="14" rx="2.2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="5.5" y1="15" x2="10" y2="15"/>'),
+  "Pets":             _sv('<circle cx="7" cy="9" r="1.6"/><circle cx="12" cy="6.3" r="1.6"/><circle cx="17" cy="9" r="1.6"/><path d="M12 12.2c-3 0-5.5 2.1-5.5 4.6 0 1.7 1.5 2.5 3 2 1-.3 1.7-.3 2.5-.3s1.5 0 2.5.3c1.5.5 3-.3 3-2 0-2.5-2.5-4.6-5.5-4.6z"/>'),
+  "Vestuário":        _sv('<path d="M7 4 3 7.5 5.5 10.3 8 8.5V20h8V8.5l2.5 1.8L21 7.5 17 4l-3 2h-4z"/>'),
+  "Cuidados Pessoais": _sv('<path d="M12 3c4 5 7 8.7 7 12a7 7 0 0 1-14 0c0-3.3 3-7 7-12z"/>'),
   "Outros":           _sv('<path d="M21 8v13H3V8"/><rect x="1" y="3" width="22" height="5" rx="1"/><line x1="12" y1="3" x2="12" y2="21"/>'),
   // Categorias do espaço Empresarial (ver CATEGORIAS_FIXAS_EMPRESARIAL)
   "Fornecedores":         _sv('<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/>'),
@@ -131,8 +136,9 @@ const ICONE_CAT_FALLBACK = _sv('<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1
 
 /* As que vêm de fábrica. Não podem ser apagadas. */
 const CATEGORIAS_FIXAS = [
-  "Alimentação", "Transporte", "Moradia", "Saúde",
-  "Lazer", "Educação", "Serviços", "Compras", "Outros"
+  "Alimentação", "Mercado", "Transporte", "Moradia", "Saúde",
+  "Lazer", "Educação", "Serviços", "Compras", "Cartão de Crédito",
+  "Pets", "Vestuário", "Cuidados Pessoais", "Outros"
 ];
 
 /* Categorias de fábrica do espaço EMPRESARIAL — voltadas pra o que uma
@@ -1715,8 +1721,12 @@ function classificarCategoria(t) {
   // Fica em "Outros" de propósito: o app pergunta ao usuário na revisão.
   if (/transfer|ted\b|doc\b|saque|dep[óo]sito|deposito|pix\s*enviado|pix\s*recebido|aplica[çc][ãa]o|resgate|c[âa]mbio/.test(t)) return "Outros";
 
-  // Alimentação
-  if (/mercado|supermercado|padaria|açougue|acougue|hortifruti|feira|ifood|ifd\*|rappi|uber\s*eats|delivery|restaurante|lanchonete|pizzaria|hamburgueria|cafe|café|bar\b|boteco|comida|almoço|almoco|jantar|food|mc\s*donald|burger|subway|starbucks|carrefour|extra\b|assai|assaí|atacad|big\b|dia\b|sendas|zaffari|pao de acucar|pão de açúcar|hortifrut|emporio|empório|doceria|sorveteria|acai|açaí|habib|bobs|outback|madero|coco\s*bambu|giraffas|spoleto|cacau\s*show|kopenhagen/.test(t)) return "Alimentação";
+  // Alimentação (comer pronto — restaurante, delivery, lanchonete. Ver
+  // "Mercado" logo abaixo pra compra de mantimentos, que é diferente.)
+  if (/ifood|ifd\*|rappi|uber\s*eats|delivery|restaurante|lanchonete|pizzaria|hamburgueria|padaria|cafe|café|bar\b|boteco|comida|almoço|almoco|jantar|food|mc\s*donald|burger|subway|starbucks|doceria|sorveteria|acai|açaí|habib|bobs|outback|madero|coco\s*bambu|giraffas|spoleto|cacau\s*show|kopenhagen/.test(t)) return "Alimentação";
+
+  // Mercado (compra pra cozinhar em casa)
+  if (/mercado\b|supermercado|açougue|acougue|hortifruti|feira\b|carrefour|extra\b|assai|assaí|atacad|big\b|dia\b|sendas|zaffari|pao de acucar|pão de açúcar|hortifrut|emporio|empório/.test(t)) return "Mercado";
 
   // Transporte
   if (/uber|99\b|99app|99pop|cabify|indriver|taxi|táxi|ônibus|onibus|metrô|metro\b|trem|bilhete|passagem|combustível|combustivel|gasolina|álcool|alcool|etanol|posto\b|shell|ipiranga|petrobras|br\s*distribuidora|ale\b|estacionamento|estapar|pedágio|pedagio|sem\s*parar|conectcar|veloe|zona azul|bike|patinete|mecanic|oficina|pneu|lava\s*rapido|lava-rápido|ipva|licenciamento|dpvat|multa/.test(t)) return "Transporte";
@@ -1733,11 +1743,21 @@ function classificarCategoria(t) {
   // Educação
   if (/curso|faculdade|universidade|unip|estacio|estácio|anhanguera|uninter|puc\b|escola|colégio|colegio|mensalidade|matrícula|matricula|livro|livraria|saraiva|amazon\s*kindle|apostila|udemy|alura|udacity|coursera|hotmart|kiwify|aula|professor|idioma|inglês|ingles|wizard|ccaa|cultura\s*inglesa|fisk|duolingo/.test(t)) return "Educação";
 
-  // Serviços / assinaturas
-  if (/assinatura|salão|salao|cabeleireiro|cabeleireira|barbeiro|barbearia|manicure|pedicure|estética|estetica|spa\b|massagem|lavanderia|conserto|manutenção|manutencao|técnico|tecnico|advogado|contador|contabil|chatgpt|openai|anthropic|claude|google\s*one|icloud|apple\.com|microsoft|office\s*365|adobe|canva|dropbox|notion|figma|github|hostinger|godaddy|registro\.br|vercel|aws\b|correios|cartório|cartorio|despachante/.test(t)) return "Serviços";
+  // Serviços / assinaturas (cuidado com a pessoa entrar aqui: salão,
+  // cabeleireiro etc. agora são "Cuidados Pessoais", ver abaixo)
+  if (/assinatura|lavanderia|conserto|manutenção|manutencao|técnico|tecnico|advogado|contador|contabil|chatgpt|openai|anthropic|claude|google\s*one|icloud|apple\.com|microsoft|office\s*365|adobe|canva|dropbox|notion|figma|github|hostinger|godaddy|registro\.br|vercel|aws\b|correios|cartório|cartorio|despachante/.test(t)) return "Serviços";
 
-  // Compras
-  if (/roupa|calçado|calcado|sapato|tênis|tenis|vestu|shopping|loja|magazine|magalu|americanas|amazon|mercado\s*livre|meli\b|mercadolivre|shopee|aliexpress|shein|temu|renner|riachuelo|c&a|marisa|zara|hering|centauro|netshoes|decathlon|nike|adidas|presente|eletrônico|eletronico|celular|notebook|kabum|pichau|terabyte|fast\s*shop|casas\s*bahia|ponto\s*frio|móveis|moveis|mobly|madeiramadeira|tok\s*stok|decoração|decoracao|petz|cobasi|pet\s*shop|sephora|boticario|boticário|natura|avon/.test(t)) return "Compras";
+  // Compras (coisas em geral — roupa, pet e cosmético têm categoria própria, ver abaixo)
+  if (/shopping|loja|magazine|magalu|americanas|amazon|mercado\s*livre|meli\b|mercadolivre|shopee|aliexpress|shein|temu|presente|eletrônico|eletronico|celular|notebook|kabum|pichau|terabyte|fast\s*shop|casas\s*bahia|ponto\s*frio|móveis|moveis|mobly|madeiramadeira|tok\s*stok|decoração|decoracao/.test(t)) return "Compras";
+
+  // Pets
+  if (/petz\b|cobasi\b|pet\s*shop|petshop|ra[çc][ãa]o\b|veterinari|banho\s*e\s*tosa/.test(t)) return "Pets";
+
+  // Vestuário
+  if (/roupa|calçado|calcado|sapato|tênis|tenis|vestu|renner|riachuelo|c&a\b|marisa\b|zara\b|hering|centauro|netshoes|decathlon|nike\b|adidas\b/.test(t)) return "Vestuário";
+
+  // Cuidados Pessoais
+  if (/sal[ãa]o|cabeleireir|barbeir|barbearia|manicure|pedicure|estética|estetica|spa\b|massagem|sephora|boticario|boticário|natura\b|avon\b|perfumaria|cosm[ée]tic|maquiagem|depila[çc][ãa]o|podologia/.test(t)) return "Cuidados Pessoais";
 
   // Entrada (receitas)
   if (/salário|salario|holerite|proventos|recebi|entrou|ganhei|rendimento|dividendo|juros|cashback|estorno|reembolso|restitui|freelance|freela|honorario|honorário|comiss[ãa]o|vale\b|adiantamento|13[ºo]?\s*sal|f[ée]rias|inss|aposentadoria|pens[ãa]o|aux[íi]lio|bolsa/.test(t)) return "Entrada";
@@ -2569,7 +2589,7 @@ function todosCompromissos(ateISO) {
         descricao: `Fatura ${cartao.nome}`,
         valor: porMes[fm],
         tipo: "gasto",
-        categoria: "Serviços",
+        categoria: "Cartão de Crédito",
         contaId: cartao.id,
         vencimento: venc
       });
@@ -3005,7 +3025,7 @@ async function confirmarPagarFatura(cartaoId, faturaMes, valor) {
     const mov = await dbInsert("movimentos", {
       descricao: `Pagamento fatura ${cartao?.nome || "cartão"}`,
       conta_id: contaId, data: hojeISO(),
-      valor: valor, tipo: "gasto", categoria: "Serviços",
+      valor: valor, tipo: "gasto", categoria: "Cartão de Crédito",
       status: "pago", pago_em: hojeISO(),
       forma_pagamento: "pagamento_fatura"
     });
@@ -13756,7 +13776,7 @@ const ACOES_IA = {
       const mov = await dbInsert("movimentos", {
         descricao: `Pagamento fatura ${cartao.nome}`,
         conta_id: p.cartaoId, data: hojeISO(),
-        valor: p.valor, tipo: "gasto", categoria: "Serviços",
+        valor: p.valor, tipo: "gasto", categoria: "Cartão de Crédito",
         status: "pago", pago_em: hojeISO(),
         forma_pagamento: "pagamento_fatura"
       });
