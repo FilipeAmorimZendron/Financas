@@ -273,8 +273,14 @@ export async function lerExtratoCore({
   // não importa o que a IA decidiu.
   const REGEX_CAIXINHA = /caixinha|cofrinho|guardadinho|\bguardar\b|resgate\s*rdb|aplica[çc][aã]o\s*rdb|poupan[çc]a\s*programada|reserva\s*autom[aá]tica/i;
 
+  // Checa tanto a descrição limpa quanto a "descricaoOriginal" (crua, como
+  // veio do banco): a IA às vezes já limpa a palavra reveladora (ex: "Dinheiro
+  // retirado Guardar" virou só "Dinheiro retirado", perdendo o "guardar")
+  // antes de chegar aqui — sem checar a original, esse tipo de caso escapava.
+  const ehCaixinha = d => REGEX_CAIXINHA.test(String(d.descricao || "")) || REGEX_CAIXINHA.test(String(d.descricaoOriginal || ""));
+
   const duvidasBrutas = (Array.isArray(resultado.duvidas) ? resultado.duvidas : [])
-    .filter(d => !(d && typeof d === "object" && REGEX_CAIXINHA.test(String(d.descricao || ""))));
+    .filter(d => !(d && typeof d === "object" && ehCaixinha(d)));
 
   // ── Rede de segurança pra transferência interna ──
   // A instrução no prompt pede pra IA marcar isso como dúvida, mas o
@@ -305,7 +311,8 @@ export async function lerExtratoCore({
   // ehTransferenciaPropria (ou com opções de categoria erradas pra essa
   // pergunta).
   duvidasBrutas.forEach(d => {
-    if (d && typeof d === "object" && !d.ehTransferenciaPropria && REGEX_TRANSF_INTERNA.test(String(d.descricao || ""))) {
+    if (d && typeof d === "object" && !d.ehTransferenciaPropria &&
+        (REGEX_TRANSF_INTERNA.test(String(d.descricao || "")) || REGEX_TRANSF_INTERNA.test(String(d.descricaoOriginal || "")))) {
       d.ehTransferenciaPropria = true;
       d.pergunta = `Esta é uma transferência entre suas próprias contas/carteiras (mencionada como "${d.descricao}") ou um gasto/recebimento real?`;
       d.opcoes = ["Sim, é transferência entre minhas contas", "Não, é um gasto/recebimento normal"];
@@ -337,7 +344,8 @@ export async function lerExtratoCore({
     }
   }
   duvidasBrutas.forEach(d => {
-    if (d && typeof d === "object" && !d.ehTransferenciaPropria && REGEX_FATURA_CARTAO.test(String(d.descricao || ""))) {
+    if (d && typeof d === "object" && !d.ehTransferenciaPropria &&
+        (REGEX_FATURA_CARTAO.test(String(d.descricao || "")) || REGEX_FATURA_CARTAO.test(String(d.descricaoOriginal || "")))) {
       d.pergunta = perguntaFatura(d.descricao);
       d.opcoes = opcoesFatura;
     }
