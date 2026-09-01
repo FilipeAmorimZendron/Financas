@@ -664,6 +664,61 @@ async function sbLogin(email, senha) {
   if (!res.ok) throw new Error(traduzErroAuth(data.error_description || data.msg, "Não foi possível entrar. Verifique seus dados."));
   return data;
 }
+
+/* ─── Renovação de sessão ─────────────────────────────────
+   O access_token do Supabase vence em ~1h. Antes, o app só guardava
+   esse token (sem o refresh_token) — quem ficasse numa tela demorada
+   (ex: categorizando muitas dúvidas na revisão de extrato) sem nenhuma
+   chamada de rede nesse meio tempo via o token vencer sozinho, e ao
+   tentar salvar levava um 401 que deslogava na hora, perdendo tudo que
+   não tinha sido salvo ainda. Agora guardamos o refresh_token também e
+   renovamos sozinhos — na marra (timer) e por baixo dos panos quando
+   uma chamada esbarra num token vencido (ver fetchSeguro). */
+
+// Evita duas renovações em paralelo (ex: várias chamadas batendo 401 ao
+// mesmo tempo) — todo mundo espera a MESMA renovação em andamento.
+let _renovacaoSessaoEmAndamento = null;
+
+async function sbRenovarSessao() {
+  if (_renovacaoSessaoEmAndamento) return _renovacaoSessaoEmAndamento;
+  _renovacaoSessaoEmAndamento = (async () => {
+    const refreshToken = localStorage.getItem("fp_refresh_token");
+    if (!refreshToken) return null;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY },
+        body: JSON.stringify({ refresh_token: refreshToken })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data.access_token || !data.refresh_token) return null;
+      localStorage.setItem("fp_token", data.access_token);
+      localStorage.setItem("fp_refresh_token", data.refresh_token);
+      return data.access_token;
+    } catch (e) {
+      return null;
+    }
+  })();
+  try {
+    return await _renovacaoSessaoEmAndamento;
+  } finally {
+    _renovacaoSessaoEmAndamento = null;
+  }
+}
+
+let _timerRenovacaoSessao = null;
+
+/* Chama uma vez logo após logar (senha, Google ou sessão salva) — renova
+   o token sozinho a cada 45min enquanto o app ficar aberto, pra ele quase
+   nunca chegar perto de vencer de verdade. */
+function iniciarRenovacaoAutomaticaDeSessao() {
+  pararRenovacaoAutomaticaDeSessao();
+  _timerRenovacaoSessao = setInterval(() => { sbRenovarSessao(); }, 45 * 60 * 1000);
+}
+function pararRenovacaoAutomaticaDeSessao() {
+  if (_timerRenovacaoSessao) { clearInterval(_timerRenovacaoSessao); _timerRenovacaoSessao = null; }
+}
 /* ─── Recuperação de senha ─────────────────────────────── */
 
 /* Envia o e-mail com o link de redefinição */
@@ -755,9 +810,12 @@ async function verificarLoginOAuth() {
     const user = await res.json();
 
     localStorage.setItem("fp_token", accessToken);
+    const refreshTokenOAuth = params.get("refresh_token");
+    if (refreshTokenOAuth) localStorage.setItem("fp_refresh_token", refreshTokenOAuth);
     localStorage.setItem("fp_user", JSON.stringify({ email: user.email, id: user.id, createdAt: user.created_at || null }));
     state.user = { email: user.email, id: user.id, createdAt: user.created_at || null };
     document.getElementById("userEmail").textContent = state.user.email;
+    iniciarRenovacaoAutomaticaDeSessao();
 
     await carregarDadosNuvem();
     const retornoJaDecidiuTela = await tratarRetornoAssinatura();
@@ -783,6 +841,7 @@ async function verificarLoginOAuth() {
 }
 
 async function sbLogout() {
+  pararRenovacaoAutomaticaDeSessao();
   const token = localStorage.getItem("fp_token");
   if (token) {
     await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
@@ -791,6 +850,7 @@ async function sbLogout() {
     }).catch(()=>{});
   }
   localStorage.removeItem("fp_token");
+  localStorage.removeItem("fp_refresh_token");
   localStorage.removeItem("fp_user");
   // Limpa avisos/eventos do sino e o chat — são do usuário que estava
   // logado, não devem aparecer para quem logar depois no mesmo navegador.
@@ -824,7 +884,7 @@ class ErroRede extends Error {
 const dormir = ms => new Promise(r => setTimeout(r, ms));
 
 /* fetch com timeout, retry e erros traduzidos */
-async function fetchSeguro(url, opcoes = {}, tentativas = 3) {
+async function fetchSeguro(url, opcoes = {}, tentativas = 3, jaTentouRenovar = false) {
   // Sem internet? Nem tenta.
   if (!navigator.onLine) {
     throw new ErroRede("Você está sem internet. Verifique sua conexão.", "offline");
@@ -840,8 +900,19 @@ async function fetchSeguro(url, opcoes = {}, tentativas = 3) {
       const res = await fetch(url, { ...opcoes, signal: ctrl.signal });
       clearTimeout(timer);
 
-      // Sessão expirada — não adianta tentar de novo
+      // Sessão expirada — antes de desistir, tenta renovar o token uma vez
+      // e repetir a MESMA chamada com ele. É o que salva quem passou muito
+      // tempo numa tela sem nenhuma chamada de rede (ex: categorizando
+      // várias dúvidas na revisão de extrato) e só na hora de salvar
+      // esbarra no token vencido — sem isso, perdia tudo que não salvou.
       if (res.status === 401 || res.status === 403) {
+        if (!jaTentouRenovar && opcoes.headers && opcoes.headers.Authorization) {
+          const novoToken = await sbRenovarSessao();
+          if (novoToken) {
+            const novasOpcoes = { ...opcoes, headers: { ...opcoes.headers, Authorization: `Bearer ${novoToken}` } };
+            return fetchSeguro(url, novasOpcoes, tentativas, true);
+          }
+        }
         const corpo = await res.json().catch(() => ({}));
         const msg = (corpo.message || corpo.msg || "").toLowerCase();
         if (msg.includes("jwt") || msg.includes("expired") || msg.includes("token")) {
@@ -1506,9 +1577,11 @@ document.getElementById("formLogin")?.addEventListener("submit", async e => {
   try {
     const data = await sbLogin(email, senha);
     localStorage.setItem("fp_token", data.access_token);
+    if (data.refresh_token) localStorage.setItem("fp_refresh_token", data.refresh_token);
     localStorage.setItem("fp_user",  JSON.stringify({ email: data.user.email, id: data.user.id, createdAt: data.user.created_at || null }));
     state.user = { email: data.user.email, id: data.user.id, createdAt: data.user.created_at || null };
     document.getElementById("userEmail").textContent = state.user.email;
+    iniciarRenovacaoAutomaticaDeSessao();
     await carregarDadosNuvem();
     const retornoJaDecidiuTela = await tratarRetornoAssinatura();
     if (!retornoJaDecidiuTela && mostrarAppOuPaywall()) {
@@ -1563,8 +1636,10 @@ document.getElementById("formCadastro")?.addEventListener("submit", async e => {
     if (data?.access_token && data?.user) {
       // Conta já vem confirmada e logada: manda direto pro checkout.
       localStorage.setItem("fp_token", data.access_token);
+      if (data.refresh_token) localStorage.setItem("fp_refresh_token", data.refresh_token);
       localStorage.setItem("fp_user", JSON.stringify({ email: data.user.email, id: data.user.id, createdAt: data.user.created_at || null }));
       state.user = { email: data.user.email, id: data.user.id, createdAt: data.user.created_at || null };
+      iniciarRenovacaoAutomaticaDeSessao();
       fecharAuth();
       await assinarPlanoUnico();
     } else {
@@ -12272,6 +12347,7 @@ async function iniciar() {
         } catch (e) { /* segue sem — cai no caminho conservador (trata como novo) */ }
       }
       document.getElementById("userEmail").textContent = state.user.email;
+      iniciarRenovacaoAutomaticaDeSessao();
       await carregarDadosNuvem();
       // Cancelou/expirou o checkout: tratarRetornoAssinatura() já decidiu a
       // tela (manda pra landing) — não deixa o paywall sobrescrever.
@@ -12289,6 +12365,7 @@ async function iniciar() {
       }
     } catch(e) {
       localStorage.removeItem("fp_token");
+      localStorage.removeItem("fp_refresh_token");
       localStorage.removeItem("fp_user");
       esconderSplash();
       mostrarTelaLogin();
