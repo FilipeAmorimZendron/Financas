@@ -271,7 +271,7 @@ export async function lerExtratoCore({
   // confiável o suficiente (mesmo problema já visto com transferência
   // interna) — quem bater com esse padrão é descartado por completo aqui,
   // não importa o que a IA decidiu.
-  const REGEX_CAIXINHA = /caixinha|cofrinho|guardadinho|resgate\s*rdb|aplica[çc][aã]o\s*rdb|poupan[çc]a\s*programada|reserva\s*autom[aá]tica/i;
+  const REGEX_CAIXINHA = /caixinha|cofrinho|guardadinho|\bguardar\b|resgate\s*rdb|aplica[çc][aã]o\s*rdb|poupan[çc]a\s*programada|reserva\s*autom[aá]tica/i;
 
   const duvidasBrutas = (Array.isArray(resultado.duvidas) ? resultado.duvidas : [])
     .filter(d => !(d && typeof d === "object" && REGEX_CAIXINHA.test(String(d.descricao || ""))));
