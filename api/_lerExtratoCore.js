@@ -132,6 +132,12 @@ export async function lerExtratoCore({
     "- Se o nome do destinatário der uma pista do ramo (ex.: 'RESTAURANTE DO JOÃO', 'BARBEARIA STYLE', 'MERCEARIA SILVA', 'DRA. FULANA - DENTISTA'), use essa pista pra categorizar direto — o nome já entrega o ramo mesmo sendo pessoa física ou MEI. Vale a mesma regra de palavras genéricas de Alimentação acima.",
     "- Se for só um nome de pessoa comum, sem NENHUMA pista do motivo (ex.: 'PIX MARIA SILVA SANTOS', 'TED JOÃO PEREIRA'), NÃO adivinhe a categoria — isso é exatamente o tipo de coisa que vira 'duvidas': pergunte pra que foi o pagamento, com a pergunta mencionando o nome (ex.: \"Pra que foi esse Pix de R$ 150,00 pra Maria Silva Santos?\") e opções plausíveis pro contexto (normalmente [\"Serviços\", \"Alimentação\", \"Compras\", \"Outros\"], ajustando se o valor/frequência sugerir algo, tipo um valor recorrente todo mês parecendo uma diarista/prestador fixo).",
     "",
+    "PAGAMENTO DE FATURA DE CARTÃO DE CRÉDITO:",
+    "- Linhas como 'PAGAMENTO FATURA CARTÃO', 'PGTO FATURA', 'PGTO CARTÃO DE CRÉDITO', 'PAGAMENTO DE CARTAO DE CREDITO' são o pagamento da fatura INTEIRA do cartão — um valor grande, sem detalhar o que foi comprado, bem diferente de uma compra específica no cartão.",
+    "- Isso é ambíguo: o FAZ Finanças tem um jeito próprio de acompanhar cartão de crédito e fatura (separado da leitura de extrato) — se a pessoa já registra as compras desse cartão por lá, contar esse pagamento como gasto de novo aqui duplicaria o valor. Você não tem como saber se ela já registra ou não.",
+    "- Por isso, NUNCA chute a categoria nem finja que é um gasto normal — SEMPRE vira 'duvidas'. Use uma pergunta parecida com: \"Isso parece o pagamento da fatura do cartão de crédito. Você já registra as compras desse cartão aqui no FAZ? Se sim, clique em 'Não importar' pra não contar em dobro. Se esse extrato é a única forma de acompanhar esses gastos, escolha a categoria.\"",
+    "- Nas opções: se a pessoa já tiver uma categoria própria criada pra isso (procure por algo como 'Cartão', 'Fatura', 'Cartão de Crédito' na lista de categorias dela), use SEMPRE essa mesma categoria como primeira opção — nunca invente um nome novo parecido tipo 'Fatura do cartão' quando ela já tem 'Cartão de Crédito' (ou vice-versa). Duas categorias quase iguais pra mesma coisa é exatamente o que NÃO pode acontecer.",
+    "",
     "QUANDO VOCÊ TIVER DÚVIDA:",
     "- Se não conseguir categorizar com segurança mesmo usando o guia acima, NÃO jogue em 'Outros'. Coloque o item em \"duvidas\" e pergunte.",
     "- Você também pode perguntar sobre QUALQUER outra coisa que te deixe insegura: uma data ambígua,",
@@ -290,6 +296,37 @@ export async function lerExtratoCore({
       d.ehTransferenciaPropria = true;
       d.pergunta = `Esta é uma transferência entre suas próprias contas/carteiras (mencionada como "${d.descricao}") ou um gasto/recebimento real?`;
       d.opcoes = ["Sim, é transferência entre minhas contas", "Não, é um gasto/recebimento normal"];
+    }
+  });
+
+  // ── Rede de segurança pra pagamento de fatura de cartão ──
+  // Visto ao vivo: a IA tratava isso como um gasto normal e chutava uma
+  // categoria (às vezes inventando um nome novo tipo "Fatura do cartão"
+  // quando a pessoa já tinha "Cartão de Crédito" criado) — resultado:
+  // duas categorias quase iguais pra mesma coisa, e o valor podia contar
+  // em dobro pra quem já registra o cartão dentro do FAZ. Isso é
+  // ambíguo demais pra confiar só no prompt — sempre vira dúvida aqui.
+  const REGEX_FATURA_CARTAO = /fatura\s*(do\s*)?cart[aã]o|pag(amento|to)\s*(de\s*)?fatura|pag(amento|to)\s*cart[aã]o\s*de\s*cr[eé]dito/i;
+  const categoriaFaturaExistente = categoriasUsuario.find(c => /cart|fatura/i.test(c));
+  const opcoesFatura = categoriaFaturaExistente
+    ? [categoriaFaturaExistente, "Compras", "Serviços", "Outros"]
+    : ["Compras", "Serviços", "Alimentação", "Outros"];
+  const perguntaFatura = desc => `Isso parece o pagamento da fatura do cartão de crédito (mencionado como "${desc}"). Se você já registra as compras desse cartão aqui no FAZ, clique em "Não importar" pra não contar em dobro. Se esse extrato é a única forma de acompanhar esses gastos, escolha a categoria.`;
+
+  for (let i = lancBrutos.length - 1; i >= 0; i--) {
+    const l = lancBrutos[i];
+    if (l && typeof l === "object" && REGEX_FATURA_CARTAO.test(String(l.descricao || ""))) {
+      lancBrutos.splice(i, 1);
+      duvidasBrutas.push({
+        data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo || "gasto",
+        pergunta: perguntaFatura(l.descricao), opcoes: opcoesFatura
+      });
+    }
+  }
+  duvidasBrutas.forEach(d => {
+    if (d && typeof d === "object" && !d.ehTransferenciaPropria && REGEX_FATURA_CARTAO.test(String(d.descricao || ""))) {
+      d.pergunta = perguntaFatura(d.descricao);
+      d.opcoes = opcoesFatura;
     }
   });
 
