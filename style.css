@@ -529,12 +529,15 @@ button, input, textarea, select {
   background: linear-gradient(140deg, var(--navy-800) 0%, var(--teal-700) 130%);
   border-color: transparent;
   position: relative;
-  overflow: hidden;
 }
 .card-highlight::before {
   content: '';
   position: absolute;
   inset: 0;
+  /* Arredonda sozinho (em vez de depender de overflow:hidden no card) —
+     assim o balão de ajuda (.dica-balao) pode escapar da caixa do card
+     sem ser cortado quando abre pra baixo perto do topo da página. */
+  border-radius: inherit;
   background:
     radial-gradient(circle at 88% 12%, rgba(74,154,164,0.32) 0%, transparent 42%);
   pointer-events: none;
