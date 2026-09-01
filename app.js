@@ -2443,6 +2443,12 @@ function initSino() {
       renderSino();
       painel.hidden = false;
       marcarAvisosLidos();
+      // Também checa se chegou algum extrato por e-mail — antes isso só
+      // rodava no login/carregamento da página, então quem já estava com
+      // o app aberto numa aba (e mandou o e-mail depois) só via a
+      // pendência recarregando a página. Abrir o sino é um bom gatilho
+      // natural: a pessoa está literalmente checando se tem algo novo.
+      verificarExtratosPorEmail();
     } else {
       painel.hidden = true;
     }
