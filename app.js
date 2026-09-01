@@ -6571,22 +6571,164 @@ limparFiltrosBtn?.addEventListener("click",()=>{
   atualizarCamposFiltro(); renderPlanilha();
 });
 
-limparTudoBtn?.addEventListener("click", async () => {
-  const ok = await confirmar("Apagar todos os dados?", { tipo: "perigo", descricao: "Isso remove todas as contas, lançamentos, metas e investimentos. Não dá para desfazer.", okLabel: "Apagar tudo" });
+/* ─── Excluir tudo de UMA categoria (Contas, Lançamentos, Metas...) ───
+   Antes existia um único botão "Limpar tudo" no Histórico que apagava
+   contas + lançamentos + metas + investimentos juntos — quem só queria
+   limpar os lançamentos pra testar acabava perdendo as contas também,
+   sem querer. Agora cada tela tem seu próprio "excluir todas as X",
+   sem tocar nas outras categorias. Pra apagar ABSOLUTAMENTE tudo
+   (inclusive o cadastro), o caminho é "Excluir minha conta" em
+   Conta > Segurança, que já tem confirmação em duas etapas.
+   tabelas: lista de { tabela, ids() } — cada uma vira um dbDelete em
+   paralelo; várias entradas cobrem cascata (ex: apagar contas também
+   apaga os lançamentos vinculados a elas). */
+async function excluirTodosDeCategoria({ titulo, descricao, okLabel, tabelas, aposExcluir, exigirDigitar, semItens }) {
+  const totalItens = tabelas.reduce((s, t) => s + t.ids().length, 0);
+  if (!totalItens) { toast(semItens || "Não tem nada pra apagar aqui ainda.", "info"); return; }
+
+  const ok = await confirmar(titulo, { tipo: "perigo", descricao, okLabel: okLabel || "Excluir tudo" });
   if (!ok) return;
-  mostrarLoading(true, "Limpando os dados", "Um momento...");
+
+  if (exigirDigitar) {
+    const texto = await promptTexto(`Pra confirmar, digite <strong>${exigirDigitar}</strong> abaixo:`, exigirDigitar);
+    if (texto !== exigirDigitar) {
+      if (texto !== null) toast("Confirmação incorreta. Nada foi apagado.", "info");
+      return;
+    }
+  }
+
+  mostrarLoading(true, "Apagando", "Um momento...");
   try {
-    await Promise.all([
-      ...state.movimentos.map(m=>dbDelete("movimentos",m.id)),
-      ...state.transferencias.map(t=>dbDelete("transferencias",t.id)),
-      ...state.recorrencias.map(r=>dbDelete("recorrencias",r.id)),
-      ...state.metas.map(m=>dbDelete("metas",m.id)),
-      ...state.bancos.map(b=>dbDelete("contas",b.id)),
-    ]);
-    state.bancos=state.movimentos=state.transferencias=state.recorrencias=state.metas=[];
-    renderTudo(); toast("Todos os dados apagados.","info");
-  } catch(err) { tratarErro(err); }
+    for (const t of tabelas) {
+      const ids = t.ids();
+      if (ids.length) await Promise.all(ids.map(id => dbDelete(t.tabela, id)));
+    }
+    aposExcluir();
+    renderTudo();
+    toast("Apagado com sucesso.", "info");
+  } catch (err) { tratarErro(err); }
   finally { mostrarLoading(false); }
+}
+
+limparTudoBtn?.addEventListener("click", async () => {
+  const movsIds = state.movimentos.map(m => m.id);
+  await excluirTodosDeCategoria({
+    titulo: "Excluir todos os lançamentos?",
+    descricao: `${movsIds.length} lançamento(s) serão apagados. Suas contas, metas e investimentos continuam intactos. Não dá para desfazer.`,
+    okLabel: "Excluir lançamentos",
+    tabelas: [{ tabela: "movimentos", ids: () => movsIds }],
+    aposExcluir: () => { state.movimentos = []; },
+    semItens: "Não tem nenhum lançamento pra apagar."
+  });
+});
+
+document.getElementById("excluirTodasContasBtn")?.addEventListener("click", async () => {
+  const contaIds = state.bancos.map(b => b.id);
+  const movsIds = state.movimentos.filter(m => contaIds.includes(m.bancoId)).map(m => m.id);
+  await excluirTodosDeCategoria({
+    titulo: "Excluir todas as contas?",
+    descricao: `${contaIds.length} conta(s) e ${movsIds.length} lançamento(s) vinculados serão apagados. Não dá para desfazer.`,
+    okLabel: "Excluir contas",
+    tabelas: [
+      { tabela: "movimentos", ids: () => movsIds },
+      { tabela: "contas", ids: () => contaIds },
+    ],
+    exigirDigitar: "EXCLUIR",
+    aposExcluir: () => {
+      const idsSet = new Set(contaIds);
+      state.movimentos = state.movimentos.filter(m => !idsSet.has(m.bancoId));
+      state.bancos = [];
+    },
+    semItens: "Não tem nenhuma conta pra apagar."
+  });
+});
+
+document.getElementById("excluirTodasTransfBtn")?.addEventListener("click", async () => {
+  const ids = state.transferencias.map(t => t.id);
+  await excluirTodosDeCategoria({
+    titulo: "Excluir todas as transferências?",
+    descricao: `${ids.length} transferência(s) serão apagadas. Não dá para desfazer.`,
+    okLabel: "Excluir transferências",
+    tabelas: [{ tabela: "transferencias", ids: () => ids }],
+    aposExcluir: () => { state.transferencias = []; },
+    semItens: "Não tem nenhuma transferência pra apagar."
+  });
+});
+
+document.getElementById("excluirTodosGastosFixosBtn")?.addEventListener("click", async () => {
+  const ids = state.recorrencias.map(r => r.id);
+  await excluirTodosDeCategoria({
+    titulo: "Excluir todos os gastos fixos?",
+    descricao: `${ids.length} gasto(s) fixo(s) serão apagados — eles deixam de se repetir. Não dá para desfazer.`,
+    okLabel: "Excluir gastos fixos",
+    tabelas: [{ tabela: "recorrencias", ids: () => ids }],
+    aposExcluir: () => { state.recorrencias = []; },
+    semItens: "Não tem nenhum gasto fixo pra apagar."
+  });
+});
+
+document.getElementById("excluirTodasMetasBtn")?.addEventListener("click", async () => {
+  const ids = state.metas.map(m => m.id);
+  await excluirTodosDeCategoria({
+    titulo: "Excluir todos os limites de gasto?",
+    descricao: `${ids.length} limite(s) serão apagados. Não dá para desfazer.`,
+    okLabel: "Excluir limites",
+    tabelas: [{ tabela: "metas", ids: () => ids }],
+    aposExcluir: () => { state.metas = []; },
+    semItens: "Não tem nenhum limite de gasto pra apagar."
+  });
+});
+
+document.getElementById("excluirTodosObjetivosBtn")?.addEventListener("click", async () => {
+  const ids = state.objetivos.map(o => o.id);
+  await excluirTodosDeCategoria({
+    titulo: "Excluir todos os objetivos?",
+    descricao: `${ids.length} objetivo(s) serão apagados. Não dá para desfazer.`,
+    okLabel: "Excluir objetivos",
+    tabelas: [{ tabela: "objetivos", ids: () => ids }],
+    aposExcluir: () => { state.objetivos = []; renderObjetivos(); },
+    semItens: "Não tem nenhum objetivo pra apagar."
+  });
+});
+
+document.getElementById("excluirTodosInvestimentosBtn")?.addEventListener("click", async () => {
+  const ids = state.investimentos.map(i => i.id);
+  await excluirTodosDeCategoria({
+    titulo: "Excluir todos os investimentos?",
+    descricao: `${ids.length} investimento(s) serão removidos da sua carteira. Não dá para desfazer.`,
+    okLabel: "Excluir investimentos",
+    tabelas: [{ tabela: "investimentos", ids: () => ids }],
+    aposExcluir: () => { state.investimentos = []; renderInvestimentos(); },
+    semItens: "Não tem nenhum investimento pra apagar."
+  });
+});
+
+document.getElementById("excluirTodasNotasFiscaisBtn")?.addEventListener("click", async () => {
+  const ids = state.notasFiscais.map(n => n.id);
+  await excluirTodosDeCategoria({
+    titulo: "Excluir todas as notas fiscais?",
+    descricao: `${ids.length} nota(s) fiscal(is) registradas serão apagadas. Não dá para desfazer.`,
+    okLabel: "Excluir notas",
+    tabelas: [{ tabela: "notas_fiscais", ids: () => ids }],
+    aposExcluir: () => { state.notasFiscais = []; },
+    semItens: "Não tem nenhuma nota fiscal pra apagar."
+  });
+});
+
+document.getElementById("excluirTodosContatosBtn")?.addEventListener("click", async () => {
+  const ids = state.contatos.map(c => c.id);
+  await excluirTodosDeCategoria({
+    titulo: "Excluir todos os cadastros?",
+    descricao: `${ids.length} cliente(s)/fornecedor(es) serão apagados. As notas fiscais já registradas continuam do jeito que estão, só perdem o vínculo com o cadastro.`,
+    okLabel: "Excluir cadastros",
+    tabelas: [{ tabela: "contatos", ids: () => ids }],
+    aposExcluir: () => {
+      const idsSet = new Set(ids);
+      state.notasFiscais.forEach(n => { if (idsSet.has(n.contatoId)) n.contatoId = null; });
+      state.contatos = [];
+    },
+    semItens: "Não tem nenhum cadastro pra apagar."
+  });
 });
 
 /* ─── Excluir com Undo ────────────────────────────────────── */

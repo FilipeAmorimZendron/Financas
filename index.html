@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202609011225" />
+  <link rel="stylesheet" href="style.css?v=202609011247" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -417,7 +417,13 @@
           </form>
         </div>
         <div class="panel">
-          <div class="panel-header"><h3 class="panel-title">Contas cadastradas</h3></div>
+          <div class="panel-header">
+            <h3 class="panel-title">Contas cadastradas</h3>
+            <button id="excluirTodasContasBtn" class="btn-secundario btn-secundario-danger" type="button" title="Excluir todas as contas">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              <span>Excluir todas</span>
+            </button>
+          </div>
           <div id="listaBancos" class="lista-container"><div class="empty-state">Nenhuma conta cadastrada ainda.</div></div>
         </div>
       </section>
@@ -555,7 +561,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 <span>Exportar</span>
               </button>
-              <button id="limparTudo" class="btn-secundario btn-secundario-danger" type="button" title="Limpar tudo">
+              <button id="limparTudo" class="btn-secundario btn-secundario-danger" type="button" title="Excluir todos os lançamentos (não mexe nas contas)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
               </button>
             </div>
@@ -627,7 +633,13 @@
           </form>
         </div>
         <div class="panel">
-          <div class="panel-header"><h3 class="panel-title">Histórico de transferências</h3></div>
+          <div class="panel-header">
+            <h3 class="panel-title">Histórico de transferências</h3>
+            <button id="excluirTodasTransfBtn" class="btn-secundario btn-secundario-danger" type="button" title="Excluir todas as transferências">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              <span>Excluir todas</span>
+            </button>
+          </div>
           <div id="listaTransferencias" class="lista-container"><div class="empty-state">Nenhuma transferência realizada ainda.</div></div>
         </div>
       </section>
@@ -765,6 +777,12 @@
           </button>
           <div class="panel-body open" id="corpoRegras">
             <div class="panel-body-inner">
+              <div class="panel-header-actions" style="justify-content:flex-end; margin-bottom:10px;">
+                <button id="excluirTodosGastosFixosBtn" class="btn-secundario btn-secundario-danger" type="button" title="Excluir todos os gastos fixos">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                  <span>Excluir todos</span>
+                </button>
+              </div>
               <div id="listaRecorrencias" class="lista-container"><div class="empty-state">Carregando...</div></div>
             </div>
           </div>
@@ -868,7 +886,13 @@
           </div>
 
           <div class="panel">
-            <div class="panel-header"><h3 class="panel-title">Meus objetivos</h3></div>
+            <div class="panel-header">
+              <h3 class="panel-title">Meus objetivos</h3>
+              <button id="excluirTodosObjetivosBtn" class="btn-secundario btn-secundario-danger" type="button" title="Excluir todos os objetivos">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                <span>Excluir todos</span>
+              </button>
+            </div>
             <div id="listaObjetivos" class="lista-container"><div class="empty-state">Carregando...</div></div>
           </div>
         </div>
@@ -908,7 +932,13 @@
           <div class="panel">
             <div class="panel-header">
               <h3 class="panel-title">Gasto do mês</h3>
-              <span class="panel-sub" id="metaMesLabel"></span>
+              <div class="panel-header-actions">
+                <span class="panel-sub" id="metaMesLabel"></span>
+                <button id="excluirTodasMetasBtn" class="btn-secundario btn-secundario-danger" type="button" title="Excluir todos os limites de gasto">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                  <span>Excluir todos</span>
+                </button>
+              </div>
             </div>
             <div id="listaMetas" class="lista-container"><div class="empty-state">Carregando...</div></div>
           </div>
@@ -1110,10 +1140,16 @@
           <div class="panel">
             <div class="panel-header inv-lista-head">
               <h3 class="panel-title">Meus investimentos</h3>
-              <button type="button" class="btn-atualizar-cripto" id="btnAtualizarCripto" title="Atualizar preços" style="display:none">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg>
-                <span id="criptoAtualizadoEm">Atualizar</span>
-              </button>
+              <div class="panel-header-actions">
+                <button type="button" class="btn-atualizar-cripto" id="btnAtualizarCripto" title="Atualizar preços" style="display:none">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg>
+                  <span id="criptoAtualizadoEm">Atualizar</span>
+                </button>
+                <button id="excluirTodosInvestimentosBtn" class="btn-secundario btn-secundario-danger" type="button" title="Excluir todos os investimentos">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                  <span>Excluir todos</span>
+                </button>
+              </div>
             </div>
             <div id="listaInvestimentos" class="lista-container"><div class="empty-state">Nenhum investimento cadastrado ainda.</div></div>
           </div>
@@ -1242,7 +1278,13 @@
         </div>
 
         <div class="panel">
-          <div class="panel-header"><h3 class="panel-title">Notas registradas</h3></div>
+          <div class="panel-header">
+            <h3 class="panel-title">Notas registradas</h3>
+            <button id="excluirTodasNotasFiscaisBtn" class="btn-secundario btn-secundario-danger" type="button" title="Excluir todas as notas fiscais">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              <span>Excluir todas</span>
+            </button>
+          </div>
           <div id="listaNotasFiscais" class="lista-container"><div class="empty-state">Nenhuma nota fiscal registrada ainda.</div></div>
         </div>
       </section>
@@ -1303,7 +1345,13 @@
         </div>
 
         <div class="panel">
-          <div class="panel-header"><h3 class="panel-title">Cadastrados</h3></div>
+          <div class="panel-header">
+            <h3 class="panel-title">Cadastrados</h3>
+            <button id="excluirTodosContatosBtn" class="btn-secundario btn-secundario-danger" type="button" title="Excluir todos os clientes e fornecedores">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              <span>Excluir todos</span>
+            </button>
+          </div>
           <div id="listaContatos" class="lista-container"><div class="empty-state">Nenhum cliente ou fornecedor cadastrado ainda.</div></div>
         </div>
       </section>
@@ -3243,6 +3291,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202609011225"></script>
+  <script src="app.js?v=202609011247"></script>
 </body>
 </html>
