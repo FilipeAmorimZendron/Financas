@@ -1747,17 +1747,18 @@ function classificarCategoria(t) {
   // cabeleireiro etc. agora são "Cuidados Pessoais", ver abaixo)
   if (/assinatura|lavanderia|conserto|manutenção|manutencao|técnico|tecnico|advogado|contador|contabil|chatgpt|openai|anthropic|claude|google\s*one|icloud|apple\.com|microsoft|office\s*365|adobe|canva|dropbox|notion|figma|github|hostinger|godaddy|registro\.br|vercel|aws\b|correios|cartório|cartorio|despachante/.test(t)) return "Serviços";
 
-  // Compras (coisas em geral — roupa, pet e cosmético têm categoria própria, ver abaixo)
-  if (/shopping|loja|magazine|magalu|americanas|amazon|mercado\s*livre|meli\b|mercadolivre|shopee|aliexpress|shein|temu|presente|eletrônico|eletronico|celular|notebook|kabum|pichau|terabyte|fast\s*shop|casas\s*bahia|ponto\s*frio|móveis|moveis|mobly|madeiramadeira|tok\s*stok|decoração|decoracao/.test(t)) return "Compras";
-
-  // Pets
+  // Pets (checado ANTES de "Compras" — "loja"/"shopping" ali são genéricas
+  // demais e prendiam nomes de petshop tipo "Petz Loja 123" antes de chegar aqui)
   if (/petz\b|cobasi\b|pet\s*shop|petshop|ra[çc][ãa]o\b|veterinari|banho\s*e\s*tosa/.test(t)) return "Pets";
 
-  // Vestuário
+  // Vestuário (mesmo motivo — checado antes de "Compras")
   if (/roupa|calçado|calcado|sapato|tênis|tenis|vestu|renner|riachuelo|c&a\b|marisa\b|zara\b|hering|centauro|netshoes|decathlon|nike\b|adidas\b/.test(t)) return "Vestuário";
 
-  // Cuidados Pessoais
+  // Cuidados Pessoais (mesmo motivo — checado antes de "Compras")
   if (/sal[ãa]o|cabeleireir|barbeir|barbearia|manicure|pedicure|estética|estetica|spa\b|massagem|sephora|boticario|boticário|natura\b|avon\b|perfumaria|cosm[ée]tic|maquiagem|depila[çc][ãa]o|podologia/.test(t)) return "Cuidados Pessoais";
+
+  // Compras (coisas em geral — roupa, pet e cosmético já foram tratados acima)
+  if (/shopping|loja|magazine|magalu|americanas|amazon|mercado\s*livre|meli\b|mercadolivre|shopee|aliexpress|shein|temu|presente|eletrônico|eletronico|celular|notebook|kabum|pichau|terabyte|fast\s*shop|casas\s*bahia|ponto\s*frio|móveis|moveis|mobly|madeiramadeira|tok\s*stok|decoração|decoracao/.test(t)) return "Compras";
 
   // Entrada (receitas)
   if (/salário|salario|holerite|proventos|recebi|entrou|ganhei|rendimento|dividendo|juros|cashback|estorno|reembolso|restitui|freelance|freela|honorario|honorário|comiss[ãa]o|vale\b|adiantamento|13[ºo]?\s*sal|f[ée]rias|inss|aposentadoria|pens[ãa]o|aux[íi]lio|bolsa/.test(t)) return "Entrada";
