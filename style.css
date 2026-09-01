@@ -10870,6 +10870,15 @@ body.scroll-travado {
 .rev-duvida-val { font-size: 14.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rev-val-entrada { color: var(--teal-500); }
 .rev-val-saida { color: var(--red); }
+/* Texto cru do banco, quando diferente do que a IA limpou — dá mais uma
+   pista pra pessoa reconhecer a transação que a IA não identificou. */
+.rev-duvida-original {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  word-break: break-word;
+}
 .rev-duvida-pergunta {
   font-size: 12.5px;
   color: var(--text-secondary);
@@ -10899,6 +10908,15 @@ body.scroll-travado {
 }
 .rev-stepper-btn:hover:not(:disabled) { background: var(--accent-dim); border-color: var(--accent); }
 .rev-stepper-btn:disabled { opacity: 0.35; cursor: default; }
+/* Já respondeu essa dúvida: destaca o botão "Próxima" pra deixar bem
+   claro qual é o próximo clique — sem avançar sozinho, só chamando
+   mais atenção pro que fazer agora. */
+.rev-stepper-btn-pronta {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+.rev-stepper-btn-pronta:hover:not(:disabled) { background: var(--accent); opacity: 0.9; }
 
 /* Categoria sugerida pela memória (a que você usou da última vez) */
 .rev-opcao-sugerida {

@@ -97,6 +97,7 @@ export async function lerExtratoCore({
     "",
     "- Taxas/impostos ligados a uma compra internacional (linhas como 'IOF Compra Internacional', 'Spread IOF Compra Internacional', 'IOF', 'Imposto sobre operação de câmbio') NÃO viram lançamento separado — são custo embutido da compra vizinha no extrato (geralmente aparecem logo antes/depois dela, mesma data/hora). Ignore essas linhas por completo (nem em \"lancamentos\", nem em \"duvidas\").",
     "- Pré-autorização de cartão revertida: quando aparece um crédito e um débito do MESMO valor, bem perto um do outro no tempo, com termos como 'AUTH HOLD', 'HOLD TEMPORARY', 'PENDING AUTHORIZATION', 'PRÉ-AUTORIZAÇÃO' — é uma reserva temporária que foi cancelada/liberada, dinheiro nenhum saiu ou entrou de verdade. Ignore o par inteiro (nem o crédito nem o débito viram lançamento).",
+    "- Caixinha/cofrinho/reserva DENTRO da mesma conta (termos como 'Caixinha', 'Cofrinho', 'Guardadinho', 'Aplicação RDB', 'Resgate RDB', 'Poupança programada', 'Reserva automática') NÃO é gasto nem entrada de verdade — é a pessoa guardando ou resgatando dinheiro dela mesma, dentro do próprio banco. O patrimônio total não muda. Ignore essas linhas por completo (nem em \"lancamentos\", nem em \"duvidas\") — nem precisa perguntar, é sempre isso mesmo.",
     "- Vendedor/serviço com grafia inconsistente no mesmo extrato (ex.: 'WWW.HOSTINGER.COM', 'hostingercom' e 'hostinger.com' na mesma pessoa) é o MESMO estabelecimento — normalize sempre para o mesmo nome limpo (ex.: 'Hostinger'), pra não espalhar o mesmo gasto em nomes diferentes.",
     `- Categorias possíveis: ${CATEGORIAS.join(", ")}. Para entradas, use \"Entrada\".`,
     categoriasUsuario.length
@@ -104,7 +105,7 @@ export async function lerExtratoCore({
       : "",
     "",
     "COMO CATEGORIZAR (use seu conhecimento de marcas e serviços brasileiros):",
-    "- Alimentação: supermercados (Pão de Açúcar, Carrefour, Assaí, Extra), restaurantes, lanchonetes, padarias, iFood, Rappi, açougue, hortifruti, delivery de comida.",
+    "- Alimentação: supermercados (Pão de Açúcar, Carrefour, Assaí, Extra), restaurantes, lanchonetes, padarias, iFood, Rappi, açougue, hortifruti, delivery de comida. IMPORTANTE: mesmo sem reconhecer a marca, se a descrição tiver palavras como 'restaurante', 'lanchonete', 'padaria', 'bar', 'churrascaria', 'pizzaria', 'hamburgueria', 'cafeteria', 'doceria', 'sorveteria', 'buffet', 'espetinho' — é Alimentação, mesmo sendo um estabelecimento pequeno ou desconhecido. Essas palavras valem MAIS que tentar reconhecer a marca.",
     "- Transporte: Uber, 99, combustível (Shell, Ipiranga, Petrobras, posto), estacionamento, pedágio, metrô, ônibus, passagem, mecânico, oficina.",
     "- Moradia: aluguel, condomínio, conta de luz (Enel, CPFL), água (Sabesp), gás, internet residencial, IPTU, reforma, móveis, material de construção.",
     "- Saúde: farmácias (Drogasil, Raia, Pacheco, Drogaria), consultas, exames, plano de saúde, academia, dentista, ótica, terapia.",
@@ -125,7 +126,11 @@ export async function lerExtratoCore({
     contas && contas.length ? `- As contas que a pessoa tem no app são: ${contas.join(", ")}. Se a transferência menciona uma dessas, é quase certo que é entre contas próprias.` : "",
     "- ATENÇÃO — transferência SEM nome de destinatário: bancos digitais e contas multimoeda (Wise, Nomad, PayPal, C6, Nubank etc.) costumam ter uma movimentação chamada \"Transferência interna\", \"Internal transfer\", \"Movimentação entre saldos/carteiras\", \"Conversão de saldo\" ou parecido — SEM mencionar nome nenhum. Isso é SEMPRE dinheiro se movendo entre saldos/moedas/carteiras da MESMA conta da própria pessoa (ex: do saldo em dólar pro saldo em real, ou de uma sub-carteira pra outra) — NUNCA é receita nem gasto de verdade, mesmo sem bater com o nome do titular ou com as contas do app. Trate do mesmo jeito: \"duvidas\" com \"ehTransferenciaPropria\": true. Preste atenção também na coluna \"Tipo de transação\" (ou parecida) do extrato — se disser algo como \"TRANSFERÊNCIA ENTRE CARTEIRAS\"/\"INTERNAL\"/\"WALLET\", é o mesmo caso.",
     "- Quando identificar uma transferência assim, NÃO a classifique como gasto/entrada comum. Coloque em \"duvidas\" com o campo \"ehTransferenciaPropria\": true, pergunta explicando, e as opções [\"Sim, transferência entre minhas contas\", \"Não, é um gasto/recebimento normal\"]. Assim a pessoa confirma e escolhe a outra conta no app.",
-    "- Transferências para OUTRAS pessoas (nomes diferentes do titular) são gastos/recebimentos normais — trate normalmente.",
+    "- Transferências para OUTRAS pessoas (nomes diferentes do titular) são gastos/recebimentos normais — trate normalmente, seguindo o guia abaixo pra decidir a categoria.",
+    "",
+    "PIX/TED/DOC PRA PESSOA FÍSICA (não é transferência própria nem marca conhecida):",
+    "- Se o nome do destinatário der uma pista do ramo (ex.: 'RESTAURANTE DO JOÃO', 'BARBEARIA STYLE', 'MERCEARIA SILVA', 'DRA. FULANA - DENTISTA'), use essa pista pra categorizar direto — o nome já entrega o ramo mesmo sendo pessoa física ou MEI. Vale a mesma regra de palavras genéricas de Alimentação acima.",
+    "- Se for só um nome de pessoa comum, sem NENHUMA pista do motivo (ex.: 'PIX MARIA SILVA SANTOS', 'TED JOÃO PEREIRA'), NÃO adivinhe a categoria — isso é exatamente o tipo de coisa que vira 'duvidas': pergunte pra que foi o pagamento, com a pergunta mencionando o nome (ex.: \"Pra que foi esse Pix de R$ 150,00 pra Maria Silva Santos?\") e opções plausíveis pro contexto (normalmente [\"Serviços\", \"Alimentação\", \"Compras\", \"Outros\"], ajustando se o valor/frequência sugerir algo, tipo um valor recorrente todo mês parecendo uma diarista/prestador fixo).",
     "",
     "QUANDO VOCÊ TIVER DÚVIDA:",
     "- Se não conseguir categorizar com segurança mesmo usando o guia acima, NÃO jogue em 'Outros'. Coloque o item em \"duvidas\" e pergunte.",
@@ -133,6 +138,7 @@ export async function lerExtratoCore({
     "  um valor que pode ser estorno, uma transferência que talvez não deva virar lançamento, uma",
     "  transação duplicada, etc. Use o campo \"pergunta\" para explicar em português claro e simples.",
     "- Em cada dúvida, ofereça de 2 a 4 opções curtas para o usuário escolher — e as opções têm que combinar com a PERGUNTA: se a dúvida é sobre categoria, ofereça categorias; se é sobre outra coisa (é estorno? é duplicado? a data está certa?), ofereça as respostas certas pra ISSO (ex.: [\"É um estorno\", \"É uma transação real\"]) — nunca ofereça opções de categoria para uma pergunta que não é sobre categoria.",
+    "- Só nas dúvidas (não nos lançamentos já confirmados), inclua também \"descricaoOriginal\": o texto CRU exatamente como apareceu no extrato, antes de você limpar. A pessoa às vezes reconhece a transação pelo código/nome cru mesmo quando você não conseguiu — dá mais uma pista pra ela decidir. Só inclua se for diferente da descrição limpa; se forem iguais, pode omitir esse campo.",
     "",
     "FORMATO DA RESPOSTA (responda APENAS com JSON válido, sem markdown, sem cercas de código):",
     "{",
@@ -140,7 +146,7 @@ export async function lerExtratoCore({
     '    { "data": "2026-07-10", "descricao": "Supermercado Pão de Açúcar", "valor": 234.50, "tipo": "gasto", "categoria": "Alimentação" }',
     "  ],",
     '  "duvidas": [',
-    '    { "data": "2026-07-12", "descricao": "PAG*JLM SERVICOS 4412", "valor": 89.90, "tipo": "gasto",',
+    '    { "data": "2026-07-12", "descricao": "JLM Serviços", "descricaoOriginal": "PAG*JLM SERVICOS 4412", "valor": 89.90, "tipo": "gasto",',
     '      "pergunta": "Não consegui identificar esse estabelecimento. Em qual categoria ele se encaixa?",',
     '      "opcoes": ["Serviços", "Compras", "Moradia", "Outros"] }',
     "  ],",
@@ -238,7 +244,18 @@ export async function lerExtratoCore({
     ...categoriasUsuario.map(c => c.toLowerCase()),
     "entrada"
   ]);
-  const duvidasBrutas = Array.isArray(resultado.duvidas) ? resultado.duvidas : [];
+  // ── Rede de segurança pra caixinha/cofrinho ──
+  // Diferente da transferência interna abaixo, isso nem vira dúvida —
+  // guardar/resgatar dentro da MESMA conta não tem ambiguidade nenhuma
+  // sobre "pra onde foi o dinheiro" (não mudou de conta nenhuma), então
+  // perguntar só cansaria a pessoa à toa. Confiar só no prompt não é
+  // confiável o suficiente (mesmo problema já visto com transferência
+  // interna) — quem bater com esse padrão é descartado por completo aqui,
+  // não importa o que a IA decidiu.
+  const REGEX_CAIXINHA = /caixinha|cofrinho|guardadinho|resgate\s*rdb|aplica[çc][aã]o\s*rdb|poupan[çc]a\s*programada|reserva\s*autom[aá]tica/i;
+
+  const duvidasBrutas = (Array.isArray(resultado.duvidas) ? resultado.duvidas : [])
+    .filter(d => !(d && typeof d === "object" && REGEX_CAIXINHA.test(String(d.descricao || ""))));
 
   // ── Rede de segurança pra transferência interna ──
   // A instrução no prompt pede pra IA marcar isso como dúvida, mas o
@@ -251,6 +268,9 @@ export async function lerExtratoCore({
 
   const lancBrutos = [];
   (Array.isArray(resultado.lancamentos) ? resultado.lancamentos : []).forEach(l => {
+    if (l && typeof l === "object" && REGEX_CAIXINHA.test(String(l.descricao || ""))) {
+      return; // caixinha/cofrinho: ignora por completo, nem lançamento nem dúvida
+    }
     if (l && typeof l === "object" && REGEX_TRANSF_INTERNA.test(String(l.descricao || ""))) {
       duvidasBrutas.push({
         data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo || "gasto",

@@ -4990,19 +4990,15 @@ const CATEGORIAS_BASICAS_REVISAO = ["Alimentação", "Transporte", "Moradia", "C
 /* Opções de botão para uma dúvida: as básicas + as categorias que o usuário
    criou (inclusive as recém-criadas nesta mesma tela), sem repetir. Assim uma
    categoria criada num item aparece como botão em todos os outros. */
+// Antes isso colava TODAS as categorias personalizadas em cada dúvida —
+// pra quem tem muitas (comum depois de uns meses de uso), a grade de
+// botões virava uma parede enorme e difícil de escanear. A própria IA já
+// escolhe a categoria personalizada certa quando faz sentido pro caso
+// (ver prompt em _lerExtratoCore.js), então as 3-4 sugestões dela bastam
+// aqui — quem quiser outra coisa tem o "📋 Selecionar outra categoria"
+// logo abaixo, que já mostra a lista completa (fixas + personalizadas).
 function opcoesDaDuvida(d) {
-  const base = (d && d.opcoes) ? d.opcoes.slice() : CATEGORIAS_BASICAS_REVISAO.slice();
-  // Perguntas que não são de categoria (transferência entre contas próprias,
-  // "isso é estorno?", etc.) têm opções fixas — colar categorias aqui deixaria
-  // botões sem sentido (e a resposta seria interpretada errado: o app só olha
-  // se foi a opção 0 ou não, então "ADS" seria lido como "Não").
-  if (d && d.ehTransferencia) return base;
-  const personalizadas = (state.categorias || []).map(c => c.nome);
-  const juntas = [...base];
-  personalizadas.forEach(nome => {
-    if (!juntas.some(x => x.toLowerCase() === nome.toLowerCase())) juntas.push(nome);
-  });
-  return juntas;
+  return (d && d.opcoes) ? d.opcoes.slice() : CATEGORIAS_BASICAS_REVISAO.slice();
 }
 
 let revisaoDados = { itens: [], duvidas: [], bancoId: null };
@@ -5381,6 +5377,9 @@ function renderRevisao() {
             ${d.tipo === "entrada" ? "+" : "−"}${fmtMoeda(Number(d.valor) || 0)}
           </span>
         </div>
+        ${d.descricaoOriginal && d.descricaoOriginal !== d.descricao
+          ? `<div class="rev-duvida-original" title="Como apareceu no extrato do banco">${esc(d.descricaoOriginal)}</div>`
+          : ""}
         <div class="rev-duvida-pergunta">${esc(d.data || "")} · ${esc(d.pergunta || "Qual categoria?")}</div>
         ${confirmacaoTransf}
         <div class="rev-duvida-opcoes">
@@ -5399,7 +5398,7 @@ function renderRevisao() {
 
       <div class="rev-stepper-nav">
         <button type="button" class="rev-stepper-btn rev-stepper-prev" data-stepper-prev ${i === 0 ? "disabled" : ""}>‹ Anterior</button>
-        <button type="button" class="rev-stepper-btn rev-stepper-next" data-stepper-next ${i === totalDuvidas - 1 ? "disabled" : ""}>Próxima ›</button>
+        <button type="button" class="rev-stepper-btn rev-stepper-next ${respondida && i < totalDuvidas - 1 ? "rev-stepper-btn-pronta" : ""}" data-stepper-next ${i === totalDuvidas - 1 ? "disabled" : ""}>Próxima ›</button>
       </div>
     </div>`;
   }
