@@ -542,6 +542,10 @@ button, input, textarea, select {
 .card-highlight .card-label { color: rgba(255,255,255,0.6); }
 .card-highlight .card-value { color: #fff; }
 .card-highlight .card-desc  { color: rgba(255,255,255,0.5); }
+.card-highlight .dica-info  { color: rgba(255,255,255,0.6); }
+.card-highlight .dica-info:hover { color: #fff; }
+
+.dash-patrimonio-card { margin-bottom: 16px; }
 
 /* ============================================================
    PANELS

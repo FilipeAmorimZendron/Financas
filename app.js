@@ -1977,6 +1977,18 @@ function limiteComporta(cartaoId, valor) {
 
 const calcularSaldoTotal = () => state.bancos.reduce((a,b)=>a+calcularSaldoBanco(b.id),0);
 
+/* Patrimônio total = saldo de todas as contas + valor de HOJE de todos os
+   investimentos (ao vivo pra cripto via valorAtualInvestimento, rendimento
+   do dia já embutido pra CDB e afins). Só usado pro card do Dashboard —
+   de propósito NÃO entra em calcularSaldoTotal()/saldoProjetado nem no
+   resumo que a IA usa, porque ali "dinheiro líquido disponível pra pagar
+   uma conta" é o que importa, e investimento não é isso. */
+function calcularPatrimonioTotal() {
+  const contas = calcularSaldoTotal();
+  const investimentos = (state.investimentos || []).reduce((s, i) => s + valorAtualInvestimento(i), 0);
+  return contas + investimentos;
+}
+
 /* Saldo total de todas as contas ATÉ uma data (inclusive).
    Usa exatamente as mesmas regras do card do dashboard: ignora compras no
    crédito, respeita a data de saldo de cada conta e conta transferências.
@@ -2779,6 +2791,8 @@ function renderResumoDashboard() {
   if(saldoTotalDashboardEl) saldoTotalDashboardEl.textContent = fmtMoeda(saldoTotalAteData(fim));
   if(totalEntradasEl)       totalEntradasEl.textContent       = fmtMoeda(entradas);
   if(totalGastosEl)         totalGastosEl.textContent         = fmtMoeda(gastos);
+  const elPatrimonioTotal = document.getElementById("patrimonioTotalDashboard");
+  if (elPatrimonioTotal) elPatrimonioTotal.textContent = fmtMoeda(calcularPatrimonioTotal());
 
   // Atualiza os textos "neste mês" conforme o período
   const rotulo = rotuloPeriodoDashboard();
@@ -4331,6 +4345,13 @@ function trocarTela(name) {
   // Ao abrir investimentos, atualiza os preços das criptos
   if (name === "investimentos" && criptosEmUso().length) {
     atualizarPrecosCripto().then(mudou => { if (mudou) renderInvestimentos(); });
+  }
+  // No dashboard, o card "Patrimônio total" também depende do preço das
+  // criptos — sem isso, quem entra direto no dashboard (o caminho mais
+  // comum) via o valor com o preço de uma visita antiga até abrir
+  // Investimentos pela primeira vez na sessão.
+  if (name === "dashboard" && criptosEmUso().length) {
+    atualizarPrecosCripto().then(mudou => { if (mudou) renderResumoDashboard(); });
   }
 }
 menuItems.forEach(i=>i.addEventListener("click",()=>trocarTela(i.dataset.screen)));
