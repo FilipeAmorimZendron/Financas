@@ -5942,6 +5942,26 @@ function lancamentoValido(m) {
 
 let salvandoRevisao = false;
 
+/* Normaliza uma descrição pra comparar (sem acento, minúscula, sem
+   pontuação/código de máquina) — usada só pra achar gasto fixo parecido. */
+function _normDescFixo(s) {
+  return normIA(s).replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/* Acha, entre os gastos fixos já cadastrados (qualquer contexto/estado,
+   ativo ou pausado), um com nome parecido com a descrição dada — pra não
+   cadastrar duas vezes a mesma assinatura/aluguel/mensalidade. Comparação
+   simples (uma string contida na outra), no mesmo espírito do match de
+   conta já usado nas ações da IA. */
+function achaGastoFixoParecido(descricao) {
+  const nd = _normDescFixo(descricao);
+  if (!nd) return null;
+  return (state.recorrencias || []).find(r => {
+    const nr = _normDescFixo(r.descricao);
+    return nr && (nr === nd || nr.includes(nd) || nd.includes(nr));
+  }) || null;
+}
+
 async function salvarRevisao() {
   if (salvandoRevisao) return; // evita clique duplo duplicar lançamentos
   const bancoId = revisaoDados.bancoId;
@@ -5962,7 +5982,7 @@ async function salvarRevisao() {
     } else if (d.resposta && d.resposta !== "__ignorar" && d.resposta !== "__transferencia") {
       paraSalvar.push({
         data: d.data, descricao: d.descricao, valor: d.valor,
-        tipo: d.tipo, categoria: d.resposta
+        tipo: d.tipo, categoria: d.resposta, possivelGastoFixo: d.possivelGastoFixo
       });
     }
   });
@@ -6018,6 +6038,37 @@ async function salvarRevisao() {
       });
     }
 
+    // Gastos fixos que a IA identificou no extrato (assinatura, aluguel,
+    // mensalidade etc.) — cadastra automaticamente em "Gastos Fixos", mas
+    // só se ainda não existir um parecido (por nome), pra não duplicar.
+    const gastosFixosCriados = [];
+    if (podeUsar("recorrencias")) {
+      const jaTratadosNesteLote = new Set();
+      for (const m of novos) {
+        if (m.tipo !== "gasto" || !m.possivelGastoFixo) continue;
+        const chave = _normDescFixo(m.descricao);
+        if (!chave || jaTratadosNesteLote.has(chave)) continue;
+        jaTratadosNesteLote.add(chave);
+        if (achaGastoFixoParecido(m.descricao)) continue; // já tem um cadastrado, não duplica
+        try {
+          const novoFixo = await dbInsert("recorrencias", {
+            descricao: m.descricao, valor: Number(m.valor), tipo: "gasto", categoria: m.categoria,
+            conta_id: bancoId, dia: Number(m.data.slice(8, 10)),
+            frequencia: "mensal", intervalo: 1, intervalo_unidade: "mes",
+            inicio: m.data, fim: null, ativa: true
+          });
+          state.recorrencias.push({
+            id: novoFixo.id, descricao: novoFixo.descricao, valor: Number(novoFixo.valor), tipo: novoFixo.tipo,
+            categoria: novoFixo.categoria, contaId: novoFixo.conta_id, dia: novoFixo.dia,
+            frequencia: novoFixo.frequencia, intervalo: novoFixo.intervalo,
+            intervaloUnidade: novoFixo.intervalo_unidade, inicio: novoFixo.inicio, fim: novoFixo.fim,
+            ativa: true
+          });
+          gastosFixosCriados.push(m.descricao);
+        } catch (e) { /* não trava a importação por causa disso */ }
+      }
+    }
+
     // Transferências entre contas próprias (não entram como gasto/receita)
     for (const t of transferencias) {
       if (!t.origem || !t.destino || t.origem === t.destino) continue;
@@ -6051,15 +6102,20 @@ async function salvarRevisao() {
     if (transferencias.length) msg += ` ${transferencias.length} transferência(s) entre contas.`;
     if (dup > 0) msg += ` ${dup} já existia(m).`;
     if (descartados > 0) msg += ` ${descartados} com dados inválidos foram ignorados.`;
+    if (gastosFixosCriados.length) msg += ` ${gastosFixosCriados.length} identificado(s) como gasto fixo e cadastrado(s) em Gastos Fixos.`;
     toast(msg, "success");
 
     // Notifica no sino que o extrato foi importado
     if (novos.length > 0) {
       const totalImp = novos.reduce((s, m) => s + (Number(m.valor) || 0), 0);
+      let corpoEvento = `${novos.length} ${novos.length === 1 ? "lançamento foi adicionado" : "lançamentos foram adicionados"} ao seu histórico.`;
+      if (gastosFixosCriados.length) {
+        corpoEvento += ` Também identifiquei ${gastosFixosCriados.length === 1 ? "1 gasto fixo novo" : `${gastosFixosCriados.length} gastos fixos novos`} (${gastosFixosCriados.join(", ")}) e já cadastrei em Gastos Fixos.`;
+      }
       registrarEvento(
         "extrato",
         "Extrato importado",
-        `${novos.length} ${novos.length === 1 ? "lançamento foi adicionado" : "lançamentos foram adicionados"} ao seu histórico.`,
+        corpoEvento,
         "trocarTela('planilha')"
       );
     }
