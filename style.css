@@ -6424,6 +6424,28 @@ body.sem-internet .layout { padding-top: 34px; }
   color: var(--text-muted);
   line-height: 1.45;
 }
+/* O bloco "Por e-mail" tem mais conteúdo (botão de copiar + nota) —
+   ocupa a linha toda em vez de dividir espaço com OFX/CSV. */
+.import-formato-email { grid-column: 1 / -1; }
+.import-email-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  margin-top: 2px;
+  padding: 7px 12px;
+  background: var(--surface2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.import-email-btn:hover { border-color: var(--accent); background: var(--surface3); }
+.import-email-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.import-email-nota { display: block; margin-top: 2px; }
 
 /* ─── Histórico: cabeçalho ─── */
 .hist-head {

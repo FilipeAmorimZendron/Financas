@@ -4588,6 +4588,16 @@ formTexto?.addEventListener("submit", async e => {
   } catch(err) { tratarErro(err); }
 });
 
+/* Copia o endereço de e-mail de extratos (ver api/receber-extrato-email.js)
+   pro clipboard — é o mesmo endereço fixo pra todo mundo, não muda por
+   usuário (a identificação é pelo remetente bater com o e-mail cadastrado). */
+function copiarEmailExtrato() {
+  const email = document.getElementById("importEmailExtratoTxt")?.textContent?.trim() || "extrato@extrato.fazfinancas.com";
+  navigator.clipboard?.writeText(email)
+    .then(() => toast("E-mail copiado! Encaminhe o extrato pra ele.", "success"))
+    .catch(() => toast(`E-mail: ${email}`, "info"));
+}
+
 formImportarExtrato?.addEventListener("submit", async e => {
   e.preventDefault();
   if (!state.bancos.length) { toast("Cadastre pelo menos uma conta antes.","warning"); return; }

@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202608271327" />
+  <link rel="stylesheet" href="style.css?v=202609011152" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -527,6 +527,15 @@
                 <div class="import-formato">
                   <strong>CSV</strong>
                   <span>Precisa ter colunas de data, descrição e valor.</span>
+                </div>
+                <div class="import-formato import-formato-email">
+                  <strong>Por e-mail</strong>
+                  <span>Encaminhe o extrato (do seu e-mail cadastrado aqui) pra:</span>
+                  <button type="button" class="import-email-btn" onclick="copiarEmailExtrato()" title="Copiar endereço">
+                    <span id="importEmailExtratoTxt">extrato@extrato.fazfinancas.com</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  </button>
+                  <span class="import-email-nota">Some da nossa caixa assim que a IA organiza — fica pendente de revisão no sino.</span>
                 </div>
               </div>
             </div>
@@ -2922,6 +2931,11 @@
       </details>
 
       <details class="lp-faq-item reveal">
+        <summary>Dá pra importar o extrato sem nem abrir o app?</summary>
+        <p>Dá. Encaminhe o extrato (do e-mail que você usa pra logar no FAZ) pra <strong>extrato@extrato.fazfinancas.com</strong> — a IA organiza sozinha e deixa pendente de revisão. Da próxima vez que você abrir o app, é só confirmar antes de salvar.</p>
+      </details>
+
+      <details class="lp-faq-item reveal">
         <summary>O FAZ acessa minha conta bancária?</summary>
         <p>Não. Nada de Open Finance nem senha do banco. Você registra o que quiser, ou manda o extrato pra IA ler. A gente nunca toca na sua conta.</p>
       </details>
@@ -3229,6 +3243,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202608271327"></script>
+  <script src="app.js?v=202609011152"></script>
 </body>
 </html>
