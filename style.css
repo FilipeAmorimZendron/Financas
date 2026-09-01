@@ -1089,6 +1089,8 @@ textarea { resize: vertical; }
   padding: 30px;
   width: 100%;
   max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.05);
   animation: modalIn 0.24s var(--ease);
 }
