@@ -10447,6 +10447,20 @@ body.scroll-travado {
   visibility: visible;
 }
 
+/* Variante que abre pra BAIXO em vez de pra cima — usada quando o ícone
+   fica perto do topo da página (ex: card de Patrimônio total), onde não
+   sobra espaço acima pro balão de cima aparecer inteiro. */
+.dica-info-abaixo .dica-balao {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+.dica-info-abaixo .dica-balao::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--surface3, #1a2632);
+}
+
 /* ─── Depoimentos da landing ─── */
 .lp-depoimentos-secao {
   background: var(--lp-bg-alt);
