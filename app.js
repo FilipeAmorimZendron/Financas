@@ -2622,6 +2622,41 @@ function limiteDoPeriodo() {
   }
 }
 
+/* Todas as faturas de cartão ainda não pagas — de QUALQUER mês, inclusive
+   a que ainda está em aberto (não fechou ainda). Sem filtro de período:
+   quem usa isso decide se aplica algum corte. Compartilhado entre
+   todosCompromissos() (que corta pelo período escolhido) e o card "A
+   pagar" do Dashboard (que conta essa dívida sempre — ver totaisCompromissos). */
+function faturasCartaoNaoPagas() {
+  const itens = [];
+  state.bancos.filter(b => b.temCartao).forEach(cartao => {
+    const pagas = new Set((state.faturasPagas || [])
+      .filter(f => f.cartaoId === cartao.id)
+      .map(f => f.faturaMes));
+    const porMes = {};
+    state.movimentos
+      .filter(m => m.cartaoId === cartao.id && !pagas.has(m.faturaMes))
+      .forEach(m => { porMes[m.faturaMes] = (porMes[m.faturaMes] || 0) + m.valor; });
+
+    Object.keys(porMes).forEach(fm => {
+      if (porMes[fm] <= 0) return;
+      itens.push({
+        origem: "fatura",
+        id: `fatura|${cartao.id}|${fm}`,
+        cartaoId: cartao.id,
+        faturaMes: fm,
+        descricao: `Fatura ${cartao.nome}`,
+        valor: porMes[fm],
+        tipo: "gasto",
+        categoria: "Cartão de Crédito",
+        contaId: cartao.id,
+        vencimento: vencimentoDaFatura(fm, cartao)
+      });
+    });
+  });
+  return itens;
+}
+
 function todosCompromissos(ateISO) {
   const limite = ateISO || limiteDoPeriodo();
 
@@ -2655,34 +2690,7 @@ function todosCompromissos(ateISO) {
     }));
 
   // 3. Faturas de cartão em aberto, dentro do período escolhido
-  const faturasCartao = [];
-  state.bancos.filter(b => b.temCartao).forEach(cartao => {
-    const pagas = new Set((state.faturasPagas || [])
-      .filter(f => f.cartaoId === cartao.id)
-      .map(f => f.faturaMes));
-    const porMes = {};
-    state.movimentos
-      .filter(m => m.cartaoId === cartao.id && !pagas.has(m.faturaMes))
-      .forEach(m => { porMes[m.faturaMes] = (porMes[m.faturaMes] || 0) + m.valor; });
-
-    Object.keys(porMes).forEach(fm => {
-      if (porMes[fm] <= 0) return;
-      const venc = vencimentoDaFatura(fm, cartao);
-      if (venc > limite) return;   // fora do período escolhido
-      faturasCartao.push({
-        origem: "fatura",
-        id: `fatura|${cartao.id}|${fm}`,
-        cartaoId: cartao.id,
-        faturaMes: fm,
-        descricao: `Fatura ${cartao.nome}`,
-        valor: porMes[fm],
-        tipo: "gasto",
-        categoria: "Cartão de Crédito",
-        contaId: cartao.id,
-        vencimento: venc
-      });
-    });
-  });
+  const faturasCartao = faturasCartaoNaoPagas().filter(f => f.vencimento <= limite);
 
   return [...avulsos, ...recorrentes, ...faturasCartao].sort((a,b) => a.vencimento.localeCompare(b.vencimento));
 }
@@ -2691,17 +2699,25 @@ const diasAte = v => Math.round((new Date(v+"T00:00:00") - new Date(hojeISO()+"T
 
 /* Totais de compromissos — inclui lançamentos avulsos E recorrências não pagas */
 function totaisCompromissos() {
+  // Faturas de cartão contam sempre no "a pagar", mesmo com vencimento fora
+  // do período escolhido no Dashboard — é dívida real, a pessoa vai pagar
+  // de qualquer forma, então já mostra o saldo em aberto do cartão desde
+  // já em vez de só quando a fatura "vencer". As que já estavam dentro do
+  // período (via todosCompromissos) não entram duplicadas.
   const pend = todosCompromissos();
-  const aPagar   = pend.filter(m=>m.tipo==="gasto").reduce((a,m)=>a+m.valor, 0);
-  const aReceber = pend.filter(m=>m.tipo==="entrada").reduce((a,m)=>a+m.valor, 0);
-  const atrasados = pend.filter(m => diasAte(m.vencimento) < 0);
-  const proximos7 = pend.filter(m => { const d = diasAte(m.vencimento); return d >= 0 && d <= 7; });
+  const faturasForaDoPeriodo = faturasCartaoNaoPagas().filter(f => !pend.some(p => p.id === f.id));
+  const todos = [...pend, ...faturasForaDoPeriodo].sort((a,b) => a.vencimento.localeCompare(b.vencimento));
+
+  const aPagar   = todos.filter(m=>m.tipo==="gasto").reduce((a,m)=>a+m.valor, 0);
+  const aReceber = todos.filter(m=>m.tipo==="entrada").reduce((a,m)=>a+m.valor, 0);
+  const atrasados = todos.filter(m => diasAte(m.vencimento) < 0);
+  const proximos7 = todos.filter(m => { const d = diasAte(m.vencimento); return d >= 0 && d <= 7; });
   return {
     aPagar, aReceber,
     saldoProjetado: calcularSaldoTotal() - aPagar + aReceber,
     atrasados, proximos7,
-    qtdPendentes: pend.length,
-    lista: pend
+    qtdPendentes: todos.length,
+    lista: todos
   };
 }
 
