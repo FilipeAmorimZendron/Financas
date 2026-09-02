@@ -6999,12 +6999,33 @@ async function excluirTransferencia(id) {
 }
 
 async function excluirRecorrencia(id) {
-  const ok = await confirmar("Excluir gasto fixo?", { tipo: "perigo", descricao: "Ele deixará de se repetir.", okLabel: "Excluir" }); if (!ok) return;
   const label = state.recorrencias.find(r=>r.id===id)?.descricao || "Recorrência";
+  // Lançamentos que já foram marcados como pagos por essa recorrência
+  // (ver pagarOcorrencia) continuam existindo mesmo depois de excluí-la —
+  // de propósito, é histórico real. Mas a pessoa precisa saber que eles
+  // continuam lá, senão "excluí o gasto fixo e o valor não sumiu" parece bug.
+  const movsLigados = state.movimentos.filter(m => m.recorrenciaId === id);
+  const descricao = movsLigados.length
+    ? `Ele deixará de se repetir. Você já tem ${movsLigados.length} lançamento(s) registrado(s) por ele — na próxima tela você escolhe se quer excluir esses também ou manter no histórico.`
+    : "Ele deixará de se repetir.";
+  const ok = await confirmar("Excluir gasto fixo?", { tipo: "perigo", descricao, okLabel: "Excluir" }); if (!ok) return;
   _salvarUndo();
   try {
     await dbDelete("recorrencias", id);
     state.recorrencias = state.recorrencias.filter(r=>r.id!==id);
+
+    if (movsLigados.length) {
+      const tambemExcluir = await confirmar(
+        `Excluir também os ${movsLigados.length} lançamento(s) já registrado(s)?`,
+        { tipo: "perigo", descricao: "Eles somem do seu histórico e da Planilha. Se preferir manter o que já foi pago, clique em \"Manter no histórico\".", okLabel: "Excluir também", cancelLabel: "Manter no histórico" }
+      );
+      if (tambemExcluir) {
+        await Promise.all(movsLigados.map(m => dbDelete("movimentos", m.id)));
+        const idsRemover = new Set(movsLigados.map(m => m.id));
+        state.movimentos = state.movimentos.filter(m => !idsRemover.has(m.id));
+      }
+    }
+
     renderTudo(); toast(`Recorrência "${label}" excluída.`, "info", true);
   } catch(err) { tratarErro(err); }
 }
@@ -9040,10 +9061,14 @@ async function pagarOcorrencia(recId, vencimento) {
   try {
     const hoje = hojeISO();
     // 1. Cria o lançamento no extrato (já como pago)
+    // A data do lançamento é o VENCIMENTO da ocorrência, não o dia em que
+    // a pessoa clicou em pagar — sem isso, marcar como pago um gasto fixo
+    // do mês que vem fazia o lançamento cair neste mês (hoje), inflando o
+    // mês errado na Planilha. "pago_em" continua sendo hoje de verdade.
     const mov = await dbInsert("movimentos", {
       descricao: rec.descricao,
       conta_id: rec.contaId,
-      data: hoje,
+      data: vencimento,
       valor,
       tipo: rec.tipo,
       categoria: rec.categoria,
