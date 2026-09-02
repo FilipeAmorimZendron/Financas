@@ -3033,6 +3033,9 @@ function renderTelaCartao() {
             <span class="cartao-item-data">${esc((m.data||"").slice(8,10))}/${esc((m.data||"").slice(5,7))}</span>
             <span class="cartao-item-desc">${esc(m.descricao)}</span>
             <span class="cartao-item-val">${fmtMoeda(m.valor)}</span>
+            <button class="btn-acao btn-acao-danger" onclick="excluirItemFatura('${m.id}')" title="Excluir (ex: fatura duplicada)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>
           </div>
         `).join("")}
       </div>` : ""}
@@ -3049,6 +3052,15 @@ function renderTelaCartao() {
         }).join("")}
       </div>` : ""}
   `;
+}
+
+/* Exclui uma compra/lançamento de dentro da fatura aberta (ex: fatura
+   duplicada por engano). excluirMovimento() já confirma, apaga e chama
+   renderTudo() — só falta atualizar essa tela do cartão, que é um overlay
+   à parte e não faz parte da varredura normal de render. */
+async function excluirItemFatura(id) {
+  await excluirMovimento(id);
+  if (_cartaoAberto) renderTelaCartao();
 }
 
 /* Pagar a fatura: pergunta de qual conta sai o dinheiro */
@@ -7114,27 +7126,40 @@ document.getElementById("formEditarConta")?.addEventListener("submit", async e =
       const faturaAtual = Number(document.getElementById("editCartaoFaturaAtual")?.value) || 0;
       if (faturaAtual > 0) {
         const faturaMesAtual = mesAtualISO();
-        const movFatura = await dbInsert("movimentos", {
-          descricao: `Fatura ${att.nome}`,
-          conta_id: att.id,
-          data: hojeISO(),
-          valor: faturaAtual,
-          tipo: "gasto",
-          categoria: "Cartão de crédito",
-          status: "pago",
-          pago_em: hojeISO(),
-          forma_pagamento: "credito",
-          cartao_id: att.id,
-          fatura_mes: faturaMesAtual
-        });
-        state.movimentos.push({
-          id: movFatura.id, descricao: movFatura.descricao, bancoId: movFatura.conta_id,
-          data: movFatura.data, valor: Number(movFatura.valor), tipo: "gasto",
-          categoria: movFatura.categoria, status: movFatura.status, vencimento: null,
-          pagoEm: movFatura.pago_em, formaPagamento: "credito",
-          cartaoId: movFatura.cartao_id, faturaMes: movFatura.fatura_mes
-        });
-        faturaMsg = ` Fatura de ${fmtMoeda(faturaAtual)} registrada no cartão.`;
+        // Esse campo é pra registrar o saldo inicial da fatura UMA VEZ (tipo
+        // o "saldo inicial" da conta). Ele sempre volta vazio quando o
+        // formulário reabre — se a pessoa editar a conta de novo e digitar
+        // outro valor aqui achando que está "atualizando", isso criava uma
+        // SEGUNDA "Fatura {nome}" no mesmo mês, duplicando a dívida. Só deixa
+        // criar se ainda não existe nenhuma pra esse cartão neste mês.
+        const jaTemFaturaInicial = state.movimentos.some(m =>
+          m.cartaoId === att.id && m.faturaMes === faturaMesAtual && /^Fatura /.test(m.descricao || "")
+        );
+        if (jaTemFaturaInicial) {
+          faturaMsg = ` Já existe uma fatura registrada pra ${att.nome} este mês — não criei outra pra não duplicar. Pra ajustar, exclua a antiga na tela do cartão (ícone 🗑 ao lado da compra).`;
+        } else {
+          const movFatura = await dbInsert("movimentos", {
+            descricao: `Fatura ${att.nome}`,
+            conta_id: att.id,
+            data: hojeISO(),
+            valor: faturaAtual,
+            tipo: "gasto",
+            categoria: "Cartão de crédito",
+            status: "pago",
+            pago_em: hojeISO(),
+            forma_pagamento: "credito",
+            cartao_id: att.id,
+            fatura_mes: faturaMesAtual
+          });
+          state.movimentos.push({
+            id: movFatura.id, descricao: movFatura.descricao, bancoId: movFatura.conta_id,
+            data: movFatura.data, valor: Number(movFatura.valor), tipo: "gasto",
+            categoria: movFatura.categoria, status: movFatura.status, vencimento: null,
+            pagoEm: movFatura.pago_em, formaPagamento: "credito",
+            cartaoId: movFatura.cartao_id, faturaMes: movFatura.fatura_mes
+          });
+          faturaMsg = ` Fatura de ${fmtMoeda(faturaAtual)} registrada no cartão.`;
+        }
       }
     }
 
