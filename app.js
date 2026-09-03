@@ -14268,6 +14268,68 @@ const ACOES_IA = {
     }
   },
 
+  editar_investimento: {
+    descricao: "Muda o apelido, o valor aplicado (aporte), a taxa de rendimento, o valor atual de mercado, ou a renda passiva de um investimento que já existe. Use quando o usuário pedir para corrigir, atualizar ou ajustar um investimento. Preencha só o que ele quer mudar. NÃO serve pra criptomoedas: o valor delas é sempre o preço de mercado ao vivo, não dá pra editar manualmente.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id do investimento, só quando veio de uma escolha em botões." },
+        busca: { type: "string", description: "Nome, tipo ou moeda do investimento a mudar, como o usuário descreveu." },
+        novo_apelido: { type: "string", description: "Novo apelido/nome, se ele quer mudar." },
+        novo_valor: { type: "number", description: "Novo valor aplicado (aporte total), se ele quer corrigir." },
+        nova_taxa: { type: "number", description: "Nova taxa de rendimento (percentual), se ele quer atualizar — só faz sentido pra renda fixa." },
+        novo_valor_atual: { type: "number", description: "Quanto o investimento vale hoje no mercado, se ele quer informar/atualizar (ex: ações, FII, imóvel). NÃO use para cripto." },
+        nova_renda_passiva: { type: "number", description: "Novo percentual de renda passiva (dividendos/aluguel), se ele quer atualizar." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      const achado = _acharInvestimentoIA(d, "Qual investimento você quer mudar?");
+      if (achado.erro || (achado.perguntas && achado.perguntas.length)) return achado;
+      const inv = (state.investimentos || []).find(i => i.id === achado.dados.id);
+      const p = { id: achado.dados.id };
+      if (d.novo_apelido) p.novoApelido = String(d.novo_apelido).trim().slice(0, 60);
+      if (d.novo_valor != null) p.novoValor = valorIA(d.novo_valor);
+      if (d.nova_taxa != null) p.novaTaxa = Number(d.nova_taxa);
+      if (d.novo_valor_atual != null && !(inv && inv.criptoId)) p.novoValorAtual = valorIA(d.novo_valor_atual);
+      if (d.nova_renda_passiva != null) p.novaRendaPassiva = Number(d.nova_renda_passiva);
+      if (!p.novoApelido && p.novoValor == null && p.novaTaxa == null && p.novoValorAtual == null && p.novaRendaPassiva == null) {
+        return { erro: "Não veio o que mudar. Pergunte o que ele quer alterar nesse investimento." };
+      }
+      return { dados: p, perguntas: [] };
+    },
+    async executar(p) {
+      const i = (state.investimentos || []).find(x => String(x.id) === String(p.id));
+      if (!i) return { ok: false, mensagem: "Esse investimento não está mais na carteira." };
+      const upd = {};
+      if (p.novoApelido) upd.nome = p.novoApelido;
+      if (p.novoValor != null) upd.valor = p.novoValor;
+      if (p.novaTaxa != null) upd.taxa = p.novaTaxa;
+      if (p.novoValorAtual != null) { upd.valor_atual = p.novoValorAtual; upd.valor_atual_em = hojeISO(); }
+      if (p.novaRendaPassiva != null) upd.renda_passiva = p.novaRendaPassiva;
+      const att = await dbUpdate("investimentos", i.id, upd);
+      if (upd.nome != null) i.nome = att.nome;
+      if (upd.valor != null) i.valor = Number(att.valor);
+      if (upd.taxa != null) i.taxa = Number(att.taxa);
+      if (upd.valor_atual != null) { i.valorAtual = Number(att.valor_atual); i.valorAtualEm = att.valor_atual_em; }
+      if (upd.renda_passiva != null) i.rendaPassiva = Number(att.renda_passiva);
+      renderTudo();
+      const rotulo = i.nome || i.tipo;
+      const mudancas = [];
+      if (upd.nome != null) mudancas.push(`nome pra "${i.nome}"`);
+      if (upd.valor != null) mudancas.push(`valor aplicado pra ${fmtMoeda(i.valor)}`);
+      if (upd.taxa != null) mudancas.push(`taxa pra ${fmtNum(i.taxa)}%`);
+      if (upd.valor_atual != null) mudancas.push(`valor atual pra ${fmtMoeda(i.valorAtual)}`);
+      if (upd.renda_passiva != null) mudancas.push(`renda passiva pra ${fmtNum(i.rendaPassiva)}%`);
+      return {
+        ok: true,
+        titulo: "Investimento atualizado",
+        recibo: [{ rotulo: "Investimento", valor: rotulo }],
+        mensagem: `Atualizei "${rotulo}": ${mudancas.join(", ")}.`
+      };
+    }
+  },
+
   excluir_transferencia: {
     descricao: "Apaga uma transferência entre contas próprias que já existe. Use quando o usuário pedir para apagar, desfazer ou remover uma transferência.",
     parametros: {
@@ -14307,6 +14369,71 @@ const ACOES_IA = {
           { rotulo: "Valor", valor: fmtMoeda(t.valor) }
         ],
         mensagem: `Apaguei a transferência de ${fmtMoeda(t.valor)} (${bMap[t.origem] || "?"} → ${bMap[t.destino] || "?"}).`
+      };
+    }
+  },
+
+  editar_transferencia: {
+    descricao: "Muda o valor, a data, ou a observação de uma transferência entre contas próprias que já existe. Use quando o usuário pedir para corrigir ou ajustar uma transferência. NÃO serve pra trocar as contas de origem/destino — pra isso oriente a excluir e criar de novo.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id da transferência, só quando veio de uma escolha em botões." },
+        busca: { type: "string", description: "Nome da conta de origem, destino, ou a descrição da transferência a mudar." },
+        valorAtual: { type: "number", description: "Valor atual da transferência, se ele mencionar — ajuda a achar a certa entre várias parecidas." },
+        novo_valor: { type: "number", description: "Novo valor, se ele quer corrigir." },
+        nova_data: { type: "string", description: "Nova data (AAAA-MM-DD ou hoje/ontem), se ele quer mudar." },
+        nova_descricao: { type: "string", description: "Nova observação, se ele quer mudar." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      const bMap = Object.fromEntries((state.bancos || []).map(b => [b.id, b.nome]));
+      const achado = _acharItemIA(Object.assign({}, d, { valor: d.valorAtual }), "Qual transferência você quer mudar?", {
+        lista: state.transferencias || [],
+        semItens: "Não há nenhuma transferência registrada ainda.",
+        campoBusca: t => [bMap[t.origem], bMap[t.destino], t.descricao],
+        campoValor: t => t.valor,
+        rotulo: t => `${bMap[t.origem] || "?"} → ${bMap[t.destino] || "?"}`,
+        extra: t => `${fmtMoeda(t.valor)} · ${formatarDataBR(t.data)}`,
+        ordenar: (a, b) => (b.data || "").localeCompare(a.data || "")
+      });
+      if (achado.erro || (achado.perguntas && achado.perguntas.length)) return achado;
+      const p = { id: achado.dados.id };
+      if (d.novo_valor != null) p.novoValor = valorIA(d.novo_valor);
+      if (d.nova_data) p.novaData = resolverDataIA(d.nova_data);
+      if (d.nova_descricao) p.novaDescricao = String(d.nova_descricao).trim().slice(0, 120);
+      if (!p.novoValor && !p.novaData && !p.novaDescricao) {
+        return { erro: "Não veio o que mudar. Pergunte o que ele quer alterar nessa transferência (valor, data ou observação)." };
+      }
+      return { dados: p, perguntas: [] };
+    },
+    async executar(p) {
+      const t = (state.transferencias || []).find(x => String(x.id) === String(p.id));
+      if (!t) return { ok: false, mensagem: "Essa transferência não está mais na lista." };
+      const upd = {};
+      if (p.novoValor) upd.valor = p.novoValor;
+      if (p.novaData) upd.data = p.novaData;
+      if (p.novaDescricao) upd.descricao = p.novaDescricao;
+      const att = await dbUpdate("transferencias", t.id, upd);
+      if (upd.valor != null) t.valor = Number(att.valor);
+      if (upd.data != null) t.data = att.data;
+      if (upd.descricao != null) t.descricao = att.descricao;
+      renderTudo();
+      const bMap = Object.fromEntries((state.bancos || []).map(b => [b.id, b.nome]));
+      const mudancas = [];
+      if (upd.valor != null) mudancas.push(`valor pra ${fmtMoeda(t.valor)}`);
+      if (upd.data != null) mudancas.push(`data pra ${formatarDataBR(t.data)}`);
+      if (upd.descricao != null) mudancas.push(`observação pra "${t.descricao}"`);
+      return {
+        ok: true,
+        titulo: "Transferência atualizada",
+        recibo: [
+          { rotulo: "De", valor: bMap[t.origem] || "?" },
+          { rotulo: "Para", valor: bMap[t.destino] || "?" },
+          { rotulo: "Valor", valor: fmtMoeda(t.valor) }
+        ],
+        mensagem: `Atualizei a transferência (${bMap[t.origem] || "?"} → ${bMap[t.destino] || "?"}): ${mudancas.join(", ")}.`
       };
     }
   },
@@ -14410,6 +14537,172 @@ const ACOES_IA = {
     }
   },
 
+  pagar_ocorrencia_gasto_fixo: {
+    descricao: "Dá baixa numa ocorrência de gasto fixo (recorrência) — cria o lançamento no extrato pro mês daquela ocorrência. Use quando o usuário disser que pagou (ou recebeu) um gasto fixo/recorrente, tipo aluguel, Netflix, academia, salário. NÃO use pra contas avulsas agendadas — isso é marcar_como_pago.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id da recorrência, só quando veio de uma escolha em botões." },
+        busca: { type: "string", description: "Nome do gasto fixo, como o usuário descreveu (ex: 'aluguel', 'netflix')." },
+        vencimento: { type: "string", description: "Vencimento (AAAA-MM-DD) da ocorrência específica, só quando veio de uma escolha em botões." },
+        valor: { type: "number", description: "Valor pago/recebido, se diferente do valor combinado (ex: conta de luz que varia). Deixe vazio pra usar o valor padrão do gasto fixo." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      const recs = state.recorrencias || [];
+      if (!recs.length) return { erro: "Não há nenhum gasto fixo cadastrado ainda." };
+
+      let rec = d.id ? recs.find(r => String(r.id) === String(d.id)) : null;
+      if (!rec) {
+        const alvo = normIA(d.busca);
+        const cand = recs.filter(r => { const n = normIA(r.descricao); return n && (n.includes(alvo) || (alvo.length >= 3 && alvo.includes(n))); });
+        if (!cand.length) return { erro: `Não achei nenhum gasto fixo com esse nome. Os cadastrados são: ${recs.slice(0, 8).map(r => r.descricao).join(", ")}.` };
+        if (cand.length > 1) {
+          return { dados: {}, perguntas: [{ campo: "id", texto: "Qual gasto fixo você quer dar baixa?", opcoes: cand.map(r => ({ v: r.id, t: r.descricao, extra: fmtMoeda(r.valor) })) }] };
+        }
+        rec = cand[0];
+      }
+
+      // Ocorrências em aberto dessa recorrência: atrasadas + próximos 90 dias
+      const limite = somarDias(hojeISO(), 90);
+      const abertas = ocorrenciasDe(rec, "2000-01-01", limite).filter(venc =>
+        !(state.recPagamentos || []).some(pg => pg.recorrenciaId === rec.id && pg.vencimento === venc)
+      );
+      if (!abertas.length) {
+        return { erro: `"${rec.descricao}" não tem nenhuma ocorrência em aberto pra dar baixa nos próximos meses.` };
+      }
+
+      const vencEscolhido = d.vencimento && abertas.includes(d.vencimento) ? d.vencimento : null;
+      if (!vencEscolhido) {
+        if (abertas.length === 1) {
+          return { dados: { recId: rec.id, vencimento: abertas[0], valor: d.valor != null ? valorIA(d.valor) : null }, perguntas: [] };
+        }
+        return {
+          dados: { recId: rec.id },
+          perguntas: [{
+            campo: "vencimento",
+            texto: `"${rec.descricao}" tem mais de uma ocorrência em aberto. Qual você quer dar baixa?`,
+            opcoes: abertas.slice(0, 6).map(v => ({ v, t: formatarDataBR(v) }))
+          }]
+        };
+      }
+
+      return { dados: { recId: rec.id, vencimento: vencEscolhido, valor: d.valor != null ? valorIA(d.valor) : null }, perguntas: [] };
+    },
+    async executar(p) {
+      const rec = (state.recorrencias || []).find(r => r.id === p.recId);
+      if (!rec) return { ok: false, mensagem: "Esse gasto fixo não está mais na lista." };
+      const jaPago = (state.recPagamentos || []).some(pg => pg.recorrenciaId === rec.id && pg.vencimento === p.vencimento);
+      if (jaPago) return { ok: false, mensagem: `Essa ocorrência de "${rec.descricao}" já estava paga.` };
+
+      const valor = p.valor || rec.valor;
+      const hoje = hojeISO();
+      // A data do lançamento é o vencimento da ocorrência (não hoje) — mesma
+      // lógica de pagarOcorrencia(), pra não inflar o mês errado na Planilha.
+      const mov = await dbInsert("movimentos", {
+        descricao: rec.descricao, conta_id: rec.contaId, data: p.vencimento,
+        valor, tipo: rec.tipo, categoria: rec.categoria,
+        recorrencia_id: rec.id, status: "pago", pago_em: hoje
+      });
+      state.movimentos.push({
+        id: mov.id, recorrenciaId: mov.recorrencia_id, descricao: mov.descricao,
+        bancoId: mov.conta_id, data: mov.data, valor: Number(mov.valor),
+        tipo: mov.tipo, categoria: mov.categoria, status: "pago", vencimento: null, pagoEm: hoje
+      });
+      const pag = await dbInsert("recorrencia_pagamentos", {
+        recorrencia_id: rec.id, vencimento: p.vencimento, pago_em: hoje, valor_pago: valor, movimento_id: mov.id
+      });
+      state.recPagamentos.push({
+        id: pag.id, recorrenciaId: pag.recorrencia_id, vencimento: pag.vencimento,
+        pagoEm: pag.pago_em, valorPago: Number(pag.valor_pago), movimentoId: pag.movimento_id
+      });
+      renderTudo();
+
+      const conta = (state.bancos || []).find(b => b.id === rec.contaId);
+      const ehEntrada = rec.tipo === "entrada";
+      return {
+        ok: true,
+        titulo: ehEntrada ? "Recebimento confirmado" : "Pagamento registrado",
+        recibo: [
+          { rotulo: ehEntrada ? "Recebido" : "Pago", valor: rec.descricao },
+          { rotulo: "Valor", valor: fmtMoeda(valor) },
+          { rotulo: "Vencimento", valor: formatarDataBR(p.vencimento) }
+        ],
+        mensagem: `${ehEntrada ? "Recebimento" : "Pagamento"} de "${rec.descricao}" (${formatarDataBR(p.vencimento)}) no valor de ${fmtMoeda(valor)} registrado` +
+                  (conta ? ` na conta ${conta.nome}` : "") + "."
+      };
+    }
+  },
+
+  desfazer_pagamento_gasto_fixo: {
+    descricao: "Desfaz a baixa de uma ocorrência de gasto fixo já paga — remove o lançamento do extrato e ela volta a ficar pendente. Use quando o usuário pedir para desfazer, cancelar ou reverter o pagamento de um gasto fixo.",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id da recorrência, só quando veio de uma escolha em botões." },
+        busca: { type: "string", description: "Nome do gasto fixo, como o usuário descreveu." },
+        vencimento: { type: "string", description: "Vencimento (AAAA-MM-DD) da ocorrência, só quando veio de uma escolha em botões." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      const recs = state.recorrencias || [];
+      if (!recs.length) return { erro: "Não há nenhum gasto fixo cadastrado ainda." };
+
+      let rec = d.id ? recs.find(r => String(r.id) === String(d.id)) : null;
+      if (!rec) {
+        const alvo = normIA(d.busca);
+        const cand = recs.filter(r => { const n = normIA(r.descricao); return n && (n.includes(alvo) || (alvo.length >= 3 && alvo.includes(n))); });
+        if (!cand.length) return { erro: "Não achei nenhum gasto fixo com esse nome." };
+        if (cand.length > 1) {
+          return { dados: {}, perguntas: [{ campo: "id", texto: "Qual gasto fixo?", opcoes: cand.map(r => ({ v: r.id, t: r.descricao })) }] };
+        }
+        rec = cand[0];
+      }
+
+      const pagas = (state.recPagamentos || []).filter(pg => pg.recorrenciaId === rec.id).sort((a, b) => b.vencimento.localeCompare(a.vencimento));
+      if (!pagas.length) return { erro: `"${rec.descricao}" não tem nenhum pagamento registrado pra desfazer.` };
+
+      const vencEscolhido = d.vencimento && pagas.some(pg => pg.vencimento === d.vencimento) ? d.vencimento : null;
+      if (!vencEscolhido) {
+        if (pagas.length === 1) return { dados: { recId: rec.id, vencimento: pagas[0].vencimento }, perguntas: [] };
+        return {
+          dados: { recId: rec.id },
+          perguntas: [{
+            campo: "vencimento",
+            texto: `"${rec.descricao}" tem mais de um pagamento registrado. Qual você quer desfazer?`,
+            opcoes: pagas.slice(0, 6).map(pg => ({ v: pg.vencimento, t: formatarDataBR(pg.vencimento), extra: fmtMoeda(pg.valorPago) }))
+          }]
+        };
+      }
+      return { dados: { recId: rec.id, vencimento: vencEscolhido }, perguntas: [] };
+    },
+    async executar(p) {
+      const rec = (state.recorrencias || []).find(r => r.id === p.recId);
+      const pag = (state.recPagamentos || []).find(pg => pg.recorrenciaId === p.recId && pg.vencimento === p.vencimento);
+      if (!rec || !pag) return { ok: false, mensagem: "Esse pagamento não está mais na lista." };
+
+      if (pag.movimentoId) {
+        await dbDelete("movimentos", pag.movimentoId).catch(() => {});
+        state.movimentos = state.movimentos.filter(m => m.id !== pag.movimentoId);
+      }
+      await dbDelete("recorrencia_pagamentos", pag.id);
+      state.recPagamentos = state.recPagamentos.filter(x => x.id !== pag.id);
+      renderTudo();
+
+      return {
+        ok: true,
+        titulo: "Pagamento desfeito",
+        recibo: [
+          { rotulo: "Gasto fixo", valor: rec.descricao },
+          { rotulo: "Vencimento", valor: formatarDataBR(p.vencimento) }
+        ],
+        mensagem: `Desfiz o pagamento de "${rec.descricao}" (${formatarDataBR(p.vencimento)}) — volta a ficar pendente.`
+      };
+    }
+  },
+
   excluir_conta: {
     descricao: "Apaga uma conta/banco/carteira e as movimentações vinculadas a ela. Ação séria e irreversível — use só quando o usuário pedir claramente para apagar/remover a conta inteira, nunca por engano ou dúvida.",
     parametros: {
@@ -14432,15 +14725,89 @@ const ACOES_IA = {
     async executar(p) {
       const b = (state.bancos || []).find(x => String(x.id) === String(p.id));
       if (!b) return { ok: false, mensagem: "Essa conta não está mais na lista." };
-      const temMovs = (state.movimentos || []).some(m => m.bancoId === b.id);
+      // Precisa apagar os movimentos vinculados de verdade — sem isso ficam
+      // órfãos no banco (mesmo bug que já existia na exclusão pela tela,
+      // corrigido lá; essa cópia da lógica na ação da IA tinha ficado pra trás).
+      const movsVinculados = (state.movimentos || []).filter(m => m.bancoId === b.id);
+      await Promise.all(movsVinculados.map(m => dbDelete("movimentos", m.id)));
       await dbDelete("contas", b.id);
+      state.movimentos = state.movimentos.filter(m => m.bancoId !== b.id);
       state.bancos = state.bancos.filter(x => x.id !== b.id);
       renderTudo();
       return {
         ok: true,
         titulo: "Conta apagada",
         recibo: [{ rotulo: "Conta", valor: b.nome }],
-        mensagem: `Apaguei a conta "${b.nome}"${temMovs ? " — as movimentações vinculadas a ela também saem" : ""}.`
+        mensagem: `Apaguei a conta "${b.nome}"${movsVinculados.length ? ` e os ${movsVinculados.length} lançamento(s) vinculados a ela` : ""}.`
+      };
+    }
+  },
+
+  editar_banco: {
+    descricao: "Muda o nome, o saldo, ou os dados do cartão de crédito (limite, dia de fechamento, dia de vencimento) de uma conta/banco/carteira que já existe. Use quando o usuário pedir para corrigir, atualizar ou ajustar uma conta. Preencha só o que ele quer mudar. NÃO serve pra ligar/desligar o cartão de crédito de uma conta — isso só pela tela (Contas, editar).",
+    parametros: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Id da conta, só quando veio de uma escolha em botões." },
+        busca: { type: "string", description: "Nome da conta/banco a mudar." },
+        novo_nome: { type: "string", description: "Novo nome, se ele quer renomear." },
+        novo_saldo: { type: "number", description: "Novo saldo total da conta hoje, se ele quer corrigir/atualizar." },
+        novo_limite: { type: "number", description: "Novo limite do cartão de crédito, só se a conta já tem cartão habilitado." },
+        novo_fechamento: { type: "number", description: "Novo dia de fechamento da fatura (1 a 31), só se a conta já tem cartão." },
+        novo_vencimento: { type: "number", description: "Novo dia de vencimento da fatura (1 a 31), só se a conta já tem cartão." }
+      },
+      required: ["busca"]
+    },
+    preparar(d) {
+      const achado = _acharItemIA(d, "Qual conta você quer mudar?", {
+        lista: state.bancos || [],
+        semItens: "Não há nenhuma conta cadastrada.",
+        campoBusca: b => [b.nome, b.tipo],
+        rotulo: b => b.nome,
+        extra: b => b.tipo
+      });
+      if (achado.erro || (achado.perguntas && achado.perguntas.length)) return achado;
+      const banco = (state.bancos || []).find(b => b.id === achado.dados.id);
+      const p = { id: achado.dados.id };
+      if (d.novo_nome) p.novoNome = String(d.novo_nome).trim().slice(0, 40);
+      if (d.novo_saldo != null) p.novoSaldo = Number(valorIA(d.novo_saldo));
+      if (banco && banco.temCartao) {
+        if (d.novo_limite != null) p.novoLimite = Number(valorIA(d.novo_limite));
+        if (d.novo_fechamento != null) { const dia = Math.round(Number(d.novo_fechamento)); if (dia >= 1 && dia <= 31) p.novoFechamento = dia; }
+        if (d.novo_vencimento != null) { const dia = Math.round(Number(d.novo_vencimento)); if (dia >= 1 && dia <= 31) p.novoVencimento = dia; }
+      }
+      if (!p.novoNome && p.novoSaldo == null && p.novoLimite == null && p.novoFechamento == null && p.novoVencimento == null) {
+        return { erro: "Não veio o que mudar. Pergunte o que ele quer alterar nessa conta (nome, saldo, ou dados do cartão se ela tiver)." };
+      }
+      return { dados: p, perguntas: [] };
+    },
+    async executar(p) {
+      const b = (state.bancos || []).find(x => String(x.id) === String(p.id));
+      if (!b) return { ok: false, mensagem: "Essa conta não está mais na lista." };
+      const upd = {};
+      if (p.novoNome) upd.nome = p.novoNome;
+      if (p.novoSaldo != null) { upd.saldo_inicial = p.novoSaldo; upd.saldo_data = hojeISO(); }
+      if (p.novoLimite != null) upd.limite = p.novoLimite;
+      if (p.novoFechamento != null) upd.dia_fechamento = p.novoFechamento;
+      if (p.novoVencimento != null) upd.dia_vencimento = p.novoVencimento;
+      const att = await dbUpdate("contas", b.id, upd);
+      if (upd.nome != null) b.nome = att.nome;
+      if (upd.saldo_inicial != null) { b.saldoInicial = Number(att.saldo_inicial); b.saldoData = att.saldo_data; }
+      if (upd.limite != null) b.limite = Number(att.limite);
+      if (upd.dia_fechamento != null) b.diaFechamento = att.dia_fechamento;
+      if (upd.dia_vencimento != null) b.diaVencimento = att.dia_vencimento;
+      renderTudo();
+      const mudancas = [];
+      if (upd.nome != null) mudancas.push(`nome pra "${b.nome}"`);
+      if (upd.saldo_inicial != null) mudancas.push(`saldo pra ${fmtMoeda(b.saldoInicial)}`);
+      if (upd.limite != null) mudancas.push(`limite pra ${fmtMoeda(b.limite)}`);
+      if (upd.dia_fechamento != null) mudancas.push(`fechamento pro dia ${b.diaFechamento}`);
+      if (upd.dia_vencimento != null) mudancas.push(`vencimento pro dia ${b.diaVencimento}`);
+      return {
+        ok: true,
+        titulo: "Conta atualizada",
+        recibo: [{ rotulo: "Conta", valor: b.nome }],
+        mensagem: `Atualizei "${b.nome}": ${mudancas.join(", ")}.`
       };
     }
   },
