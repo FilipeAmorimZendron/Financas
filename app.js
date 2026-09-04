@@ -2918,6 +2918,22 @@ function faturaEstaPaga(cartaoId, faturaMes) {
   return (state.faturasPagas || []).some(f => f.cartaoId === cartaoId && f.faturaMes === faturaMes);
 }
 
+/* "Saldo" de uma conta pra exibição no card de "Saldo por conta" — soma o
+   saldo líquido dela com o valor de HOJE de todo investimento vinculado a
+   ela (ex: cripto guardada numa carteira/corretora, como a "Trust" que só
+   serve de etiqueta pros investimentos e por isso tinha saldo próprio
+   zerado). Só pra exibição: saldoComporta(), saldoProjetado() e o resto
+   da lógica financeira de verdade continuam usando só o dinheiro líquido
+   (calcularSaldoBanco), sem isso — senão contaria o investimento em dobro
+   em outros lugares que dependem de "dinheiro disponível pra gastar". */
+function saldoVisivelConta(bancoId) {
+  const liquido = calcularSaldoBanco(bancoId);
+  const investimentos = (state.investimentos || [])
+    .filter(i => i.contaId === bancoId)
+    .reduce((s, i) => s + valorAtualInvestimento(i), 0);
+  return liquido + investimentos;
+}
+
 function renderContasDashboard() {
   if (!resumoContasDashboard) return;
   if (!state.bancos.length) {
@@ -2929,11 +2945,11 @@ function renderContasDashboard() {
     );
     return;
   }
-  const saldoTotal = calcularSaldoTotal();
-  const saldos = state.bancos.map(b => ({ b, s: calcularSaldoBanco(b.id) }));
+  const saldos = state.bancos.map(b => ({ b, s: saldoVisivelConta(b.id) }));
+  const saldoTotalVisivel = saldos.reduce((acc, x) => acc + x.s, 0);
   resumoContasDashboard.innerHTML = `<div class="bancos-cards-grid">` +
     saldos.map(({ b, s }) => {
-      const pct = saldoTotal !== 0 ? ((s / saldoTotal) * 100).toFixed(1) : "0.0";
+      const pct = saldoTotalVisivel !== 0 ? ((s / saldoTotalVisivel) * 100).toFixed(1) : "0.0";
       const cls = s > 0 ? "positivo" : s < 0 ? "negativo" : "";
       return `<div class="banco-card">
         <div class="banco-card-top">
@@ -15293,7 +15309,7 @@ function _acharLancamentoIA(d, textoPergunta) {
   }
 
   if (!cand.length) {
-    return { erro: "Não achei nenhum lançamento com essa descrição. Pergunte a ele o nome exato ou o valor, pra ajudar a achar." };
+    return { erro: `Não achei nenhum lançamento com a descrição "${d.busca || ""}". Pode ser que ele ainda não tenha sido registrado de verdade (confira se uma ferramenta anterior realmente devolveu sucesso), ou o nome pode estar um pouco diferente. Pergunte o nome exato como está no app, ou o valor, numa frase só — sem repetir "${d.busca || ""}" de novo.` };
   }
 
   if (cand.length === 1) return { dados: { id: cand[0].id }, perguntas: [] };
@@ -15353,7 +15369,7 @@ function _acharInvestimentoIA(d, textoPergunta) {
   }
 
   if (!cand.length) {
-    return { erro: "Não achei nenhum investimento com essa descrição. Pergunte a ele o nome ou tipo exato, pra ajudar a achar." };
+    return { erro: `Não achei nenhum investimento com "${d.busca || ""}". Pergunte o nome ou tipo exato como está no app, numa frase só — sem repetir "${d.busca || ""}" de novo.` };
   }
 
   if (cand.length === 1) return { dados: { id: cand[0].id }, perguntas: [] };
@@ -15410,7 +15426,7 @@ function _acharItemIA(d, textoPergunta, config) {
   }
 
   if (!cand.length) {
-    return { erro: "Não achei nada com essa descrição. Pergunte o nome exato, pra ajudar a achar." };
+    return { erro: `Não achei nada com o nome "${d.busca || ""}". Pode ser que ainda não tenha sido criado de verdade (confira se uma ferramenta anterior realmente devolveu sucesso), ou o nome pode estar um pouco diferente. Pergunte o nome exato como está no app, numa frase só — sem repetir "${d.busca || ""}" de novo.` };
   }
 
   if (cand.length === 1) return { dados: { id: cand[0].id }, perguntas: [] };
