@@ -12571,6 +12571,16 @@ function montarResumoFinanceiro() {
   }
   linhas.push("");
 
+  // ─── Categorias personalizadas (além das 14 de fábrica) ───
+  // Sem isso a IA não tem como saber que uma categoria própria (ex:
+  // "Aposta", "ADS") já existe — visto ao vivo: ela achou que só existiam
+  // as de fábrica, disse que "Aposta não existe" e ofereceu criar de novo
+  // uma categoria que a pessoa já tinha, gerando confusão.
+  if (state.categorias && state.categorias.length) {
+    linhas.push(`Categorias personalizadas já criadas por este usuário (além das 14 de fábrica do app): ${state.categorias.map(c => c.nome).join(", ")}.`);
+    linhas.push("");
+  }
+
   // ─── Saldo total e por conta ───
   const saldos = saldosPorConta();
   const saldoTotal = calcularSaldoTotal();
@@ -13908,10 +13918,25 @@ const ACOES_IA = {
       if (semMudanca) {
         return { erro: "Não veio o que mudar nesse lançamento. Use perguntar_opcoes (nunca texto livre) perguntando o que ele quer corrigir, com as opções Valor, Descrição, Categoria e Data — e chame esta ferramenta de novo já preenchendo o campo escolhido." };
       }
-      return _acharLancamentoIA(
+      const achado = _acharLancamentoIA(
         Object.assign({}, d, { valor: d.valorAtual }),
         "Qual lançamento você quer corrigir?"
       );
+      // BUG que existia aqui: devolver achado direto perdia novoValor/
+      // novaDescricao/novaCategoria/novaData no caminho — _acharLancamentoIA
+      // só devolve o id, então editar_lancamento sempre "achava" o
+      // lançamento certo mas executava sem nada pra mudar (achando que a
+      // pessoa não tinha dito nada). Visto ao vivo: "mudei a categoria" nunca
+      // aplicava e o app dizia "não consegui alterar", sem pista do motivo.
+      if (achado.erro || (achado.perguntas && achado.perguntas.length)) return achado;
+      return {
+        dados: {
+          id: achado.dados.id,
+          novoValor: d.novoValor, novaDescricao: d.novaDescricao,
+          novaCategoria: d.novaCategoria, novaData: d.novaData
+        },
+        perguntas: []
+      };
     },
 
     async executar(p) {
@@ -16095,9 +16120,12 @@ async function executarAcaoIA(acao) {
   }
 
   // Atualiza o texto do contador "X de Y perguntas"
+  // limite vem null pra quem é admin (sem teto de uso) — sem essa checagem
+  // aparecia o texto quebrado "0 de null perguntas disponíveis".
   function atualizarContadorIA(usados, limite) {
     const el = document.getElementById("iaContador");
-    if (el) el.textContent = (limite - usados) + " de " + limite + " perguntas disponíveis";
+    if (!el) return;
+    el.textContent = (limite == null) ? "Uso ilimitado" : (limite - usados) + " de " + limite + " perguntas disponíveis";
   }
 
   // ─── Mensagem de voz (grava, transcreve e manda pro mesmo fluxo do texto) ───
