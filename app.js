@@ -13065,7 +13065,7 @@ const ACOES_IA = {
         valor: { type: "number", description: "Valor em reais, sempre positivo. Se ele não disse o valor, NÃO chame esta ferramenta: pergunte o valor numa mensagem normal." },
         descricao: { type: "string", description: "O que foi, em poucas palavras: Mercado, Uber, Salário. Para GASTO pode deixar vazio (o app resolve). Para ENTRADA, sempre diga de onde veio (salário, venda, freela) — se ele não disse, pergunte antes de chamar a ferramenta." },
         conta: { type: "string", description: "Nome da conta ou banco, como está cadastrado. Deixe vazio se ele não disse." },
-        categoria: { type: "string", description: "Categoria do gasto. Deixe vazio para o app escolher sozinho pela descrição." },
+        categoria: { type: "string", description: "Categoria do gasto. Deixe vazio para o app escolher sozinho pela descrição. Também vale pra ENTRADA quando o dinheiro tem a ver com uma categoria que já existe (ex: 'ganhei 45 em aposta' → categoria 'Aposta', se essa categoria existir) — assim entrada e gasto da mesma categoria aparecem juntos na Planilha. Sem essa pista, deixe vazio: o app usa 'Entrada' sozinho." },
         data: { type: "string", description: "AAAA-MM-DD, ou hoje / ontem / amanhã. Padrão: hoje." },
         forma: { type: "string", enum: ["debito", "credito", "pix", "dinheiro"], description: "Forma de pagamento. Padrão: debito. Use credito só se ele disser que foi no cartão de crédito." },
         situacao: { type: "string", enum: ["pago", "agendar"], description: "pago = já aconteceu. agendar = conta futura, ainda não paga. Padrão: pago." },
@@ -13126,7 +13126,15 @@ const ACOES_IA = {
           p.contaId = universo.length === 1 ? universo[0].id : "";
         }
       }
-      p.categoria = p.tipo === "entrada" ? "Entrada" : (acharCategoriaIA(d.categoria) || "");
+      // Entrada normalmente é só "Entrada" (a origem já fica na descrição),
+      // MAS se o usuário deu uma pista de categoria que bate com uma
+      // categoria de verdade (ex: "ganhei 45 em aposta" → tem a categoria
+      // "Aposta"), usa ela — assim entradas e gastos da mesma categoria
+      // aparecem juntos na Planilha, mostrando o resultado líquido. Sem
+      // pista nenhuma, ou sem bater com nada, cai no genérico "Entrada".
+      p.categoria = p.tipo === "entrada"
+        ? (acharCategoriaIA(d.categoria) || "Entrada")
+        : (acharCategoriaIA(d.categoria) || "");
 
       // Entrada sem descrição vira um "Entrada" genérico que ninguém entende
       // depois. Não há opção fechada para "de onde veio", então isso não é
@@ -13693,7 +13701,15 @@ const ACOES_IA = {
       p.tipo = normIA(d.tipo) === "entrada" ? "entrada" : "gasto";
       const freqs = ["mensal", "anual", "diaria"];
       p.frequencia = freqs.includes(normIA(d.frequencia)) ? normIA(d.frequencia) : "mensal";
-      p.categoria = p.tipo === "entrada" ? "Entrada" : (acharCategoriaIA(d.categoria) || "");
+      // Entrada normalmente é só "Entrada" (a origem já fica na descrição),
+      // MAS se o usuário deu uma pista de categoria que bate com uma
+      // categoria de verdade (ex: "ganhei 45 em aposta" → tem a categoria
+      // "Aposta"), usa ela — assim entradas e gastos da mesma categoria
+      // aparecem juntos na Planilha, mostrando o resultado líquido. Sem
+      // pista nenhuma, ou sem bater com nada, cai no genérico "Entrada".
+      p.categoria = p.tipo === "entrada"
+        ? (acharCategoriaIA(d.categoria) || "Entrada")
+        : (acharCategoriaIA(d.categoria) || "");
 
       if (!p.descricao) {
         return { erro: "Não veio o que é o gasto fixo. Pergunte o que se repete (ex: aluguel, Netflix) antes de criar." };
