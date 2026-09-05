@@ -12947,6 +12947,27 @@ function acharContaIA(nome, universo) {
 }
 
 /* Acha a categoria pelo nome, aceitando abreviação ("aliment") */
+/* Rede de segurança pra entradas: mesmo que a IA não preencha o campo
+   categoria (prompt sozinho não é confiável o bastante — visto ao vivo:
+   "ganhei 30 em aposta" ainda caiu em "Entrada"), se a DESCRIÇÃO já
+   menciona o nome de uma categoria PERSONALIZADA do usuário (ex: "Ganho
+   de aposta" contém "aposta", e ele já tem a categoria "Aposta"), usa
+   ela. Só olha as personalizadas (não as 14 de fábrica): "Mercado",
+   "Compras", "Serviços" etc. são palavras comuns demais — "Venda no
+   Mercado Livre" não pode virar categoria "Mercado" por engano. Uma
+   categoria que o próprio usuário nomeou tende a ser bem mais específica
+   e menos propensa a aparecer à toa numa frase qualquer. Ignora nomes
+   curtos demais (< 4 letras) por segurança extra. */
+function categoriaMencionadaNaDescricao(descricao) {
+  const desc = normIA(descricao);
+  if (!desc) return null;
+  const personalizadas = (state.categorias || []).map(c => c.nome);
+  return personalizadas.find(c => {
+    const nc = normIA(c);
+    return nc.length >= 4 && desc.includes(nc);
+  }) || null;
+}
+
 function acharCategoriaIA(nome) {
   const todas = todasCategorias();
   const n = normIA(nome);
@@ -13133,7 +13154,7 @@ const ACOES_IA = {
       // aparecem juntos na Planilha, mostrando o resultado líquido. Sem
       // pista nenhuma, ou sem bater com nada, cai no genérico "Entrada".
       p.categoria = p.tipo === "entrada"
-        ? (acharCategoriaIA(d.categoria) || "Entrada")
+        ? (acharCategoriaIA(d.categoria) || categoriaMencionadaNaDescricao(p.descricao) || "Entrada")
         : (acharCategoriaIA(d.categoria) || "");
 
       // Entrada sem descrição vira um "Entrada" genérico que ninguém entende
@@ -13708,7 +13729,7 @@ const ACOES_IA = {
       // aparecem juntos na Planilha, mostrando o resultado líquido. Sem
       // pista nenhuma, ou sem bater com nada, cai no genérico "Entrada".
       p.categoria = p.tipo === "entrada"
-        ? (acharCategoriaIA(d.categoria) || "Entrada")
+        ? (acharCategoriaIA(d.categoria) || categoriaMencionadaNaDescricao(p.descricao) || "Entrada")
         : (acharCategoriaIA(d.categoria) || "");
 
       if (!p.descricao) {
