@@ -1374,8 +1374,10 @@ function limparCupomAplicado() {
 /* Inicia o checkout de um dos dois planos (Pessoal ou Empresarial).
    tipoConta: "pessoal" | "empresarial". Usada por assinarPlanoUnico()
    (tela de assinatura obrigatória, cadastro fundido, landing) e por
-   assinarPlanoEmpresarial() (card Empresarial na tela de planos). */
-async function _assinarPlano(tipoConta, btn, contentName) {
+   assinarPlanoEmpresarial() (card Empresarial na tela de planos).
+   tipoPagamento: "vitalicio" pra pagamento único via Pix (ver
+   assinarVitalicio()) em vez de assinatura recorrente no cartão. */
+async function _assinarPlano(tipoConta, btn, contentName, tipoPagamento) {
   if (!state.user || !state.user.id) {
     toast("Faça login para assinar.", "error");
     return;
@@ -1391,8 +1393,9 @@ async function _assinarPlano(tipoConta, btn, contentName) {
         email: state.user.email,
         nome: state.perfil?.nome || null,
         token: localStorage.getItem("fp_token") || "",
-        cupom: _cupomAplicado || null,
-        tipoConta
+        cupom: tipoPagamento === "vitalicio" ? null : (_cupomAplicado || null),
+        tipoConta,
+        tipoPagamento: tipoPagamento || undefined
       })
     });
     const dados = await resp.json();
@@ -1451,6 +1454,21 @@ async function assinarPlanoEmpresarial() {
     return;
   }
   return _assinarPlano("empresarial", document.getElementById("btnAssinarEmpresarial"), "faz_empresarial");
+}
+
+/* Pagamento único (Pix) — acesso vitalício, sem mensalidade. Mesmo botão
+   "Assinar", mas manda tipoPagamento: "vitalicio" pro servidor decidir o
+   preço fixo (ver PLANO_VITALICIO em criar-checkout.js) e gerar um Pix
+   avulso em vez de assinatura recorrente no cartão. */
+async function assinarVitalicioPessoal(btn) {
+  return _assinarPlano("pessoal", btn || null, "faz_vitalicio_pessoal", "vitalicio");
+}
+async function assinarVitalicioEmpresarial(btn) {
+  if (state.perfil?.empresarial) {
+    toast("Você já tem o plano Empresarial ativo.", "info");
+    return;
+  }
+  return _assinarPlano("empresarial", btn || null, "faz_vitalicio_empresarial", "vitalicio");
 }
 
 /* Sair a partir da tela de assinatura obrigatória, sem confirmação extra
@@ -10179,16 +10197,19 @@ function renderConta() {
   const assinaturaDesc = document.getElementById("contaAssinaturaDesc");
   if (assinaturaDesc) {
     assinaturaDesc.textContent = (plano === "master" || plano === "premium")
-      ? `Você está no plano ${nomePlano}`
+      ? (state.perfil?.vitalicio
+          ? `Você tem o plano ${nomePlano} vitalício — pago uma vez, acesso pra sempre`
+          : `Você está no plano ${nomePlano}`)
       : "Você está no plano gratuito";
   }
 
   // Linha "Cancelar assinatura" — só aparece pra quem tem assinatura paga
   // ativa de verdade (não pra quem tem acesso de graça por ser anterior ao
-  // plano único, nem pra quem já cancelou e está no período final de acesso).
+  // plano único, nem pra quem já cancelou e está no período final de acesso,
+  // nem pra quem pagou o vitalício — não existe assinatura nenhuma pra cancelar).
   const linhaCancelar = document.getElementById("contaLinhaCancelar");
   if (linhaCancelar) {
-    linhaCancelar.hidden = state.perfil?.assinaturaStatus !== "ativa";
+    linhaCancelar.hidden = state.perfil?.assinaturaStatus !== "ativa" || !!state.perfil?.vitalicio;
     const cancelarDesc = document.getElementById("contaCancelarDesc");
     if (cancelarDesc && state.perfil?.proximaCobranca) {
       const data = new Date(state.perfil.proximaCobranca + "T00:00:00").toLocaleDateString("pt-BR");
@@ -10440,7 +10461,7 @@ async function salvarPerfil(dados) {
 }
 
 function mapPerfil(p) {
-  if (!p) return { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null, plano: "basico", assinaturaStatus: "inativa", atrasoDesde: null, empresarial: false, empresaCnpj: "", empresaRazaoSocial: "", empresaNomeFantasia: "" };
+  if (!p) return { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null, plano: "basico", assinaturaStatus: "inativa", atrasoDesde: null, empresarial: false, vitalicio: false, empresaCnpj: "", empresaRazaoSocial: "", empresaNomeFantasia: "" };
   return {
     avatarTipo:   p.avatar_tipo   || "inicial",
     avatarPadrao: p.avatar_padrao || null,
@@ -10455,6 +10476,11 @@ function mapPerfil(p) {
     // pessoa pagou por ele. Não tem nada a ver com podeUsar()/planoAtual():
     // o nível de acesso (premium) é o mesmo; só libera o espaço extra.
     empresarial:      !!p.empresarial,
+    // Pagou uma vez só (Pix) e tem acesso pra sempre — sem mensalidade,
+    // sem asaas_subscription_id, sem proxima_cobranca. Só afeta a UI (esconde
+    // "cancelar assinatura"/aviso de renovação); o acesso em si já é
+    // liberado normalmente via assinaturaStatus === "ativa".
+    vitalicio:        !!p.vitalicio,
     // Dados da empresa (opcionais) — só aparecem no espaço Empresarial.
     empresaCnpj:          p.empresa_cnpj          || "",
     empresaRazaoSocial:   p.empresa_razao_social  || "",

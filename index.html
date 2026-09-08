@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202609050047" />
+  <link rel="stylesheet" href="style.css?v=202609081530" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -1739,6 +1739,7 @@
               </div>
 
               <button class="plano-btn plano-btn-primario" onclick="assinarPlanoUnico()">Assinar agora</button>
+              <button type="button" class="assinar-vitalicio-link" onclick="assinarVitalicioPessoal(this)">ou pague uma vez no Pix (R$ 447) e tenha acesso vitalício</button>
               <div class="plano-ia-box">
                 <span class="plano-ia-titulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></svg> IA completa</span>
                 <span class="plano-ia-desc">Seu assistente financeiro, sempre à mão — 100 perguntas, recarrega a cada 3h</span>
@@ -1773,6 +1774,7 @@
               </div>
 
               <button class="plano-btn plano-btn-primario" id="btnAssinarEmpresarial" onclick="assinarPlanoEmpresarial()">Assinar Empresarial</button>
+              <button type="button" class="assinar-vitalicio-link" onclick="assinarVitalicioEmpresarial(this)">ou pague uma vez no Pix (R$ 697) e tenha acesso vitalício</button>
               <div class="plano-ia-box">
                 <span class="plano-ia-titulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg> Espaço 100% separado</span>
                 <span class="plano-ia-desc">Contas, lançamentos e categorias isolados do seu espaço pessoal — nunca se misturam</span>
@@ -3296,12 +3298,13 @@
       </ul>
 
       <button type="button" class="assinar-btn" id="btnAssinarAgora" onclick="assinarPlanoUnico()">Assinar agora</button>
+      <button type="button" class="assinar-vitalicio-link" onclick="assinarVitalicioPessoal(this)">ou pague uma vez no Pix (R$ 447) e tenha acesso vitalício</button>
       <p class="assinar-rodape">✓ Cancele quando quiser &nbsp;·&nbsp; ✓ Pagamento seguro pelo Asaas</p>
       <button type="button" class="assinar-sair" onclick="sairDaAssinatura()">Sair da conta</button>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202609050047"></script>
+  <script src="app.js?v=202609081530"></script>
 </body>
 </html>

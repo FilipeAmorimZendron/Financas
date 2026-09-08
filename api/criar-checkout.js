@@ -23,6 +23,16 @@ const PLANO_EMPRESARIAL = { valor: 41.9, nome: "FAZ Finanças Empresarial", desc
 const PLANO_ID = "premium";
 const CICLO = "mensal";
 
+// Pagamento ÚNICO via Pix — sem mensalidade, acesso pra sempre. Preço fixo,
+// não aceita cupom. Quem compra fica marcado com perfil.vitalicio = true
+// (ver ehVitalicio() em webhook-asaas.js); o nível de acesso é o mesmo
+// "premium" de sempre. Valores são só um ponto de partida — fácil de mudar
+// aqui, sem precisar mexer em mais nada.
+const PLANO_VITALICIO = {
+  pessoal: { valor: 447, nome: "FAZ Finanças Vitalício", desc: "Pagamento único via Pix — acesso completo pra sempre, sem mensalidade." },
+  empresarial: { valor: 697, nome: "FAZ Finanças Empresarial Vitalício", desc: "Pagamento único via Pix — acesso completo ao espaço Empresarial pra sempre, sem mensalidade." },
+};
+
 // Cupons de desconto: preço final com o código, em vez do preço de tabela.
 // Por plano — o mesmo código dá descontos diferentes em cada um.
 // A validação é sempre aqui no servidor — o valor que o navegador mostra é
@@ -110,11 +120,76 @@ async function trocarValorAssinatura({ subscriptionId, proximaCobranca, novoValo
   return { valorAtual, diasRestantes, valorProrata };
 }
 
+/* Acha (por e-mail) ou cria o cliente no Asaas. Extraído pra ser reaproveitado
+   tanto pela assinatura recorrente quanto pelo pagamento vitalício avulso —
+   evita duplicar cliente a cada tentativa de checkout. */
+async function acharOuCriarCliente({ headers, asaasUrl, email, nome, userId }) {
+  const respBusca = await fetch(
+    `${asaasUrl}/customers?email=${encodeURIComponent(email)}&limit=1`,
+    { headers }
+  );
+  if (respBusca.ok) {
+    const achados = await respBusca.json();
+    const achado = (achados.data || [])[0] || null;
+    if (achado) {
+      console.log("Cliente Asaas reaproveitado:", achado.id);
+      if (achado.externalReference !== userId) {
+        await fetch(`${asaasUrl}/customers/${achado.id}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ externalReference: userId }),
+        }).catch(() => {});
+      }
+      return achado;
+    }
+  }
+
+  const respCliente = await fetch(`${asaasUrl}/customers`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ name: nome || email, email, externalReference: userId }),
+  });
+  const cliente = await respCliente.json();
+  console.log("Cliente Asaas criado:", respCliente.status, cliente.id || JSON.stringify(cliente));
+  if (!respCliente.ok || !cliente.id) {
+    throw new Error("Falha ao criar cliente no Asaas: " + JSON.stringify(cliente));
+  }
+  return cliente;
+}
+
+/* Registra de quem é um checkout na nossa tabela — é o que garante o
+   webhook achar o dono certo mesmo se o Asaas não devolver o
+   externalReference ou a pessoa digitar outro e-mail na hora de pagar. */
+async function registrarCheckout({ serviceKey, supabaseUrl, userId, email, plano, ciclo, valor, checkoutId, customerId }) {
+  if (!serviceKey || !checkoutId) return;
+  try {
+    await fetch(`${supabaseUrl}/rest/v1/checkouts`, {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        email: String(email).trim().toLowerCase(),
+        plano, ciclo, valor,
+        asaas_checkout_id: checkoutId,
+        asaas_customer_id: customerId,
+      }),
+    });
+    console.log("Checkout registrado:", checkoutId, "para", userId);
+  } catch (e) {
+    console.error("Não consegui registrar o checkout:", String(e));
+  }
+}
+
 /* Cobrança avulsa (única, chargeType DETACHED — sem bloco "subscription")
-   pela diferença de uma troca de plano. */
-async function criarCheckoutAvulso({ headers, asaasUrl, siteUrl, nome, desc, valor, externalReference }) {
+   pela diferença de uma troca de plano, ou pelo pagamento vitalício. */
+async function criarCheckoutAvulso({ headers, asaasUrl, siteUrl, nome, desc, valor, externalReference, billingTypes }) {
   const corpo = {
-    billingTypes: ["CREDIT_CARD"],
+    billingTypes: billingTypes || ["CREDIT_CARD"],
     chargeTypes: ["DETACHED"],
     minutesToExpire: 20,
     callback: {
@@ -167,8 +242,9 @@ export default async function handler(req, res) {
     // Dados que o app manda. tipoConta escolhe entre os dois planos —
     // "pessoal" (padrão, mantém compatibilidade com quem ainda não manda
     // esse campo) ou "empresarial".
-    const { email, nome, token, cupom, tipoConta: tipoContaBruto } = req.body || {};
+    const { email, nome, token, cupom, tipoConta: tipoContaBruto, tipoPagamento } = req.body || {};
     const tipoConta = tipoContaBruto === "empresarial" ? "empresarial" : "pessoal";
+    const vitalicio = tipoPagamento === "vitalicio";
 
     if (!email) {
       return res.status(400).json({ erro: "Dados do usuário faltando" });
@@ -208,6 +284,73 @@ export default async function handler(req, res) {
       "access_token": chave,
       "User-Agent": "FAZ Financas",
     };
+
+    // Pagamento único (Pix) — acesso vitalício, sem mensalidade. Fluxo à
+    // parte: não mexe em assinatura nenhuma, não aceita cupom, e não deixa
+    // comprar de novo quem já é vitalício.
+    if (vitalicio) {
+      const configVital = PLANO_VITALICIO[tipoConta];
+
+      if (SERVICE_KEY) {
+        try {
+          const respPerfilV = await fetch(
+            `${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${encodeURIComponent(userId)}&select=vitalicio`,
+            { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } }
+          );
+          if (respPerfilV.ok) {
+            const linhasV = await respPerfilV.json();
+            if (linhasV[0]?.vitalicio) {
+              return res.status(400).json({ erro: "Você já tem o acesso vitalício — não precisa pagar de novo." });
+            }
+          }
+        } catch (e) {
+          console.error("Falha ao checar vitalício existente:", e);
+        }
+
+        // Garante o e-mail salvo antes do pagamento, mesmo motivo do fluxo normal.
+        try {
+          await fetch(`${SUPABASE_URL}/rest/v1/perfil`, {
+            method: "POST",
+            headers: {
+              apikey: SERVICE_KEY,
+              Authorization: `Bearer ${SERVICE_KEY}`,
+              "Content-Type": "application/json",
+              Prefer: "resolution=merge-duplicates,return=minimal",
+            },
+            body: JSON.stringify({ user_id: userId, email: String(email).trim().toLowerCase() }),
+          });
+        } catch (e) {
+          console.error("Não consegui gravar o e-mail no perfil (vitalício):", e);
+        }
+      }
+
+      const clienteVital = await acharOuCriarCliente({ headers, asaasUrl: ASAAS_URL, email, nome, userId });
+
+      const cobranca = await criarCheckoutAvulso({
+        headers,
+        asaasUrl: ASAAS_URL,
+        siteUrl: SITE_URL,
+        nome: configVital.nome,
+        desc: configVital.desc,
+        valor: configVital.valor,
+        billingTypes: ["PIX"],
+        externalReference: `${userId}|${plano}|vitalicio_${tipoConta}`,
+      });
+
+      await registrarCheckout({
+        serviceKey: SERVICE_KEY,
+        supabaseUrl: SUPABASE_URL,
+        userId, email,
+        plano,
+        ciclo: `vitalicio_${tipoConta}`,
+        valor: configVital.valor,
+        checkoutId: cobranca.id,
+        customerId: clienteVital.id,
+      });
+
+      console.log("Checkout vitalício criado:", userId, tipoConta, configVital.valor);
+      return res.status(200).json({ url: cobranca.url, valor: configVital.valor, vitalicio: true });
+    }
 
     // Troca de plano (Pessoal <-> Empresarial) de quem JÁ assina: não
     // cancela/recria a assinatura (mudaria a data de cobrança) — atualiza

@@ -4887,6 +4887,23 @@ body.sem-internet .layout { padding-top: 34px; }
   transition: color 0.2s;
 }
 .assinar-sair:hover { color: #E6EEF5; text-decoration: underline; }
+.assinar-vitalicio-link {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  background: none;
+  border: none;
+  padding: 4px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--lp-teal-soft, #19D1BB);
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.2s;
+}
+.assinar-vitalicio-link:hover { color: var(--lp-teal, #1EF6DD); text-decoration: underline; }
+.assinar-vitalicio-link:disabled { opacity: 0.6; cursor: default; text-decoration: none; }
 @media (max-width: 480px) {
   .assinar-shell { padding: 36px 24px 28px; }
 }

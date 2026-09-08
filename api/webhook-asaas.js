@@ -429,7 +429,19 @@ export default async function handler(req, res) {
     let novoPlano = null;
     const extras = {};
 
-    if (EVENTOS_ATIVA.includes(evento)) {
+    if (EVENTOS_ATIVA.includes(evento) && ciclo && ciclo.startsWith("vitalicio")) {
+      // Pagamento único (Pix) — acesso pra sempre, sem mensalidade. Não é
+      // uma assinatura: não tem proxima_cobranca, não tem
+      // asaas_subscription_id (a cobrança é DETACHED), e o app nunca mais
+      // precisa checar vencimento pra essa conta.
+      novoStatus = "ativa";
+      novoPlano = plano || "premium";
+      extras.atraso_desde = null;
+      extras.vitalicio = true;
+      extras.empresarial = ciclo === "vitalicio_empresarial";
+      console.log(`VITALÍCIO liberado para ${userId} (${ciclo})`);
+
+    } else if (EVENTOS_ATIVA.includes(evento)) {
       // Pagou: libera (ou renova) o acesso e limpa qualquer marca de atraso
       novoStatus = "ativa";
       novoPlano = plano || "premium";
@@ -456,9 +468,12 @@ export default async function handler(req, res) {
 
     } else if (EVENTOS_CORTE.includes(evento)) {
       // Estorno ou contestação: o dinheiro saiu da nossa conta. Corta na hora.
+      // Vale também pro vitalício (Pix dá pra estornar em até 90 dias) —
+      // sem isso, um estorno deixaria a pessoa com acesso pra sempre de graça.
       novoPlano = "basico";
       extras.atraso_desde = null;
       extras.empresarial = false;
+      extras.vitalicio = false;
       if (plano && plano !== "basico") extras.plano_anterior = plano;
       novoStatus = "inativa";
 
