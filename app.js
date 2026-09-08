@@ -1659,7 +1659,14 @@ document.getElementById("formCadastro")?.addEventListener("submit", async e => {
       state.user = { email: data.user.email, id: data.user.id, createdAt: data.user.created_at || null };
       iniciarRenovacaoAutomaticaDeSessao();
       fecharAuth();
-      await assinarPlanoUnico();
+      // Se veio do botão "Quero o vitalício" da landing, manda pro pagamento
+      // único em vez da assinatura mensal de sempre.
+      if (_pagamentoEscolhidoLanding === "vitalicio") {
+        _pagamentoEscolhidoLanding = null;
+        await assinarVitalicioPessoal();
+      } else {
+        await assinarPlanoUnico();
+      }
     } else {
       // Extremamente improvável com autoconfirmação ligada, mas cobre o
       // caso de ela ser desligada no futuro sem alguém lembrar de ajustar aqui.
@@ -9855,6 +9862,20 @@ function selecionarPlanoLanding(tipo) {
   });
 }
 
+/* Seletor Pessoal/Empresarial da tela de Planos do app (screen-planos) —
+   mesmo padrão visual da landing (ver selecionarPlanoLanding), mas mais
+   simples: mostra/esconde o card inteiro em vez de cross-fade animado. */
+function selecionarPlanoTela(tipo) {
+  document.querySelectorAll("#screen-planos .plano-tab-opt").forEach(b => {
+    const ativo = b.dataset.plano === tipo;
+    b.classList.toggle("ativo", ativo);
+    b.setAttribute("aria-selected", ativo ? "true" : "false");
+  });
+  document.querySelectorAll("#screen-planos .plano-card[data-plano]").forEach(card => {
+    card.hidden = card.dataset.plano !== tipo;
+  });
+}
+
 /* Toggle Mensal/Anual dos planos na landing */
 (function () {
   const toggle = document.getElementById("lpPlanosToggle");
@@ -10111,6 +10132,17 @@ function abrirAuth(qual) {
 /* Clicou em "Assinar" na landing: abre o cadastro. Plano único agora —
    criar a conta já leva direto pro pagamento (ver o listener do formCadastro). */
 function assinarNaLanding() {
+  _pagamentoEscolhidoLanding = null;
+  abrirAuth("cadastro");
+}
+
+/* Clicou em "Quero o vitalício" na landing (só existe pro Pessoal — o
+   Empresarial vitalício, como o mensal, só é escolhido dentro do app depois
+   de logado). Guarda a escolha pra o listener do formCadastro usar assim
+   que a conta for criada — ver _pagamentoEscolhidoLanding. */
+let _pagamentoEscolhidoLanding = null;
+function assinarVitalicioLanding(tipoConta) {
+  _pagamentoEscolhidoLanding = "vitalicio";
   abrirAuth("cadastro");
 }
 
@@ -10806,8 +10838,11 @@ async function alternarContexto(ctx) {
   if (ctx === "empresarial" && !state.perfil?.empresarial) {
     irParaPlanos(
       "Espaço Empresarial",
-      "Separe as finanças da sua empresa das suas finanças pessoais — assine o plano Empresarial (R$ 41,90/mês) para liberar."
+      "Separe as finanças da sua empresa das suas finanças pessoais — assine o plano Empresarial para liberar."
     );
+    // Já abre direto na aba Empresarial da tela de Planos — foi isso que a
+    // pessoa tentou acessar, não faz sentido cair na aba Pessoal.
+    selecionarPlanoTela("empresarial");
     return;
   }
 

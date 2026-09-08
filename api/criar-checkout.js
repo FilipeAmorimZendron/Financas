@@ -29,8 +29,8 @@ const CICLO = "mensal";
 // "premium" de sempre. Valores são só um ponto de partida — fácil de mudar
 // aqui, sem precisar mexer em mais nada.
 const PLANO_VITALICIO = {
-  pessoal: { valor: 447, nome: "FAZ Finanças Vitalício", desc: "Pagamento único via Pix — acesso completo pra sempre, sem mensalidade." },
-  empresarial: { valor: 697, nome: "FAZ Finanças Empresarial Vitalício", desc: "Pagamento único via Pix — acesso completo ao espaço Empresarial pra sempre, sem mensalidade." },
+  pessoal: { valor: 369.9, nome: "FAZ Finanças Vitalício", desc: "Pagamento único via Pix — acesso completo pra sempre, sem mensalidade." },
+  empresarial: { valor: 479.9, nome: "FAZ Finanças Empresarial Vitalício", desc: "Pagamento único via Pix — acesso completo ao espaço Empresarial pra sempre, sem mensalidade." },
 };
 
 // Cupons de desconto: preço final com o código, em vez do preço de tabela.

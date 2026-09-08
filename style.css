@@ -4887,23 +4887,22 @@ body.sem-internet .layout { padding-top: 34px; }
   transition: color 0.2s;
 }
 .assinar-sair:hover { color: #E6EEF5; text-decoration: underline; }
-.assinar-vitalicio-link {
-  display: block;
-  width: 100%;
-  margin-top: 10px;
-  background: none;
-  border: none;
-  padding: 4px;
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--lp-teal-soft, #19D1BB);
-  cursor: pointer;
-  text-align: center;
-  transition: color 0.2s;
+/* Override escuro do .plano-opcao (definido perto de .plano-card) — a tela
+   de assinatura obrigatória não segue o tema claro/escuro do app, é sempre
+   escura, então fixa as cores em vez de usar var(--surface) etc. */
+#telaAssinar .planos-duo { margin: 4px 0 8px; }
+#telaAssinar .plano-opcao {
+  background: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.12);
 }
-.assinar-vitalicio-link:hover { color: var(--lp-teal, #1EF6DD); text-decoration: underline; }
-.assinar-vitalicio-link:disabled { opacity: 0.6; cursor: default; text-decoration: none; }
+#telaAssinar .plano-opcao-nome { color: #7C8FA3; }
+#telaAssinar .plano-opcao-preco { color: #E6EEF5; }
+#telaAssinar .plano-opcao-preco .plano-opcao-ciclo,
+#telaAssinar .plano-opcao-nota { color: #7C8FA3; }
+#telaAssinar .plano-opcao-btn { border-color: rgba(255,255,255,0.18); color: #E6EEF5; }
+#telaAssinar .plano-opcao-btn:hover { border-color: #1EF6DD; }
+#telaAssinar .plano-opcao-destaque { border-color: #1EF6DD; }
+#telaAssinar .plano-opcao-destaque .plano-opcao-btn { background: #1EF6DD; color: #062420; }
 @media (max-width: 480px) {
   .assinar-shell { padding: 36px 24px 28px; }
 }
@@ -8939,6 +8938,33 @@ body.sem-internet .layout { padding-top: 34px; }
   color: var(--text-muted);
   margin-bottom: 22px;
 }
+/* Seletor de aba Pessoal/Empresarial na tela de Planos do app — mesmo
+   padrão visual do seletor da landing (.plano-selector), mas com as
+   variáveis de tema do app (claro/escuro) em vez das fixas da landing. */
+.plano-tab-selector {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--surface2, #eef3f5);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 4px;
+}
+.plano-tab-opt {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 9px 26px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.plano-tab-opt.ativo { background: var(--accent); color: #fff; }
+@media (max-width: 480px) {
+  .plano-tab-opt { padding: 8px 19px; font-size: 13px; }
+}
 
 /* Toggle mensal / anual */
 .planos-toggle {
@@ -9005,6 +9031,104 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .planos-grid-duo .plano-card { height: 100%; }
 .planos-grid-duo .plano-lista { margin-top: auto; }
+
+/* ============================================================
+   DUPLA DE PAGAMENTO: Mensal x Vitalício.
+   Padrão único, reaproveitado em 3 lugares: aqui (tela de Planos do
+   app — usa as variáveis de tema, claro/escuro), na landing e na tela
+   de assinatura obrigatória (essas duas têm override logo abaixo, com
+   cores fixas escuras, porque não seguem o tema claro/escuro do app).
+   ============================================================ */
+.planos-duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: stretch;
+  margin: 18px 0;
+}
+@media (max-width: 480px) {
+  .planos-duo { grid-template-columns: 1fr; }
+}
+.plano-opcao {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 15px 16px;
+  border-radius: var(--radius-lg, 16px);
+  border: 1px solid var(--border, #a9bac1);
+  background: var(--surface, #fff);
+  text-align: center;
+}
+.plano-opcao-nome {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8896a5);
+  margin-bottom: 10px;
+}
+.plano-opcao-preco {
+  font-size: 25px;
+  font-weight: 800;
+  color: var(--text-primary, #16233a);
+  line-height: 1.1;
+}
+.plano-opcao-preco .plano-opcao-ciclo {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted, #8896a5);
+}
+.plano-opcao-nota {
+  font-size: 11.5px;
+  color: var(--text-muted, #8896a5);
+  margin: 4px 0 14px;
+  line-height: 1.4;
+}
+.plano-opcao-btn {
+  margin-top: auto;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--border, #a9bac1);
+  background: transparent;
+  color: var(--text-primary, #16233a);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+}
+.plano-opcao-btn:hover { border-color: var(--accent, #0A6B61); transform: translateY(-1px); }
+.plano-opcao-btn:disabled { opacity: 0.6; cursor: default; transform: none; }
+
+/* Card "Vitalício" — destacado, com o selo vermelho "Mais escolhido" */
+.plano-opcao-destaque {
+  border-color: var(--accent, #0A6B61);
+  padding-top: 26px;
+}
+.plano-opcao-selo {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--red, #c0453f);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 100px;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(192, 69, 63, 0.35);
+}
+.plano-opcao-destaque .plano-opcao-btn {
+  background: var(--accent, #0A6B61);
+  border-color: transparent;
+  color: #fff;
+}
+.plano-opcao-destaque .plano-opcao-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
 .plano-card {
   position: relative;
   padding: 24px 22px;
@@ -9703,7 +9827,24 @@ body.sem-internet .layout { padding-top: 34px; }
   color: var(--lp-amber);
   margin: 0 0 14px;
 }
-.lp-assinar-shell .cupom-box { margin: 0 0 14px; }
+.lp-assinar-shell .cupom-box { margin: 14px 0; }
+/* Override escuro do .plano-opcao (definido perto de .plano-card) — a
+   landing é sempre escura, não segue o tema claro/escuro do app, então
+   fixa as cores em vez de usar var(--surface) etc. */
+.lp-assinar-shell .planos-duo { margin: 0 0 4px; }
+.lp-assinar-shell .plano-opcao {
+  background: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.14);
+}
+.lp-assinar-shell .plano-opcao-nome { color: var(--lp-text-dim); }
+.lp-assinar-shell .plano-opcao-preco { color: var(--lp-text); }
+.lp-assinar-shell .plano-opcao-preco .plano-opcao-ciclo,
+.lp-assinar-shell .plano-opcao-nota { color: var(--lp-text-dim); }
+.lp-assinar-shell .plano-opcao-btn { border-color: rgba(255,255,255,0.2); color: var(--lp-text); }
+.lp-assinar-shell .plano-opcao-btn:hover { border-color: var(--lp-teal); }
+.lp-assinar-shell .plano-opcao-destaque { border-color: var(--lp-teal); }
+.lp-assinar-shell .plano-opcao-destaque .plano-opcao-btn { background: var(--lp-teal); color: #062420; }
+.lp-assinar-shell-empresarial .plano-opcao-destaque { border-color: var(--lp-teal); }
 .lp-assinar-lista {
   list-style: none;
   margin: 0 0 20px;
