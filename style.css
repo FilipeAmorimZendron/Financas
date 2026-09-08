@@ -4890,10 +4890,11 @@ body.sem-internet .layout { padding-top: 34px; }
 /* Override escuro do .plano-opcao (definido perto de .plano-card) — a tela
    de assinatura obrigatória não segue o tema claro/escuro do app, é sempre
    escura, então fixa as cores em vez de usar var(--surface) etc. */
-#telaAssinar .planos-duo { margin: 4px 0 8px; }
+#telaAssinar .planos-duo { margin: 8px 0 12px; }
 #telaAssinar .plano-opcao {
-  background: rgba(255,255,255,0.03);
-  border-color: rgba(255,255,255,0.12);
+  background: #0D1B2F;
+  border-color: rgba(255,255,255,0.14);
+  box-shadow: 0 12px 30px -10px rgba(0,0,0,0.55);
 }
 #telaAssinar .plano-opcao-nome { color: #7C8FA3; }
 #telaAssinar .plano-opcao-preco { color: #E6EEF5; }
@@ -9046,9 +9047,9 @@ body.sem-internet .layout { padding-top: 34px; }
 .planos-duo {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 20px;
   align-items: stretch;
-  margin: 18px 0;
+  margin: 22px 0;
 }
 @media (max-width: 480px) {
   .planos-duo { grid-template-columns: 1fr; }
@@ -9057,10 +9058,11 @@ body.sem-internet .layout { padding-top: 34px; }
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 20px 15px 16px;
+  padding: 26px 18px 20px;
   border-radius: var(--radius-lg, 16px);
-  border: 1px solid var(--border, #a9bac1);
+  border: 1.5px solid var(--border, #a9bac1);
   background: var(--surface, #fff);
+  box-shadow: var(--shadow-md, 0 4px 16px rgba(23, 29, 49, 0.10));
   text-align: center;
 }
 .plano-opcao-nome {
@@ -9108,7 +9110,8 @@ body.sem-internet .layout { padding-top: 34px; }
 /* Card "Vitalício" — destacado, com o selo vermelho "Mais escolhido" */
 .plano-opcao-destaque {
   border-color: var(--accent, #0A6B61);
-  padding-top: 26px;
+  border-width: 2px;
+  padding-top: 30px;
 }
 .plano-opcao-selo {
   position: absolute;
@@ -9835,10 +9838,11 @@ body.sem-internet .layout { padding-top: 34px; }
 /* Override escuro do .plano-opcao (definido perto de .plano-card) — a
    landing é sempre escura, não segue o tema claro/escuro do app, então
    fixa as cores em vez de usar var(--surface) etc. */
-.lp-assinar-shell .planos-duo { margin: 0 0 4px; }
+.lp-assinar-shell .planos-duo { margin: 4px 0 8px; }
 .lp-assinar-shell .plano-opcao {
-  background: rgba(255,255,255,0.03);
-  border-color: rgba(255,255,255,0.14);
+  background: #0D1B2F;
+  border-color: rgba(255,255,255,0.16);
+  box-shadow: 0 12px 30px -10px rgba(0,0,0,0.55);
 }
 .lp-assinar-shell .plano-opcao-nome { color: var(--lp-text-dim); }
 .lp-assinar-shell .plano-opcao-preco { color: var(--lp-text); }
