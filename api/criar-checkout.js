@@ -420,15 +420,14 @@ export default async function handler(req, res) {
       externalReference: `${userId}|${plano}|${ciclo}${cupomValido ? "|" + cupomValido : ""}`,
     };
 
-    // Cria o checkout. Não mandamos customerData: o Asaas passa a exigir
-    // telefone quando esse campo vem, e não precisamos dele — o vínculo com
-    // o usuário fica registrado na nossa tabela de checkouts.
-    // Mandamos "customer" (o ID do cliente que já achamos/criamos acima) pra
-    // o Asaas já saber quem é o pagador — sem isso, a página de pagamento
-    // não reconhece ninguém e pede nome/CPF/endereço do zero pro cliente
-    // preencher toda vez.
-    corpoBase.customer = cliente.id;
-
+    // Cria o checkout. Não mandamos customerData nem customer: pra cobrança
+    // RECURRENT no cartão, o Asaas exige que o customer já tenha telefone,
+    // CPF/CNPJ e endereço completos salvos (testado direto na API — sem
+    // isso ele recusa o checkout com "O campo X deve existir para o
+    // customer informado"). Como não coletamos esses dados no cadastro,
+    // deixamos o checkout SEM customer vinculado — assim é a própria
+    // página hospedada do Asaas que pede tudo isso do cliente na hora de
+    // pagar, e não a nossa API que barra a criação do checkout.
     const respCheckout = await fetch(`${ASAAS_URL}/checkouts`, {
       method: "POST",
       headers,
