@@ -423,6 +423,12 @@ export default async function handler(req, res) {
     // Cria o checkout. Não mandamos customerData: o Asaas passa a exigir
     // telefone quando esse campo vem, e não precisamos dele — o vínculo com
     // o usuário fica registrado na nossa tabela de checkouts.
+    // Mandamos "customer" (o ID do cliente que já achamos/criamos acima) pra
+    // o Asaas já saber quem é o pagador — sem isso, a página de pagamento
+    // não reconhece ninguém e pede nome/CPF/endereço do zero pro cliente
+    // preencher toda vez.
+    corpoBase.customer = cliente.id;
+
     const respCheckout = await fetch(`${ASAAS_URL}/checkouts`, {
       method: "POST",
       headers,
