@@ -8962,6 +8962,10 @@ body.sem-internet .layout { padding-top: 34px; }
   transition: background 0.2s, color 0.2s;
 }
 .plano-tab-opt.ativo { background: var(--accent); color: #fff; }
+/* .plano-card { display:flex } tem prioridade sobre o [hidden] nativo do
+   navegador (regra de UA sempre perde pra CSS de autor) — sem isto, trocar
+   de aba escondia o card errado só "por baixo dos panos". */
+#screen-planos .plano-card[hidden] { display: none; }
 @media (max-width: 480px) {
   .plano-tab-opt { padding: 8px 19px; font-size: 13px; }
 }
