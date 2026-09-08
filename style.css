@@ -4709,18 +4709,18 @@ body.sem-internet .layout { padding-top: 34px; }
   -webkit-backdrop-filter: none;
 }
 #telaAssinar::before { content: none; }
+/* Sem moldura própria — o overlay escuro atrás (#telaAssinar) já dá o
+   contraste; os dois cards .plano-opcao dentro são as únicas "molduras". */
 .assinar-shell {
   position: relative;
   width: 100%;
   max-width: 440px;
   max-height: 90vh;
   overflow-y: auto;
-  background: #08152A;
-  border: 2px solid rgba(245,165,36,0.55);
-  border-radius: 24px;
-  padding: 48px 38px 36px;
+  background: none;
+  border: none;
+  padding: 24px 12px 36px;
   text-align: center;
-  box-shadow: 0 0 0 4px rgba(245,165,36,0.12), 0 50px 120px -30px rgba(0,0,0,0.9);
   animation: authShell 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .assinar-badge {
@@ -9136,25 +9136,21 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .plano-opcao-destaque .plano-opcao-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
+/* Sem moldura própria — vira só um bloco de conteúdo (selo + título + os
+   dois cards .plano-opcao, que são os únicos "cards" de verdade agora). */
 .plano-card {
   position: relative;
-  padding: 24px 22px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  padding: 24px 0 0;
+  background: none;
+  border: none;
   display: flex;
   flex-direction: column;
 }
-.plano-card-destaque {
-  border: 2px solid var(--accent);
-}
-.plano-card-master {
-  border: 1px solid #b8842a;
-  background: linear-gradient(180deg, rgba(184, 132, 42, 0.05), transparent 40%);
-}
+.plano-card-destaque,
+.plano-card-master,
 .plano-card-empresarial {
-  border: 1px solid var(--teal-600);
-  background: linear-gradient(180deg, rgba(10, 107, 97, 0.08), transparent 40%);
+  border: none;
+  background: none;
 }
 /* Realce quando a pessoa chega da landing com um plano escolhido */
 .plano-card-escolhido {
@@ -9751,29 +9747,18 @@ body.sem-internet .layout { padding-top: 34px; }
    que o card antigo daqui. Classes próprias (lp-assinar-*) pra não
    depender do modal nem herdar seu max-height/overflow/animação de
    entrada, que fazem sentido num modal mas não numa seção da página. */
+/* Sem moldura própria — os dois cards .plano-opcao dentro são as únicas
+   "molduras" (ver override logo abaixo, que fixa as cores escuras). */
 .lp-assinar-shell {
   position: relative;
   width: 100%;
-  max-width: 440px;
+  max-width: 460px;
   margin: 0 auto;
-  background: #08152A;
-  border: 3px solid rgba(245,165,36,0.55);
-  border-radius: 24px;
-  padding: 32px 30px 26px;
+  background: none;
+  border: none;
+  padding: 8px 4px 0;
   text-align: center;
-  box-shadow: 0 50px 120px -30px rgba(0,0,0,0.4);
 }
-/* Moldura interna — uma segunda borda mais fina, um pouco pra dentro,
-   dando o efeito de "quadro emoldurado" em vez de um card liso. */
-.lp-assinar-shell::before {
-  content: "";
-  position: absolute;
-  inset: 9px;
-  border: 2px solid rgba(245,165,36,0.25);
-  border-radius: 16px;
-  pointer-events: none;
-}
-.lp-assinar-shell-empresarial::before { border-color: rgba(30,246,221,0.25); }
 .lp-assinar-badge {
   display: block;
   width: fit-content;
@@ -9891,8 +9876,7 @@ body.sem-internet .layout { padding-top: 34px; }
 @media (prefers-reduced-motion: reduce) { .lp-assinar-btn { animation: none; } }
 .lp-assinar-rodape { margin: 10px 0 0; font-size: 12.5px; font-weight: 600; color: var(--lp-text-dim); line-height: 1.5; }
 @media (max-width: 480px) {
-  .lp-assinar-shell { padding: 28px 22px 22px; }
-  .lp-assinar-shell::before { inset: 7px; }
+  .lp-assinar-shell { padding: 8px 6px 0; }
 }
 
 /* Card Empresarial: mesmo desenho do Pessoal, mas em teal (a cor da marca)
