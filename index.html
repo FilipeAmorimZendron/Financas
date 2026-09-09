@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202609091715" />
+  <link rel="stylesheet" href="style.css?v=202609091920" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -1731,6 +1731,10 @@
                 <span class="plano-opcao-nome">Mensal</span>
                 <div class="plano-opcao-preco">R$ <span class="preco-plano-valor">26,90</span><span class="plano-opcao-ciclo">/mês</span></div>
                 <p class="plano-opcao-explicacao">Cobrança automática todo mês no cartão. Cancele quando quiser, direto no app — sem multa nem burocracia.</p>
+                <ul class="plano-opcao-vantagens">
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sem compromisso — paga mês a mês</li>
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Não precisa juntar o valor de uma vez</li>
+                </ul>
                 <button type="button" class="plano-opcao-btn" onclick="assinarPlanoUnico()">Assinar agora</button>
               </div>
               <div class="plano-opcao plano-opcao-destaque">
@@ -1739,6 +1743,10 @@
                 <span class="plano-opcao-nome">Vitalício</span>
                 <div class="plano-opcao-preco">R$ 369,90<span class="plano-opcao-ciclo"> único</span></div>
                 <p class="plano-opcao-explicacao">Um pagamento único, via Pix. Sem mensalidade nunca mais — o acesso fica liberado na sua conta pra sempre.</p>
+                <ul class="plano-opcao-vantagens">
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sai mais em conta se você ficar mais de 1 ano</li>
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Paga uma vez e nunca mais recebe cobrança</li>
+                </ul>
                 <button type="button" class="plano-opcao-btn" onclick="assinarVitalicioPessoal(this)">Quero o vitalício</button>
               </div>
             </div>
@@ -1767,6 +1775,10 @@
                 <span class="plano-opcao-nome">Mensal</span>
                 <div class="plano-opcao-preco">R$ <span class="preco-plano-empresarial-valor">41,90</span><span class="plano-opcao-ciclo">/mês</span></div>
                 <p class="plano-opcao-explicacao">Cobrança automática todo mês no cartão. Cancele quando quiser, direto no app — sem multa nem burocracia.</p>
+                <ul class="plano-opcao-vantagens">
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sem compromisso — paga mês a mês</li>
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Não precisa juntar o valor de uma vez</li>
+                </ul>
                 <button type="button" class="plano-opcao-btn" id="btnAssinarEmpresarial" onclick="assinarPlanoEmpresarial()">Assinar Empresarial</button>
               </div>
               <div class="plano-opcao plano-opcao-destaque">
@@ -1775,6 +1787,10 @@
                 <span class="plano-opcao-nome">Vitalício</span>
                 <div class="plano-opcao-preco">R$ 479,90<span class="plano-opcao-ciclo"> único</span></div>
                 <p class="plano-opcao-explicacao">Um pagamento único, via Pix. Sem mensalidade nunca mais — o acesso fica liberado na sua conta pra sempre.</p>
+                <ul class="plano-opcao-vantagens">
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sai mais em conta se você ficar mais de 1 ano</li>
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Paga uma vez e nunca mais recebe cobrança</li>
+                </ul>
                 <button type="button" class="plano-opcao-btn" id="btnVitalicioEmpresarial" onclick="assinarVitalicioEmpresarial(this)">Quero o vitalício</button>
               </div>
             </div>
@@ -2918,6 +2934,10 @@
             <span class="plano-opcao-nome">Mensal</span>
             <div class="plano-opcao-preco">R$ <span class="preco-plano-valor">26,90</span><span class="plano-opcao-ciclo">/mês</span></div>
             <p class="plano-opcao-explicacao">Cobrança automática todo mês no cartão. Cancele quando quiser, direto no app — sem multa nem burocracia.</p>
+            <ul class="plano-opcao-vantagens">
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sem compromisso — paga mês a mês</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Não precisa juntar o valor de uma vez</li>
+            </ul>
             <button type="button" class="plano-opcao-btn" onclick="assinarNaLanding()">Começar agora</button>
           </div>
           <div class="plano-opcao plano-opcao-destaque">
@@ -2926,6 +2946,10 @@
             <span class="plano-opcao-nome">Vitalício</span>
             <div class="plano-opcao-preco">R$ 369,90<span class="plano-opcao-ciclo"> único</span></div>
             <p class="plano-opcao-explicacao">Um pagamento único, via Pix. Sem mensalidade nunca mais — o acesso fica liberado na sua conta pra sempre.</p>
+            <ul class="plano-opcao-vantagens">
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sai mais em conta se você ficar mais de 1 ano</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Paga uma vez e nunca mais recebe cobrança</li>
+            </ul>
             <button type="button" class="plano-opcao-btn" onclick="assinarVitalicioLanding('pessoal')">Quero o vitalício</button>
           </div>
         </div>
@@ -2955,6 +2979,10 @@
             <span class="plano-opcao-nome">Mensal</span>
             <div class="plano-opcao-preco">R$ <span class="preco-plano-empresarial-valor">41,90</span><span class="plano-opcao-ciclo">/mês</span></div>
             <p class="plano-opcao-explicacao">Cobrança automática todo mês no cartão. Cancele quando quiser, direto no app — sem multa nem burocracia.</p>
+            <ul class="plano-opcao-vantagens">
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sem compromisso — paga mês a mês</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Não precisa juntar o valor de uma vez</li>
+            </ul>
             <button type="button" class="plano-opcao-btn" onclick="abrirAuth('cadastro')">Começar agora</button>
           </div>
           <div class="plano-opcao plano-opcao-destaque">
@@ -2963,6 +2991,10 @@
             <span class="plano-opcao-nome">Vitalício</span>
             <div class="plano-opcao-preco">R$ 479,90<span class="plano-opcao-ciclo"> único</span></div>
             <p class="plano-opcao-explicacao">Um pagamento único, via Pix. Sem mensalidade nunca mais — o acesso fica liberado na sua conta pra sempre.</p>
+            <ul class="plano-opcao-vantagens">
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sai mais em conta se você ficar mais de 1 ano</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Paga uma vez e nunca mais recebe cobrança</li>
+            </ul>
             <button type="button" class="plano-opcao-btn" onclick="abrirAuth('cadastro')">Quero o vitalício</button>
           </div>
         </div>
@@ -3284,6 +3316,10 @@
           <span class="plano-opcao-nome">Mensal</span>
           <div class="plano-opcao-preco">R$ <span class="preco-plano-valor">26,90</span><span class="plano-opcao-ciclo">/mês</span></div>
           <p class="plano-opcao-explicacao">Cobrança automática todo mês no cartão. Cancele quando quiser, direto no app — sem multa nem burocracia.</p>
+          <ul class="plano-opcao-vantagens">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sem compromisso — paga mês a mês</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Não precisa juntar o valor de uma vez</li>
+          </ul>
           <button type="button" class="plano-opcao-btn" id="btnAssinarAgora" onclick="assinarPlanoUnico()">Assinar agora</button>
         </div>
         <div class="plano-opcao plano-opcao-destaque">
@@ -3292,6 +3328,10 @@
           <span class="plano-opcao-nome">Vitalício</span>
           <div class="plano-opcao-preco">R$ 369,90<span class="plano-opcao-ciclo"> único</span></div>
           <p class="plano-opcao-explicacao">Um pagamento único, via Pix. Sem mensalidade nunca mais — o acesso fica liberado na sua conta pra sempre.</p>
+          <ul class="plano-opcao-vantagens">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sai mais em conta se você ficar mais de 1 ano</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Paga uma vez e nunca mais recebe cobrança</li>
+          </ul>
           <button type="button" class="plano-opcao-btn" onclick="assinarVitalicioPessoal(this)">Quero o vitalício</button>
         </div>
       </div>
@@ -3310,6 +3350,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202609091715"></script>
+  <script src="app.js?v=202609091920"></script>
 </body>
 </html>
