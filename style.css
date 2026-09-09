@@ -4908,8 +4908,8 @@ body.sem-internet .layout { padding-top: 34px; }
 #telaAssinar .plano-opcao-icone { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.16); color: #7C8FA3; }
 #telaAssinar .plano-opcao-nome { color: #7C8FA3; }
 #telaAssinar .plano-opcao-preco { color: #E6EEF5; }
-#telaAssinar .plano-opcao-preco .plano-opcao-ciclo,
-#telaAssinar .plano-opcao-nota { color: #7C8FA3; }
+#telaAssinar .plano-opcao-preco .plano-opcao-ciclo { color: #7C8FA3; }
+#telaAssinar .plano-opcao-explicacao { color: #93A5B8; }
 #telaAssinar .plano-opcao-btn { border-color: rgba(255,255,255,0.18); color: #E6EEF5; }
 #telaAssinar .plano-opcao-btn:hover { border-color: #1EF6DD; color: #1EF6DD; }
 #telaAssinar .plano-opcao-destaque {
@@ -9079,7 +9079,8 @@ body.sem-internet .layout { padding-top: 34px; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 38px 26px 30px;
+  min-height: 480px;
+  padding: 44px 32px 36px;
   border-radius: 22px;
   border: 1.5px solid var(--border, #a9bac1);
   background: var(--surface, #fff);
@@ -9088,9 +9089,9 @@ body.sem-internet .layout { padding-top: 34px; }
   transition: transform 0.25s var(--ease, ease), box-shadow 0.25s var(--ease, ease);
 }
 .plano-opcao-icone {
-  width: 44px;
-  height: 44px;
-  margin-bottom: 14px;
+  width: 50px;
+  height: 50px;
+  margin-bottom: 16px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -9099,34 +9100,37 @@ body.sem-internet .layout { padding-top: 34px; }
   border: 1px solid var(--border, #a9bac1);
   color: var(--text-muted, #8896a5);
 }
-.plano-opcao-icone svg { width: 20px; height: 20px; }
+.plano-opcao-icone svg { width: 22px; height: 22px; }
 .plano-opcao-nome {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted, #8896a5);
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .plano-opcao-preco {
-  font-size: 36px;
+  font-size: 40px;
   font-weight: 800;
   color: var(--text-primary, #16233a);
   line-height: 1.05;
   font-family: 'Sora', sans-serif;
 }
 .plano-opcao-preco .plano-opcao-ciclo {
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 600;
   color: var(--text-muted, #8896a5);
   font-family: inherit;
 }
-.plano-opcao-nota {
-  font-size: 13px;
-  color: var(--text-muted, #8896a5);
-  margin: 6px 0 26px;
-  line-height: 1.5;
-  max-width: 22ch;
+/* Explicação clara do que é cada opção (não só um preço) — texto mais
+   legível e sem coluna estreita, pra caber uma frase completa explicando
+   como funciona a cobrança. */
+.plano-opcao-explicacao {
+  font-size: 14.5px;
+  color: var(--text-secondary, #4d5e73);
+  margin: 16px 0 30px;
+  line-height: 1.55;
+  max-width: 30ch;
 }
 .plano-opcao-btn {
   margin-top: auto;
@@ -9889,8 +9893,8 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-assinar-shell .plano-opcao-icone { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.18); color: var(--lp-text-dim); }
 .lp-assinar-shell .plano-opcao-nome { color: var(--lp-text-dim); }
 .lp-assinar-shell .plano-opcao-preco { color: var(--lp-text); }
-.lp-assinar-shell .plano-opcao-preco .plano-opcao-ciclo,
-.lp-assinar-shell .plano-opcao-nota { color: var(--lp-text-dim); }
+.lp-assinar-shell .plano-opcao-preco .plano-opcao-ciclo { color: var(--lp-text-dim); }
+.lp-assinar-shell .plano-opcao-explicacao { color: var(--lp-text-dim); }
 .lp-assinar-shell .plano-opcao-btn { border-color: rgba(255,255,255,0.2); color: var(--lp-text); }
 .lp-assinar-shell .plano-opcao-btn:hover { border-color: var(--lp-amber); color: var(--lp-amber); }
 .lp-assinar-shell .plano-opcao-destaque {
