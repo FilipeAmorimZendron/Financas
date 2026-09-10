@@ -4901,12 +4901,14 @@ body.sem-internet .layout { padding-top: 34px; }
    escura, então fixa as cores em vez de usar var(--surface)/var(--accent). */
 #telaAssinar .planos-duo { margin: 8px 0 12px; }
 #telaAssinar .plano-opcao {
-  /* Gradiente sutil em vez de cor chapada — o card "Mensal" (sem o
-     destaque colorido do Vitalício) ficava parecendo um quadrado plano
-     sem isso. */
-  background: linear-gradient(160deg, #14243D 0%, #0A1526 65%);
-  border-color: rgba(255,255,255,0.12);
-  box-shadow: 0 16px 38px -10px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+  /* O preenchimento precisa ficar CLARAMENTE mais claro que o fundo da
+     tela (#011025) do início ao fim do gradiente — antes ele escurecia
+     de novo perto do fundo do card e quase sumia no fundo da página,
+     o que faz o olho só enxergar a borda reta (um "quadrado desenhado")
+     em vez de uma superfície com relevo de verdade. */
+  background: linear-gradient(165deg, #16283F 0%, #101F36 100%);
+  border-color: rgba(255,255,255,0.10);
+  box-shadow: 0 28px 64px -20px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 #telaAssinar .plano-opcao-icone { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.16); color: #7C8FA3; }
 #telaAssinar .plano-opcao-nome { color: #7C8FA3; }
@@ -4920,8 +4922,8 @@ body.sem-internet .layout { padding-top: 34px; }
 #telaAssinar .plano-opcao-btn:hover { border-color: #1EF6DD; color: #1EF6DD; }
 #telaAssinar .plano-opcao-destaque {
   border-color: #1EF6DD;
-  background: linear-gradient(160deg, rgba(30,246,221,0.14), #0A1526 65%);
-  box-shadow: 0 22px 50px -12px rgba(30,246,221,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+  background: linear-gradient(165deg, rgba(30,246,221,0.16), #101F36 100%);
+  box-shadow: 0 28px 64px -20px rgba(30,246,221,0.3), 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 #telaAssinar .plano-opcao-destaque .plano-opcao-icone { background: rgba(30,246,221,0.12); border-color: #1EF6DD; color: #1EF6DD; }
 #telaAssinar .plano-opcao-destaque .plano-opcao-btn { background: #1EF6DD; color: #062420; box-shadow: 0 10px 24px -6px rgba(30,246,221,0.5); }
@@ -9087,14 +9089,32 @@ body.sem-internet .layout { padding-top: 34px; }
   align-items: center;
   min-height: 480px;
   padding: 44px 32px 36px;
-  border-radius: 28px;
-  border: 1.5px solid var(--border, #a9bac1);
-  /* Gradiente sutil (não uma cor chapada) — evita o efeito "caixa/quadrado
-     plano" que uma cor sólida com borda reta acaba dando. */
-  background: linear-gradient(160deg, var(--surface2, #eef3f5) 0%, var(--surface, #fff) 60%);
-  box-shadow: var(--shadow-lg, 0 16px 48px rgba(23, 29, 49, 0.15)), inset 0 1px 0 rgba(255,255,255,0.4);
+  border-radius: 30px;
+  /* Borda mais fina e discreta — quem separa o card do fundo é o
+     preenchimento mais claro, não uma linha reta chapando o contorno
+     (isso é o que faz um card parecer "um quadrado desenhado"). */
+  border: 1px solid var(--border, #a9bac1);
+  background: linear-gradient(165deg, var(--surface2, #eef3f5) 0%, var(--surface, #fff) 100%);
+  box-shadow: 0 28px 64px -24px rgba(23, 29, 49, 0.35), 0 2px 6px rgba(23, 29, 49, 0.05), inset 0 1px 0 rgba(255,255,255,0.5);
   text-align: center;
   transition: transform 0.25s var(--ease, ease), box-shadow 0.25s var(--ease, ease);
+}
+/* Brilho radial num canto — some quando o preenchimento é claro (tema
+   claro do app), mas é o que faz o card escuro parecer uma superfície
+   com luz batendo, em vez de um retângulo pintado de uma cor só.
+   inset:0 com border-radius:inherit acompanha exatamente o contorno do
+   card (sem "vazar" por fora nem precisar de overflow:hidden, que
+   cortaria o selo "Mais escolhido" saltando pra fora do topo). Fica
+   atrás do resto do conteúdo por ordem natural do DOM (::before nasce
+   primeiro), sem precisar de z-index. */
+.plano-opcao::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 20% 12%, rgba(255,255,255,0.5), transparent 55%);
+  opacity: 0.35;
+  pointer-events: none;
 }
 .plano-opcao-icone {
   width: 50px;
@@ -9922,12 +9942,14 @@ body.sem-internet .layout { padding-top: 34px; }
    Empresarial — mesma identidade que o badge/ícone de cada shell já usam. */
 .lp-assinar-shell .planos-duo { margin: 4px 0 8px; }
 .lp-assinar-shell .plano-opcao {
-  /* Gradiente sutil em vez de cor chapada — sem isso, o card "Mensal"
-     (sem o destaque colorido do Vitalício) ficava parecendo um quadrado
-     plano ao lado do outro. */
-  background: linear-gradient(160deg, #14243D 0%, #0A1526 65%);
-  border-color: rgba(255,255,255,0.14);
-  box-shadow: 0 16px 38px -10px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+  /* O preenchimento precisa ficar CLARAMENTE mais claro que o fundo da
+     landing (#011025) do início ao fim do gradiente — antes ele
+     escurecia de novo perto do fundo do card e quase sumia no fundo da
+     página, o que faz o olho só enxergar a borda reta (um "quadrado
+     desenhado") em vez de uma superfície com relevo de verdade. */
+  background: linear-gradient(165deg, #16283F 0%, #101F36 100%);
+  border-color: rgba(255,255,255,0.12);
+  box-shadow: 0 28px 64px -20px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 .lp-assinar-shell .plano-opcao-icone { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.18); color: var(--lp-text-dim); }
 .lp-assinar-shell .plano-opcao-nome { color: var(--lp-text-dim); }
@@ -9942,8 +9964,8 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-assinar-shell .plano-opcao-btn:hover { border-color: var(--lp-amber); color: var(--lp-amber); }
 .lp-assinar-shell .plano-opcao-destaque {
   border-color: var(--lp-amber);
-  background: linear-gradient(160deg, rgba(245,165,36,0.16), #0A1526 65%);
-  box-shadow: 0 22px 50px -12px rgba(245,165,36,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+  background: linear-gradient(165deg, rgba(245,165,36,0.18), #101F36 100%);
+  box-shadow: 0 28px 64px -20px rgba(245,165,36,0.3), 0 2px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 .lp-assinar-shell .plano-opcao-destaque .plano-opcao-icone { background: rgba(245,165,36,0.14); border-color: var(--lp-amber); color: var(--lp-amber); }
 .lp-assinar-shell .plano-opcao-destaque .plano-opcao-btn { background: var(--lp-amber); color: #1a1205; box-shadow: 0 10px 24px -6px rgba(245,165,36,0.5); }
@@ -9952,8 +9974,8 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-assinar-shell-empresarial .plano-opcao-btn:hover { border-color: var(--lp-teal); color: var(--lp-teal); }
 .lp-assinar-shell-empresarial .plano-opcao-destaque {
   border-color: var(--lp-teal);
-  background: linear-gradient(160deg, rgba(30,246,221,0.14), #0A1526 65%);
-  box-shadow: 0 22px 50px -12px rgba(30,246,221,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+  background: linear-gradient(165deg, rgba(30,246,221,0.16), #101F36 100%);
+  box-shadow: 0 28px 64px -20px rgba(30,246,221,0.3), 0 2px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 .lp-assinar-shell-empresarial .plano-opcao-destaque .plano-opcao-icone { background: rgba(30,246,221,0.12); border-color: var(--lp-teal); color: var(--lp-teal); }
 .lp-assinar-shell-empresarial .plano-opcao-destaque .plano-opcao-btn { background: var(--lp-teal); color: #062420; box-shadow: 0 10px 24px -6px rgba(30,246,221,0.5); }
