@@ -5,9 +5,11 @@
 //
 // Diferente do Asaas, aqui NÃO existe API pra criar checkout dinâmico — os
 // 4 produtos (Pessoal Mensal, Empresarial Mensal, Pessoal Vitalício,
-// Empresarial Vitalício) são cadastrados manualmente no painel da Kiwify
-// (ver PRODUTOS_KIWIFY abaixo, que precisa bater com os nomes exatos de lá).
-// O link de cada um mora em api/criar-checkout.js.
+// Empresarial Vitalício) são cadastrados manualmente no painel da Kiwify.
+// O link de cada um mora em api/criar-checkout.js. Qual plano liberar é
+// decidido pelo NOME do produto que vem no webhook, procurando só
+// palavra-chave (ver classificarProduto) — não precisa bater exato com o
+// nome cadastrado lá, então renomear o produto no painel não quebra nada.
 //
 // Fluxo:
 //   1. Kiwify envia um POST com o evento (webhook_event_type) e os dados da venda
@@ -33,23 +35,11 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 // Environment Variables como KIWIFY_WEBHOOK_TOKEN — nunca direto no código.
 const WEBHOOK_TOKEN = process.env.KIWIFY_WEBHOOK_TOKEN || null;
 
-// Nomes EXATOS dos produtos cadastrados no painel da Kiwify (Produtos →
-// nome do produto), já normalizados (sem acento, minúsculo). Se um dia
-// renomear algum produto lá, precisa atualizar aqui também — é assim que
-// decidimos qual plano liberar.
-const PRODUTOS_KIWIFY = {
-  "pessoal mensal":        { tipoConta: "pessoal",     tipoPagamento: "mensal" },
-  "empresarial mensal":    { tipoConta: "empresarial", tipoPagamento: "mensal" },
-  "pessoal vitalicio":     { tipoConta: "pessoal",     tipoPagamento: "vitalicio" },
-  "empresarial vitalicio": { tipoConta: "empresarial", tipoPagamento: "vitalicio" },
-};
-
 // Faixa Unicode das marcas de acentuação combinadas (usada depois de
 // normalize("NFD"), que separa por ex. "í" em "i" + acento combinando).
 const REGEX_DIACRITICOS = new RegExp("[\u0300-\u036f]", "g");
 
-/* Tira acento e baixa a caixa, pra "Pessoal Vitalício" bater com a chave
-   "pessoal vitalicio" acima mesmo com acentuação diferente. */
+/* Tira acento e baixa a caixa. */
 function normalizar(txt) {
   return String(txt || "")
     .normalize("NFD")
@@ -58,8 +48,22 @@ function normalizar(txt) {
     .toLowerCase();
 }
 
+/* Decide o plano pelo NOME DO PRODUTO só procurando palavras-chave dentro
+   dele — não por igualdade exata. Comparação exata quebrou de verdade em
+   produção: o produto real na Kiwify se chama "Plano Pessoal Vitalício"
+   (com "Plano " na frente), e como não batia caractere a caractere com
+   "pessoal vitalicio", uma compra PAGA de verdade não liberou o acesso do
+   cliente (2026-09-15). Com palavra-chave, funciona não importa como o
+   produto foi nomeado/renomeado no painel — só precisa conter
+   "empresarial" (senão assume Pessoal) e "vitalici" (senão assume Mensal,
+   cobre "vitalício"/"vitalicio" com ou sem acento já que roda depois do
+   normalizar()). */
 function classificarProduto(nomeProduto) {
-  return PRODUTOS_KIWIFY[normalizar(nomeProduto)] || null;
+  const nome = normalizar(nomeProduto);
+  if (!nome) return null;
+  const tipoConta = nome.includes("empresarial") ? "empresarial" : "pessoal";
+  const tipoPagamento = nome.includes("vitalici") ? "vitalicio" : "mensal";
+  return { tipoConta, tipoPagamento };
 }
 
 /* Lê o corpo bruto da requisição (sem o bodyParser do Vercel) — precisamos
@@ -174,10 +178,12 @@ export default async function handler(req, res) {
       orderId: body.order_id, subscriptionId: body.Subscription?.subscription_id,
     }));
 
+    // classificarProduto() só devolve null se o nome do produto vier vazio
+    // (não deveria acontecer nunca — a Kiwify sempre manda isso).
     const classificacao = classificarProduto(nomeProduto);
     if (!classificacao) {
-      console.error("Produto não reconhecido:", nomeProduto, "— confira PRODUTOS_KIWIFY no código");
-      return res.status(200).json({ ok: true, motivo: "produto não reconhecido" });
+      console.error("Webhook sem nome de produto — não dá pra saber qual plano liberar:", JSON.stringify(body.Product));
+      return res.status(200).json({ ok: true, motivo: "sem nome de produto" });
     }
     const { tipoConta, tipoPagamento } = classificacao;
 
