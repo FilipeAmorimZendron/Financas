@@ -1410,6 +1410,102 @@ textarea { resize: vertical; }
 .confirm-box.is-perigo .confirm-ok { background: var(--red);    box-shadow: 0 6px 16px rgba(217, 99, 93, 0.28); }
 .confirm-box.is-neutro .confirm-ok { background: var(--accent); color: #04241f; box-shadow: 0 6px 16px rgba(30, 246, 221, 0.22); }
 .confirm-ok:hover { filter: brightness(1.06); }
+
+/* Popup de celebração "plano ativado" — ver mostrarPlanoAtivado() em
+   app.js. Mesmo mecanismo de overlay do .confirm-ov acima, mas com um
+   visual próprio: mais festivo (confete decorativo, ícone com brilho),
+   e só um botão — não é uma decisão a tomar, é uma celebração. */
+.plano-ativo-ov {
+  position: fixed; inset: 0;
+  background: rgba(3, 9, 20, 0.7);
+  backdrop-filter: blur(10px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; opacity: 0; padding: 24px;
+  transition: opacity 0.25s var(--ease);
+}
+.plano-ativo-ov.open { opacity: 1; }
+.plano-ativo-box {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(165deg, var(--surface2) 0%, var(--surface) 100%);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 46px 36px 32px;
+  max-width: 400px; width: 100%;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255,255,255,0.5);
+  text-align: center;
+  opacity: 0;
+  transform: scale(0.88) translateY(18px);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.28s var(--ease);
+}
+.plano-ativo-ov.open .plano-ativo-box { opacity: 1; transform: scale(1) translateY(0); }
+
+.plano-ativo-x {
+  position: absolute; top: 14px; right: 14px; z-index: 1;
+  width: 30px; height: 30px; border-radius: 9px;
+  border: none; background: transparent; color: var(--text-secondary);
+  display: grid; place-items: center; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.plano-ativo-x:hover { background: var(--surface2); color: var(--text-primary); }
+.plano-ativo-x svg { width: 17px; height: 17px; }
+
+/* Confete decorativo — pontinhos coloridos espalhados no topo do card,
+   feito só com gradientes (sem imagem nem biblioteca nenhuma). */
+.plano-ativo-confete {
+  position: absolute; inset: 0 0 auto 0; height: 100px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, var(--accent) 3px, transparent 3px) 15% 25% / 44px 44px,
+    radial-gradient(circle, var(--amber) 2.5px, transparent 2.5px) 82% 20% / 52px 52px,
+    radial-gradient(circle, var(--red) 2px, transparent 2px) 65% 42% / 46px 46px,
+    radial-gradient(circle, var(--accent) 2.5px, transparent 2.5px) 30% 48% / 58px 58px,
+    radial-gradient(circle, var(--amber) 3px, transparent 3px) 92% 50% / 42px 42px,
+    radial-gradient(circle, var(--green) 2px, transparent 2px) 45% 15% / 50px 50px;
+  opacity: 0.5;
+}
+
+.plano-ativo-ico {
+  position: relative;
+  width: 72px; height: 72px; margin: 4px auto 20px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+  box-shadow: 0 0 0 10px var(--accent-dim), 0 14px 32px -8px var(--accent-glow);
+}
+.plano-ativo-ico svg { width: 34px; height: 34px; }
+
+.plano-ativo-titulo {
+  font-family: 'Sora', sans-serif;
+  font-size: 21px; font-weight: 700; letter-spacing: -0.01em;
+  color: var(--text-primary); margin: 0 0 10px;
+}
+.plano-ativo-selo {
+  display: inline-block;
+  margin: 0 0 14px;
+  padding: 5px 14px;
+  border-radius: 100px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 12px; font-weight: 800;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.plano-ativo-msg {
+  font-size: 14.5px; color: var(--text-secondary);
+  line-height: 1.55; margin: 0 0 28px;
+}
+.plano-ativo-btn {
+  width: 100%; border: none; border-radius: 13px;
+  padding: 14px 16px; font-size: 14.5px; font-weight: 700;
+  color: #04241f; background: var(--accent);
+  box-shadow: 0 10px 26px -6px var(--accent-glow);
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.12s var(--ease);
+}
+.plano-ativo-btn:hover { filter: brightness(1.06); }
+.plano-ativo-btn:active { transform: scale(0.97); }
+
 .btn-danger-solid {
   background: var(--red); color: #fff; border: none;
   border-radius: var(--radius-sm); padding: 10px 18px;

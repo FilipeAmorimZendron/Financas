@@ -1523,7 +1523,7 @@ async function tratarRetornoAssinatura() {
       if (plano === "premium" || plano === "master") {
         renderTudo();
         mostrarLoading(false);
-        toast("Pagamento confirmado! Sua assinatura já está ativa. 🎉", "success");
+        mostrarPlanoAtivado();
         return;
       }
     }
@@ -1538,6 +1538,51 @@ async function tratarRetornoAssinatura() {
     mostrarLoading(false);
     console.error("Erro ao confirmar assinatura:", e);
   }
+}
+
+/* Popup de celebração "plano ativado" — chamado só uma vez, na volta do
+   checkout da Kiwify (ver tratarRetornoAssinatura() acima), depois que o
+   webhook já liberou o plano de verdade. Como a URL (?assinatura=sucesso)
+   já é limpa assim que a pessoa chega, recarregar a página não mostra de
+   novo — não precisa de nenhum controle extra de "já vi isso". Fecha
+   clicando fora, no X, no botão ou apertando Esc — não é uma decisão pra
+   tomar, só um "combinado, entendi". */
+function mostrarPlanoAtivado() {
+  const empresarial = !!state.perfil?.empresarial;
+  const vitalicio = !!state.perfil?.vitalicio;
+  const nomePlano = (empresarial ? "Empresarial" : "Pessoal") + (vitalicio ? " Vitalício" : "");
+  const mensagem = vitalicio
+    ? "Pagamento único recebido — seu acesso está liberado pra sempre, sem mensalidade."
+    : "Assinatura ativa, com renovação automática todo mês.";
+
+  const ov = document.createElement("div");
+  ov.className = "plano-ativo-ov";
+  ov.innerHTML = `
+    <div class="plano-ativo-box" role="alertdialog" aria-modal="true" aria-label="Plano ativado">
+      <div class="plano-ativo-confete" aria-hidden="true"></div>
+      <button class="plano-ativo-x" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <div class="plano-ativo-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h3 class="plano-ativo-titulo">Pagamento confirmado!</h3>
+      <span class="plano-ativo-selo">Plano ${nomePlano}</span>
+      <p class="plano-ativo-msg">${mensagem}</p>
+      <button class="plano-ativo-btn">Começar a usar</button>
+    </div>`;
+  document.body.appendChild(ov);
+  requestAnimationFrame(() => ov.classList.add("open"));
+
+  const fechar = () => {
+    ov.classList.remove("open");
+    setTimeout(() => ov.remove(), 240);
+  };
+  ov.querySelector(".plano-ativo-btn").onclick = fechar;
+  ov.querySelector(".plano-ativo-x").onclick = fechar;
+  ov.addEventListener("click", e => { if (e.target === ov) fechar(); });
+  ov.addEventListener("keydown", e => { if (e.key === "Escape") fechar(); });
+  setTimeout(() => ov.querySelector(".plano-ativo-btn")?.focus(), 60);
 }
 
 /* Mostra o overlay de carregamento.
