@@ -1393,7 +1393,6 @@ async function _assinarPlano(tipoConta, btn, contentName, tipoPagamento) {
         email: state.user.email,
         nome: state.perfil?.nome || null,
         token: localStorage.getItem("fp_token") || "",
-        cupom: tipoPagamento === "vitalicio" ? null : (_cupomAplicado || null),
         tipoConta,
         tipoPagamento: tipoPagamento || undefined
       })
@@ -1476,8 +1475,12 @@ async function assinarVitalicioEmpresarial(btn) {
 function sairDaAssinatura() { fazerLogout(false); }
 
 /* ============================================================
-   RETORNO DO CHECKOUT (Asaas)
-   O Asaas devolve o usuário com ?assinatura=sucesso|cancelada|expirada.
+   RETORNO DO CHECKOUT (Kiwify)
+   A "página de obrigado personalizada" de cada um dos 4 produtos, lá no
+   painel da Kiwify, precisa apontar pra
+   https://fazfinancas.com/?assinatura=sucesso — é assim que a pessoa
+   volta pro app depois de pagar. Não existe um retorno equivalente pra
+   "cancelada"/"expirada" (quem desiste só fecha a aba do checkout).
    Como o webhook pode demorar alguns segundos para liberar o plano,
    recarregamos o perfil algumas vezes antes de desistir.
    ============================================================ */
@@ -1507,12 +1510,13 @@ async function tratarRetornoAssinatura() {
   }
   if (status !== "sucesso") return;
 
-  // Pagamento aprovado: espera o webhook liberar o plano
+  // Pagamento aprovado: espera o webhook da Kiwify liberar o plano. Não
+  // existe mais um "confirmar direto com o processador" de reserva (a
+  // Kiwify não tem uma API de consulta de pedido como o Asaas tinha) —
+  // só resta esperar o webhook, por isso o prazo é um pouco mais folgado.
   mostrarLoading(true, "Confirmando seu pagamento", "Isso leva alguns segundos...");
   try {
-    // Tenta por ~30s. O webhook do Asaas costuma chegar em poucos segundos,
-    // mas em horário de pico pode demorar um pouco mais.
-    for (let tentativa = 0; tentativa < 10; tentativa++) {
+    for (let tentativa = 0; tentativa < 15; tentativa++) {
       await new Promise(r => setTimeout(r, 3000));
       await carregarDadosNuvem();
       const plano = planoAtual();
@@ -1521,36 +1525,6 @@ async function tratarRetornoAssinatura() {
         mostrarLoading(false);
         toast("Pagamento confirmado! Sua assinatura já está ativa. 🎉", "success");
         return;
-      }
-      // Na metade do caminho, pergunta direto ao Asaas em vez de só esperar.
-      // Cobre o caso do webhook falhar ou não chegar.
-      if (tentativa === 4) {
-        mostrarLoading(true, "Ainda confirmando", "Verificando direto com o banco...");
-        try {
-          const resp = await fetch("/api/confirmar-assinatura", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: state.user?.email,
-              token: localStorage.getItem("fp_token") || ""
-            })
-          });
-          const dados = await resp.json();
-          console.log("Confirmação direta:", dados);
-          // Mostra o diagnóstico já expandido, para não precisar clicar
-          if (dados.diagnostico) {
-            console.log("DIAGNÓSTICO:", JSON.stringify(dados.diagnostico, null, 2));
-          }
-          if (dados.ativo) {
-            await carregarDadosNuvem();
-            renderTudo();
-            mostrarLoading(false);
-            toast("Pagamento confirmado! Sua assinatura já está ativa. 🎉", "success");
-            return;
-          }
-        } catch (e) {
-          console.error("Falha na confirmação direta:", e);
-        }
       }
     }
     // Passou do tempo: o pagamento pode estar em processamento
@@ -2190,7 +2164,7 @@ function calcularAvisos() {
         acao: "trocarTela('planos')"
       });
     } else {
-      // Tolerância esgotada: o acesso já caiu, mesmo que o Asaas ainda
+      // Tolerância esgotada: o acesso já caiu, mesmo que a Kiwify ainda
       // não tenha mandado o evento de cancelamento.
       avisos.push({
         tipo: "vencida",
@@ -2220,7 +2194,7 @@ function calcularAvisos() {
     }
 
   } else if (statusAss === "cancelada_falta_pagamento") {
-    // O Asaas encerrou a assinatura por falta de pagamento
+    // A Kiwify encerrou a assinatura por falta de pagamento
     const perdido = perfilAviso.planoAnterior;
     const nomePerdido = perdido === "master" ? "Master"
                       : perdido === "premium" ? "Premium" : null;
@@ -9682,54 +9656,28 @@ async function cancelarAssinatura() {
     ? new Date(state.perfil.proximaCobranca + "T00:00:00").toLocaleDateString("pt-BR")
     : null;
 
-  // Passo 1: aviso — não cancela nada ainda, só confirma que a pessoa quer seguir.
-  const seguir = await confirmar("Antes de cancelar", {
+  // A Kiwify (quem processa o pagamento) não tem uma API pra cancelar a
+  // assinatura por fora — quem cancela é a própria pessoa, direto no
+  // painel de autoatendimento dela, com o mesmo e-mail da compra. Aqui só
+  // confirmamos a intenção e explicamos onde ir; o acesso aqui no FAZ só
+  // atualiza de verdade quando o webhook da Kiwify avisar que cancelou.
+  const ok = await confirmar("Cancelar sua assinatura", {
     tipo: "neutro",
-    descricao: dataAcesso
-      ? `Você continua com acesso completo até <strong>${dataAcesso}</strong>, mesmo cancelando agora — não tem cobrança depois disso.<br><br>Se o motivo for o preço ou alguma dificuldade, manda um e-mail pra <strong>suporte@fazfinancas.com</strong> antes: às vezes dá pra resolver sem precisar cancelar.`
-      : `Você continua com acesso completo até o fim do período já pago — não tem cobrança depois disso.<br><br>Se o motivo for o preço ou alguma dificuldade, manda um e-mail pra <strong>suporte@fazfinancas.com</strong> antes: às vezes dá pra resolver sem precisar cancelar.`,
-    okLabel: "Quero cancelar mesmo assim",
+    descricao:
+      (dataAcesso
+        ? `Você continua com acesso completo até <strong>${dataAcesso}</strong>, mesmo cancelando agora — não tem cobrança depois disso.<br><br>`
+        : `Você continua com acesso completo até o fim do período já pago — não tem cobrança depois disso.<br><br>`) +
+      `O cancelamento é feito direto no painel da Kiwify (quem processa o pagamento): você entra lá com o mesmo e-mail usado na compra. Se o motivo for o preço ou alguma dificuldade, manda um e-mail pra <strong>suporte@fazfinancas.com</strong> antes: às vezes dá pra resolver sem precisar cancelar.`,
+    okLabel: "Ir cancelar na Kiwify",
     cancelLabel: "Voltar",
-  });
-  if (!seguir) return;
-
-  // Passo 2: confirmação final — só aqui cancela de verdade.
-  const ok = await confirmar("Cancelar sua assinatura?", {
-    tipo: "perigo",
-    descricao: "Isso cancela a renovação automática — a cobrança do próximo mês não vai acontecer. Seus dados continuam salvos normalmente.",
-    okLabel: "Cancelar assinatura",
-    cancelLabel: "Manter assinatura",
   });
   if (!ok) return;
 
-  mostrarLoading(true);
-  try {
-    const resp = await fetch("/api/cancelar-assinatura", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: localStorage.getItem("fp_token") || "" })
-    });
-    const dados = await resp.json().catch(() => ({}));
-    if (!resp.ok) {
-      throw new Error(dados.erro || "Não foi possível cancelar agora. Tente novamente em instantes.");
-    }
-
-    // Atualiza o estado local na hora — não espera o webhook pra refletir na tela.
-    if (state.perfil) state.perfil.assinaturaStatus = "cancelada_fim_ciclo";
-
-    const ateData = dados.acessoAte
-      ? new Date(dados.acessoAte + "T00:00:00").toLocaleDateString("pt-BR")
-      : dataAcesso;
-    toast(
-      ateData ? `Assinatura cancelada. Acesso mantido até ${ateData}.` : "Assinatura cancelada. Acesso mantido até o fim do período já pago.",
-      "success"
-    );
-    mostrarLoading(false);
-    renderConta();
-  } catch (err) {
-    mostrarLoading(false);
-    tratarErro(err);
-  }
+  window.open("https://dashboard.kiwify.com.br/minhas-compras", "_blank", "noopener");
+  toast(
+    "Abrimos a área de assinaturas da Kiwify numa nova aba — entre com o mesmo e-mail da compra e cancele por lá. Seu acesso aqui no FAZ atualiza sozinho assim que a Kiwify confirmar.",
+    "info"
+  );
 }
 
 /* Prompt de texto (para a confirmação de exclusão) */
@@ -10572,7 +10520,7 @@ function planoAtual() {
 
   if (status === "ativa") return ehPago ? plano : "basico";
 
-  // Atrasada: o cartão falhou, mas o Asaas ainda vai tentar de novo.
+  // Atrasada: o cartão falhou, mas a Kiwify ainda vai tentar de novo.
   // Mantemos o acesso durante a tolerância em vez de cortar na hora.
   if (status === "atrasada" && ehPago) {
     if (!p.atrasoDesde) return plano;   // sem data: dá o benefício da dúvida
