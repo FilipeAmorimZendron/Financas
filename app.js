@@ -289,7 +289,7 @@ async function excluirCategoria(id) {
     atualizarSelectsCategoria();
     renderCategorias();
     renderTudo();
-    toast(`Categoria "${cat.nome}" excluída.`, "info");
+    toast(`Categoria "${esc(cat.nome)}" excluída.`, "info");
   } catch (err) { tratarErro(err); }
 }
 
@@ -1214,162 +1214,14 @@ function mostrarAppOuPaywall() {
   return true;
 }
 
-/* ─── Cupom de desconto ───────────────────────────────────
-   Preço de tabela: R$ 26,90/mês (Pessoal) e R$ 41,90/mês (Empresarial).
-   O código aqui é só pra mostrar o preço na hora — quem decide de verdade
-   o valor cobrado é api/criar-checkout.js, no servidor, que valida o
-   código de novo antes de criar o checkout. Nunca confie só no que roda
-   no navegador para valor de pagamento.
-   CUPONS_PREVIA é por plano (pessoal/empresarial) porque o mesmo código
-   (ORGANIZACAO) dá descontos diferentes em cada um. */
+// Preço de tabela: R$ 26,90/mês (Pessoal) e R$ 41,90/mês (Empresarial).
+// Usado só como valor de fallback pro tracking (InitiateCheckout) — quem
+// decide o valor cobrado de verdade é api/criar-checkout.js, no servidor.
+// (O sistema de cupom de desconto que existia aqui foi removido em
+// 2026-09 — a Kiwify não usa nosso próprio fluxo de cupom, e a UI de
+// digitar cupom já tinha sido tirada das telas antes disso.)
 const PRECO_PLANO_CHEIO = 26.90;
 const PRECO_EMPRESARIAL_CHEIO = 41.90;
-const CUPONS_PREVIA = { ORGANIZACAO: { pessoal: 20.90, empresarial: 35.90 } };
-
-// sessionStorage (não localStorage): sobrevive a um redirect (ex: login
-// com Google) que recarrega a página NA MESMA aba, mas não fica aplicado
-// pra sempre — fechou a aba ou voltou outro dia, precisa digitar de novo.
-// Some também sempre que a tela de Planos é aberta (ver limparCupomAplicado
-// em trocarTela) — cada tentativa de pagar exige digitar o cupom de novo.
-let _cupomAplicado = (() => {
-  try { return sessionStorage.getItem("fp_cupom") || null; } catch (e) { return null; }
-})();
-
-function _fmtPrecoBR(v) { return v.toFixed(2).replace(".", ","); }
-
-/* Preço cheio + preço com cupom (se houver) de um dos dois planos. */
-function _precoTier(tier) {
-  const cheio = tier === "empresarial" ? PRECO_EMPRESARIAL_CHEIO : PRECO_PLANO_CHEIO;
-  const comCupom = _cupomAplicado && CUPONS_PREVIA[_cupomAplicado]?.[tier];
-  return { cheio, valor: comCupom || cheio, temCupom: !!comCupom };
-}
-
-/* Atualiza todo mundo que mostra o preço do plano na página (landing,
-   cadastro, tela de assinatura, tela de planos — pessoal e empresarial),
-   de acordo com o cupom aplicado no momento. Com cupom, mostra o preço
-   cheio riscado do lado do novo — não só troca o número, deixa claro
-   que houve desconto. */
-function atualizarPrecoNaTela() {
-  [
-    { seletor: ".preco-plano-valor", tier: "pessoal" },
-    { seletor: ".preco-plano-empresarial-valor", tier: "empresarial" }
-  ].forEach(({ seletor, tier }) => {
-    const p = _precoTier(tier);
-    document.querySelectorAll(seletor).forEach(el => {
-      if (p.temCupom) {
-        el.innerHTML = `<s class="preco-riscado">${_fmtPrecoBR(p.cheio)}</s> ${_fmtPrecoBR(p.valor)}`;
-      } else {
-        el.textContent = _fmtPrecoBR(p.valor);
-      }
-    });
-  });
-}
-atualizarPrecoNaTela();
-
-/* Se já tinha um cupom válido de uma visita anterior (sobrevivendo ao
-   redirect do login com Google), MOSTRA isso nas caixas de cupom — nunca
-   deixa o preço aparecer diferente sem explicar o motivo. Sem isso, o
-   preço mudava "sozinho" e parecia bug pra quem não lembrava de ter
-   digitado um cupom antes (ou, pior, num navegador compartilhado).
-   Cada caixa mostra o preço do SEU plano (data-tier="empresarial" ou
-   pessoal, o padrão) — nunca o de outra caixa na mesma página. */
-function refletirCupomSalvo() {
-  if (!_cupomAplicado) return;
-  document.querySelectorAll(".cupom-box").forEach(box => {
-    const tier = box.dataset.tier === "empresarial" ? "empresarial" : "pessoal";
-    const valorTier = CUPONS_PREVIA[_cupomAplicado]?.[tier];
-    if (!valorTier) return;
-    const input = box.querySelector(".cupom-input");
-    const campo = box.querySelector(".cupom-campo");
-    const msg = box.querySelector(".cupom-msg");
-    if (input) input.value = _cupomAplicado;
-    if (campo) campo.hidden = false;
-    if (msg) {
-      msg.textContent = `Cupom aplicado! R$ ${_fmtPrecoBR(valorTier)}/mês — menos de R$ 1 por dia.`;
-      msg.className = "cupom-msg cupom-msg-ok";
-    }
-  });
-}
-refletirCupomSalvo();
-
-// Clique em "Tem um cupom?" ou em "Aplicar" — delegado, funciona em
-// qualquer uma das caixas de cupom da página (cadastro, telaAssinar, planos
-// pessoal e empresarial).
-document.addEventListener("click", (e) => {
-  const toggle = e.target.closest(".cupom-toggle");
-  if (toggle) {
-    const campo = toggle.parentElement.querySelector(".cupom-campo");
-    if (campo) {
-      campo.hidden = !campo.hidden;
-      if (!campo.hidden) campo.querySelector(".cupom-input")?.focus();
-    }
-    return;
-  }
-
-  const btnAplicar = e.target.closest(".cupom-aplicar");
-  if (btnAplicar) {
-    const box = btnAplicar.closest(".cupom-box");
-    const tier = box?.dataset.tier === "empresarial" ? "empresarial" : "pessoal";
-    const input = box?.querySelector(".cupom-input");
-    const msg = box?.querySelector(".cupom-msg");
-    if (!input || !msg) return;
-
-    const codigo = String(input.value || "").trim().toUpperCase();
-    if (!codigo) { input.focus(); return; }
-
-    const valorTier = CUPONS_PREVIA[codigo]?.[tier];
-    if (valorTier) {
-      _cupomAplicado = codigo;
-      try { sessionStorage.setItem("fp_cupom", codigo); } catch (e) {}
-      msg.textContent = `Cupom aplicado! R$ ${_fmtPrecoBR(valorTier)}/mês — menos de R$ 1 por dia.`;
-      msg.className = "cupom-msg cupom-msg-ok";
-    } else {
-      msg.textContent = "Cupom inválido.";
-      msg.className = "cupom-msg cupom-msg-erro";
-    }
-    atualizarPrecoNaTela();
-
-    // Mantém as OUTRAS caixas de cupom da página em sincronia (mesmo código
-    // digitado), mas cada uma mostra o preço/mensagem do SEU próprio plano
-    // — nunca copia a mensagem de uma caixa de plano diferente.
-    document.querySelectorAll(".cupom-box").forEach(outraBox => {
-      if (outraBox === box) return;
-      const outroTier = outraBox.dataset.tier === "empresarial" ? "empresarial" : "pessoal";
-      const outroInput = outraBox.querySelector(".cupom-input");
-      const outraMsg = outraBox.querySelector(".cupom-msg");
-      if (outroInput) outroInput.value = input.value;
-      if (!outraMsg) return;
-      const v = CUPONS_PREVIA[codigo]?.[outroTier];
-      if (v) {
-        outraMsg.textContent = `Cupom aplicado! R$ ${_fmtPrecoBR(v)}/mês — menos de R$ 1 por dia.`;
-        outraMsg.className = "cupom-msg cupom-msg-ok";
-      } else {
-        outraMsg.textContent = "Cupom inválido.";
-        outraMsg.className = "cupom-msg cupom-msg-erro";
-      }
-    });
-    return;
-  }
-});
-
-/* Esquece o cupom aplicado e limpa as caixas de cupom na tela — chamada
-   toda vez que a tela de Planos é aberta (ver trocarTela). Cada visita à
-   tela de Planos (assinar de novo, trocar de plano, virar Empresarial...)
-   exige digitar o cupom de novo, em vez de reaproveitar um cupom aplicado
-   há dias/sessões atrás sem a pessoa pedir. */
-function limparCupomAplicado() {
-  _cupomAplicado = null;
-  try { sessionStorage.removeItem("fp_cupom"); } catch (e) {}
-  document.querySelectorAll(".cupom-box").forEach(box => {
-    const input = box.querySelector(".cupom-input");
-    const campo = box.querySelector(".cupom-campo");
-    const msg = box.querySelector(".cupom-msg");
-    if (input) input.value = "";
-    if (campo) campo.hidden = true;
-    if (msg) { msg.textContent = ""; msg.className = "cupom-msg"; }
-  });
-  atualizarPrecoNaTela();
-}
 
 /* Inicia o checkout de um dos dois planos (Pessoal ou Empresarial).
    tipoConta: "pessoal" | "empresarial". Usada por assinarPlanoUnico()
@@ -1426,10 +1278,6 @@ async function _assinarPlano(tipoConta, btn, contentName, tipoPagamento) {
     if (dados.troca && dados.mensagem) {
       toast(dados.mensagem, "info");
     }
-    // Cupom já foi usado neste checkout — precisa digitar de novo pra
-    // qualquer pagamento seguinte (outra assinatura, upgrade etc.).
-    _cupomAplicado = null;
-    try { sessionStorage.removeItem("fp_cupom"); } catch (e) {}
     setTimeout(() => { window.location.href = dados.url; }, dados.troca ? 1600 : 0);
   } catch (e) {
     toast("Erro de conexão. Tente novamente.", "error");
@@ -2009,7 +1857,7 @@ function saldoComporta(bancoId, valor) {
   if (valor > saldo + 0.005) {
     const falta = valor - saldo;
     toast(
-      `Saldo insuficiente em ${banco.nome}. Faltam ${fmtMoeda(falta)}. ` +
+      `Saldo insuficiente em ${esc(banco.nome)}. Faltam ${fmtMoeda(falta)}. ` +
       `Registre uma transferência de outra conta antes.`,
       "error"
     );
@@ -2032,7 +1880,7 @@ function limiteComporta(cartaoId, valor) {
   if (valor > disp + 0.005) {
     const falta = valor - disp;
     toast(
-      `Limite insuficiente no ${cartao.nome}. ` +
+      `Limite insuficiente no ${esc(cartao.nome)}. ` +
       `Disponível: ${fmtMoeda(disp)} — faltam ${fmtMoeda(falta)}. ` +
       `Se o seu limite aumentou, edite o cartão e atualize o limite.`,
       "error"
@@ -4419,10 +4267,6 @@ function trocarTela(name) {
     try { fbq("track", "ViewContent", { content_name: "planos" }); } catch(e){}
   }
 
-  // Toda visita à tela de Planos começa sem cupom aplicado — precisa
-  // digitar de novo, mesmo que tenha usado um antes nesta mesma sessão.
-  if (name === "planos") limparCupomAplicado();
-
   menuItems.forEach(i=>i.classList.toggle("active", i.dataset.screen===name));
   screens.forEach(s => {
     s.classList.remove("secao-desfocada");  // limpa desfoque de bloqueio anterior
@@ -4562,7 +4406,7 @@ formBanco?.addEventListener("submit", async e => {
     _corEscolhida = null;
     _logoEscolhida = null;
     atualizarAmostraMarca(); renderTudo();
-    toast(`Conta "${nome}" adicionada!${faturaMsg}`,"success");
+    toast(`Conta "${esc(nome)}" adicionada!${faturaMsg}`,"success");
   } catch(err) { tratarErro(err); }
 });
 
@@ -7256,7 +7100,7 @@ document.getElementById("formEditarConta")?.addEventListener("submit", async e =
           m.cartaoId === att.id && m.faturaMes === faturaMesAtual && /^Fatura /.test(m.descricao || "")
         );
         if (jaTemFaturaInicial) {
-          faturaMsg = ` Já existe uma fatura registrada pra ${att.nome} este mês — não criei outra pra não duplicar. Pra ajustar, exclua a antiga na tela do cartão (ícone 🗑 ao lado da compra).`;
+          faturaMsg = ` Já existe uma fatura registrada pra ${esc(att.nome)} este mês — não criei outra pra não duplicar. Pra ajustar, exclua a antiga na tela do cartão (ícone 🗑 ao lado da compra).`;
         } else {
           const movFatura = await dbInsert("movimentos", {
             descricao: `Fatura ${att.nome}`,
@@ -10543,12 +10387,11 @@ function mapPerfil(p) {
 
 /* Limites de cada plano. Desde a virada pro plano único, não existe mais
    conta grátis: "basico" (sem assinatura ativa) não libera nada — nem
-   contas nem metas. "premium" é o único plano à venda hoje (R$ 26,90/mês,
-   ou R$ 20,90/mês com o cupom ORGANIZACAO — ver CUPONS_PREVIA e
-   api/criar-checkout.js); "master" continua valendo do mesmo jeito só
-   porque ainda existem assinantes antigos com esse valor gravado no
-   perfil — não precisou migrar ninguém no banco, os dois viram o mesmo
-   acesso aqui. */
+   contas nem metas. "premium" é o único plano à venda hoje (mensal ou
+   vitalício, Pessoal ou Empresarial — ver api/criar-checkout.js);
+   "master" continua valendo do mesmo jeito só porque ainda existem
+   assinantes antigos com esse valor gravado no perfil — não precisou
+   migrar ninguém no banco, os dois viram o mesmo acesso aqui. */
 const LIMITES_PLANO = {
   basico:  { contas: 0,        metas: 0,        investimentos: false, recorrencias: false, relatorios: false, exportar: false, ia: false, importarExtrato: false, conectarBanco: false },
   premium: { contas: Infinity, metas: Infinity, investimentos: true,  recorrencias: true,  relatorios: true,  exportar: true,  ia: true,  importarExtrato: true,  conectarBanco: true },
