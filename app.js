@@ -1547,6 +1547,29 @@ async function tratarRetornoAssinatura() {
    novo — não precisa de nenhum controle extra de "já vi isso". Fecha
    clicando fora, no X, no botão ou apertando Esc — não é uma decisão pra
    tomar, só um "combinado, entendi". */
+/* Gera o HTML de um punhado de confetes animados (caindo + girando),
+   cada um com posição/cor/tamanho/duração sorteados — usado só pelo popup
+   de mostrarPlanoAtivado(), abaixo. Sem imagem nem biblioteca nenhuma, só
+   divs com @keyframes (ver .confete-item no CSS). Respeita
+   prefers-reduced-motion: quem pediu menos movimento não recebe confete
+   nenhum, só o ícone e o texto. */
+function criarConfete() {
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return "";
+  const cores = ["var(--accent)", "var(--amber)", "var(--red)", "var(--green)"];
+  let html = "";
+  for (let i = 0; i < 26; i++) {
+    const esquerda = Math.random() * 100;
+    const cor = cores[i % cores.length];
+    const tamanho = 5 + Math.random() * 4;
+    const duracao = (1.1 + Math.random() * 0.9).toFixed(2);
+    const atraso = (Math.random() * 0.35).toFixed(2);
+    const giroFinal = 250 + Math.random() * 400;
+    const arredondado = Math.random() > 0.5 ? "50%" : "2px";
+    html += `<span class="confete-item" style="left:${esquerda}%; width:${tamanho}px; height:${tamanho * 1.6}px; background:${cor}; border-radius:${arredondado}; animation-duration:${duracao}s; animation-delay:${atraso}s; --giro:${giroFinal}deg;"></span>`;
+  }
+  return html;
+}
+
 function mostrarPlanoAtivado() {
   const empresarial = !!state.perfil?.empresarial;
   const vitalicio = !!state.perfil?.vitalicio;
@@ -1559,7 +1582,7 @@ function mostrarPlanoAtivado() {
   ov.className = "plano-ativo-ov";
   ov.innerHTML = `
     <div class="plano-ativo-box" role="alertdialog" aria-modal="true" aria-label="Plano ativado">
-      <div class="plano-ativo-confete" aria-hidden="true"></div>
+      <div class="plano-ativo-confete" aria-hidden="true">${criarConfete()}</div>
       <button class="plano-ativo-x" aria-label="Fechar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>

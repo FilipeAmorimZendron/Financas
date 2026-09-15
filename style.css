@@ -1450,19 +1450,32 @@ textarea { resize: vertical; }
 .plano-ativo-x:hover { background: var(--surface2); color: var(--text-primary); }
 .plano-ativo-x svg { width: 17px; height: 17px; }
 
-/* Confete decorativo — pontinhos coloridos espalhados no topo do card,
-   feito só com gradientes (sem imagem nem biblioteca nenhuma). */
+/* Confete animado — cada partícula é um <span> gerado em JS (ver
+   criarConfete() em app.js), caindo e girando com timing/cor/tamanho
+   sorteados. Nasce um pouco acima do card e cai por dentro dele; como
+   .plano-ativo-box tem overflow:hidden, some ao passar da borda de baixo
+   — dá o efeito de "explodiu por dentro do card", sem vazar pro resto
+   da tela. */
 .plano-ativo-confete {
-  position: absolute; inset: 0 0 auto 0; height: 100px;
+  position: absolute; inset: 0;
   pointer-events: none;
-  background:
-    radial-gradient(circle, var(--accent) 3px, transparent 3px) 15% 25% / 44px 44px,
-    radial-gradient(circle, var(--amber) 2.5px, transparent 2.5px) 82% 20% / 52px 52px,
-    radial-gradient(circle, var(--red) 2px, transparent 2px) 65% 42% / 46px 46px,
-    radial-gradient(circle, var(--accent) 2.5px, transparent 2.5px) 30% 48% / 58px 58px,
-    radial-gradient(circle, var(--amber) 3px, transparent 3px) 92% 50% / 42px 42px,
-    radial-gradient(circle, var(--green) 2px, transparent 2px) 45% 15% / 50px 50px;
-  opacity: 0.5;
+  overflow: hidden;
+}
+.confete-item {
+  position: absolute;
+  top: -14px;
+  opacity: 0;
+  animation-name: confeteCai;
+  animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  animation-fill-mode: both;
+}
+@keyframes confeteCai {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(230px) rotate(var(--giro, 360deg)); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confete-item { animation: none; opacity: 0; }
 }
 
 .plano-ativo-ico {
