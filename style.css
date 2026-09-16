@@ -3630,6 +3630,13 @@ body.sem-internet .layout { padding-top: 34px; }
   justify-content: center;
   padding: 44px 42px;
   overflow-y: auto;
+  /* Item de grid tem min-height:auto por padrão, que se baseia no
+     conteúdo — sem isso, o overflow-y:auto acima nunca ativa de verdade
+     (o item só cresce pra caber o conteúdo, ignorando a altura da linha
+     do grid). Era exatamente por isso que, numa tela mais baixa, o
+     formulário de cadastro cortava embaixo (botão "Criar conta e
+     assinar" sumia) em vez de rolar — achado ao vivo em 2026-09-16. */
+  min-height: 0;
 }
 
 .auth-marca {
