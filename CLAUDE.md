@@ -1,5 +1,28 @@
 # FAZ Finanças
 
+## ⚠️ Uso pessoal — não é mais produto comercial (desde 18/09/2026)
+O Filipe decidiu não seguir vendendo o FAZ Finanças (mercado competitivo,
+projeto solo, sem tempo/diferencial pra tocar como negócio). O app continua
+no ar, mas fechado: só ele e um grupo pequeno de amigos, sem cobrar nada de
+ninguém. Isso muda como pensar sobre o projeto daqui pra frente:
+- **Cadastro é fechado por lista de e-mails**: `EMAILS_AUTORIZADOS` no topo
+  de `app.js` — só quem está lá consegue criar conta (checado em
+  `sbCadastro()` e `verificarLoginOAuth()`). Pra dar acesso a alguém, só
+  adicionar o e-mail nessa lista (minúsculo) e fazer deploy — nada mais.
+- **Quem está na lista tem acesso completo de graça**, sem passar pelo
+  checkout — `planoAtual()` já libera "premium" direto pra e-mail
+  autorizado, mesmo mecanismo que já existia pros usuários "da casa" de
+  antes do plano único (`usuarioAnteriorAoPlanoUnico`).
+- **O sistema de pagamento (Kiwify, checkout, webhook) foi deixado
+  intocado no código** — só fica sem uso na prática, já que ninguém de
+  fora consegue nem se cadastrar. Se um dia fizer sentido reabrir pra
+  público, é só reverter os dois pontos acima.
+- Toda a seção "Preços atuais" abaixo é **histórico** de quando o projeto
+  ainda era vendido — mantida só de referência, não reflete mais o
+  funcionamento atual.
+- As pendências de checkout/Vercel Pro (ver "Pendências" no fim) ficam
+  paradas — não fazem mais sentido perseguir enquanto for uso pessoal.
+
 ## Sobre o projeto
 App web de finanças pessoais 100% em português (fazfinancas.com), com IA que:
 - Registra gastos por conversa (texto ou áudio)

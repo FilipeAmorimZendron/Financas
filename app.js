@@ -22,6 +22,32 @@ function esc(v) {
     .replace(/'/g, "&#39;");
 }
 
+/* ─── Uso pessoal (desde 2026-09-18) ─────────────────────────
+   O Filipe decidiu não seguir vendendo o FAZ Finanças como produto
+   (mercado competitivo, projeto solo, sem diferencial claro) — o app
+   continua no ar, só que fechado: uso dele e de um grupo pequeno de
+   amigos, sem cobrar nada de ninguém.
+   O sistema de pagamento (Kiwify, checkout, webhook) foi deixado
+   INTOCADO no código, só fica sem uso — caso um dia volte a fazer
+   sentido reabrir pra público, é só apagar/ajustar as duas coisas
+   abaixo, nada mais precisa mudar.
+   Efeito de estar nesta lista:
+   1. Consegue criar conta — quem não está, nem chega a se cadastrar
+      (ver sbCadastro() e verificarLoginOAuth()).
+   2. Acesso completo liberado de graça, sem passar pelo checkout
+      (ver planoAtual()) — mesmo mecanismo já usado pros usuários "da
+      casa" de antes do plano único (usuarioAnteriorAoPlanoUnico).
+   Pra adicionar um amigo: só colocar o e-mail aqui embaixo, tudo
+   minúsculo, entre aspas, separado por vírgula. Não precisa mexer em
+   mais nada nem fazer deploy de outra coisa — é só isso, um redeploy
+   normal já basta. */
+const EMAILS_AUTORIZADOS = [
+  "filipeamoriz@gmail.com",
+];
+function emailAutorizado(email) {
+  return EMAILS_AUTORIZADOS.includes(String(email || "").trim().toLowerCase());
+}
+
 const _h = { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` };
 
 /* ─── Estado em memória ──────────────────────────────────── */
@@ -809,6 +835,17 @@ async function verificarLoginOAuth() {
     if (!res.ok) throw new Error("Não foi possível confirmar o login com Google.");
     const user = await res.json();
 
+    // Cadastro fechado (ver EMAILS_AUTORIZADOS): bloqueia ANTES de salvar
+    // qualquer token — o Google confirma a identidade, mas quem decide se
+    // entra no app é a lista. Sem isso, o OAuth criaria a conta no Supabase
+    // e liberaria acesso pra qualquer dono de conta Google.
+    if (!emailAutorizado(user.email)) {
+      esconderSplash();
+      toast("Cadastro fechado — o FAZ Finanças agora é de uso pessoal/convidados. Fala com o Filipe se você deveria ter acesso.", "error");
+      mostrarTelaLogin();
+      return false;
+    }
+
     localStorage.setItem("fp_token", accessToken);
     const refreshTokenOAuth = params.get("refresh_token");
     if (refreshTokenOAuth) localStorage.setItem("fp_refresh_token", refreshTokenOAuth);
@@ -1532,6 +1569,10 @@ document.getElementById("formCadastro")?.addEventListener("submit", async e => {
   }
   if (senha !== conf) { toast("As senhas não coincidem.", "error"); return; }
   if (senha.length < 6) { toast("A senha deve ter pelo menos 6 caracteres.", "error"); return; }
+  if (!emailAutorizado(email)) {
+    toast("Cadastro fechado — o FAZ Finanças agora é de uso pessoal/convidados. Fala com o Filipe se você deveria ter acesso.", "error");
+    return;
+  }
   const btn = e.target.querySelector("button[type=submit]");
   btn.disabled = true; btn.textContent = "Criando conta...";
   try {
@@ -10423,6 +10464,9 @@ function usuarioAnteriorAoPlanoUnico() {
 function planoAtual() {
   // Usuário de antes do plano único: acesso completo garantido, sempre.
   if (usuarioAnteriorAoPlanoUnico()) return "premium";
+  // Uso pessoal (ver EMAILS_AUTORIZADOS, no topo do arquivo): quem está
+  // na lista tem acesso completo de graça, sem passar pelo checkout.
+  if (emailAutorizado(state.user?.email)) return "premium";
 
   const p = state.perfil || {};
   const status = p.assinaturaStatus || "inativa";
