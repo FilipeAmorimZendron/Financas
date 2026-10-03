@@ -43,6 +43,7 @@ function esc(v) {
    normal já basta. */
 const EMAILS_AUTORIZADOS = [
   "filipeamoriz@gmail.com",
+  "rodrigopadilha852@gmail.com",
 ];
 function emailAutorizado(email) {
   return EMAILS_AUTORIZADOS.includes(String(email || "").trim().toLowerCase());
