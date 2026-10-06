@@ -8130,17 +8130,14 @@ body.sem-internet .layout { padding-top: 34px; }
 .plano-opcao-destaque .plano-opcao-btn:hover { filter: brightness(1.08); transform: translateY(-1px); color: #1a1205; }
 
 /* Sem moldura própria — vira só um bloco de conteúdo (selo + título + os
-   dois cards .plano-opcao, que são os únicos "cards" de verdade agora). */
-/* Moldura própria: título, os dois cards de preço, a caixa da IA e a
-   lista de benefícios ficam todos dentro de um único painel — em vez de
-   soltos no fundo da tela depois dos cards de preço. */
+   dois cards .plano-opcao, que são os únicos "cards" de verdade agora:
+   a caixa da IA e a lista de benefícios ficam dentro de cada um deles,
+   não soltas aqui fora). */
 .plano-card {
   position: relative;
-  padding: 36px 30px 30px;
-  margin-top: 14px;
-  background: var(--surface2, #eef3f5);
-  border: 1px solid var(--border, #a9bac1);
-  border-radius: 28px;
+  padding: 24px 0 0;
+  background: none;
+  border: none;
   display: flex;
   flex-direction: column;
 }
@@ -8199,12 +8196,15 @@ body.sem-internet .layout { padding-top: 34px; }
   text-align: center;
 }
 
-/* Caixa de destaque da IA nos planos */
+/* Caixa de destaque da IA nos planos — agora dentro de cada card de
+   preço (Mensal/Vitalício), não mais solta embaixo dos dois. */
 .plano-ia-box {
+  width: 100%;
   background: rgba(15, 138, 125, 0.12);
   border-radius: 10px;
   padding: 11px 13px;
-  margin: 14px 0 12px;
+  margin: 4px 0 16px;
+  text-align: left;
 }
 
 .plano-ia-titulo {
@@ -8231,19 +8231,21 @@ body.sem-internet .layout { padding-top: 34px; }
 
 .plano-lista {
   list-style: none;
-  margin: 0;
+  margin: 0 0 24px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 10px;
+  text-align: left;
+  width: 100%;
 }
 .plano-lista li {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  font-size: 14.5px;
+  gap: 9px;
+  font-size: 13.5px;
   color: var(--text-primary);
-  line-height: 1.45;
+  line-height: 1.4;
 }
 .plano-lista li svg {
   width: 16px;
