@@ -4007,7 +4007,7 @@ body.sem-internet .layout { padding-top: 34px; }
      o que faz o olho só enxergar a borda reta (um "quadrado desenhado")
      em vez de uma superfície com relevo de verdade. */
   background: linear-gradient(165deg, #16283F 0%, #101F36 100%);
-  border-color: rgba(255,255,255,0.10);
+  border-color: rgba(76,141,245,0.22);
   box-shadow: 0 28px 64px -20px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 #telaAssinar .plano-opcao-icone { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.16); color: #7C8FA3; }
@@ -4017,17 +4017,17 @@ body.sem-internet .layout { padding-top: 34px; }
 #telaAssinar .plano-opcao-explicacao { color: #93A5B8; }
 #telaAssinar .plano-opcao-vantagens li { color: #E6EEF5; }
 #telaAssinar .plano-opcao-vantagens li svg { color: #7C8FA3; }
-#telaAssinar .plano-opcao-destaque .plano-opcao-vantagens li svg { color: #1EF6DD; }
+#telaAssinar .plano-opcao-destaque .plano-opcao-vantagens li svg { color: #F5A524; }
 #telaAssinar .plano-opcao-btn { border-color: rgba(255,255,255,0.18); color: #E6EEF5; }
 #telaAssinar .plano-opcao-btn:hover { border-color: #1EF6DD; color: #1EF6DD; }
 #telaAssinar .plano-opcao-destaque {
-  border-color: #1EF6DD;
-  background: linear-gradient(165deg, rgba(30,246,221,0.16), #101F36 100%);
-  box-shadow: 0 28px 64px -20px rgba(30,246,221,0.3), 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
+  border-color: #F5A524;
+  background: linear-gradient(165deg, rgba(245,165,36,0.18), #101F36 100%);
+  box-shadow: 0 28px 64px -20px rgba(245,165,36,0.3), 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
 }
-#telaAssinar .plano-opcao-destaque .plano-opcao-icone { background: rgba(30,246,221,0.12); border-color: #1EF6DD; color: #1EF6DD; }
-#telaAssinar .plano-opcao-destaque .plano-opcao-btn { background: #1EF6DD; color: #062420; box-shadow: 0 10px 24px -6px rgba(30,246,221,0.5); }
-#telaAssinar .plano-opcao-destaque .plano-opcao-btn:hover { color: #062420; }
+#telaAssinar .plano-opcao-destaque .plano-opcao-icone { background: rgba(245,165,36,0.14); border-color: #F5A524; color: #F5A524; }
+#telaAssinar .plano-opcao-destaque .plano-opcao-btn { background: #F5A524; color: #1a1205; box-shadow: 0 10px 24px -6px rgba(245,165,36,0.5); }
+#telaAssinar .plano-opcao-destaque .plano-opcao-btn:hover { color: #1a1205; }
 @media (max-width: 480px) {
   .assinar-shell { padding: 36px 24px 28px; }
 }
@@ -7935,26 +7935,37 @@ body.sem-internet .layout { padding-top: 34px; }
 .planos-duo {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 22px;
+  gap: 24px;
   align-items: start;
-  margin: 26px 0;
+  margin: 26px auto;
+  /* Teto de largura pro par — sem isso cada card vira tão largo quanto
+     a coluna do grid, ficando quase quadrado. Com o teto aqui (em vez
+     de só no card), os dois continuam esticando lado a lado até esse
+     limite, e o .plano-opcao de dentro fica claramente mais alto que
+     largo (ver min-height abaixo). */
+  max-width: 820px;
 }
 @media (max-width: 640px) {
-  .planos-duo { grid-template-columns: 1fr; }
+  .planos-duo { grid-template-columns: 1fr; max-width: 420px; }
 }
 .plano-opcao {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 480px;
+  /* Vertical nitidamente maior que o horizontal (cartão "retrato", não
+     quadrado) — e alto o bastante pra explicação e vantagens caberem
+     folgadas dentro da moldura, sem vazar pra fora dela. */
+  min-height: 600px;
   padding: 44px 32px 36px;
   border-radius: 30px;
-  /* Borda mais fina e discreta — quem separa o card do fundo é o
-     preenchimento mais claro, não uma linha reta chapando o contorno
-     (isso é o que faz um card parecer "um quadrado desenhado"). */
-  border: 1px solid var(--border, #a9bac1);
-  background: linear-gradient(165deg, var(--surface2, #eef3f5) 0%, var(--surface, #fff) 100%);
+  /* Cor de conforto por padrão (opção Mensal): azul frio e discreto, sem
+     pressa — o contraste vem do card Vitalício (.plano-opcao-destaque
+     abaixo), que usa a cor de venda (âmbar) por cima disto. */
+  border: 1px solid rgba(76, 141, 245, 0.25);
+  background:
+    linear-gradient(165deg, rgba(76, 141, 245, 0.09) 0%, transparent 55%),
+    linear-gradient(165deg, var(--surface2, #eef3f5) 0%, var(--surface, #fff) 100%);
   box-shadow: 0 28px 64px -24px rgba(23, 29, 49, 0.35), 0 2px 6px rgba(23, 29, 49, 0.05), inset 0 1px 0 rgba(255,255,255,0.5);
   text-align: center;
   transition: transform 0.25s var(--ease, ease), box-shadow 0.25s var(--ease, ease);
@@ -8048,6 +8059,7 @@ body.sem-internet .layout { padding-top: 34px; }
   margin-top: 1px;
   color: var(--accent, #0A6B61);
 }
+.plano-opcao-destaque .plano-opcao-vantagens li svg { color: #F5A524; }
 .plano-opcao-btn {
   margin-top: auto;
   width: 100%;
@@ -8072,20 +8084,26 @@ body.sem-internet .layout { padding-top: 34px; }
    Mesma família visual do card Mensal, só que com borda grossa na cor
    de destaque, fundo levemente tingido e sombra colorida — para pesar
    mais aos olhos sem deixar de parecer parte do mesmo par. */
+/* Vitalício: a opção que mais interessa vender (pagamento único, sem
+   churn) — âmbar quente e saturado, deliberadamente diferente do teal
+   (que já é a cor neutra usada no app inteiro) pra criar tensão visual
+   de "oferta". Mesmo padrão já usado na landing
+   (.lp-assinar-shell .plano-opcao-destaque). O Empresarial mantém o
+   teal, não o âmbar — ver override perto de .plano-card-empresarial. */
 .plano-opcao-destaque {
   border-width: 2.5px;
-  border-color: var(--accent, #0A6B61);
-  background: linear-gradient(180deg, var(--accent-dim, rgba(10,107,97,0.06)), var(--surface, #fff) 55%);
-  box-shadow: 0 20px 52px -12px var(--accent-glow, rgba(10,107,97,0.35));
+  border-color: #F5A524;
+  background: linear-gradient(180deg, rgba(245, 165, 36, 0.16), var(--surface, #fff) 55%);
+  box-shadow: 0 20px 52px -12px rgba(245, 165, 36, 0.45);
   padding-top: 42px;
 }
 @media (hover: hover) {
-  .plano-opcao-destaque:hover { box-shadow: 0 26px 60px -10px var(--accent-glow, rgba(10,107,97,0.4)); }
+  .plano-opcao-destaque:hover { box-shadow: 0 26px 60px -10px rgba(245, 165, 36, 0.5); }
 }
 .plano-opcao-destaque .plano-opcao-icone {
-  background: var(--accent-dim, rgba(10,107,97,0.1));
-  border-color: var(--accent, #0A6B61);
-  color: var(--accent, #0A6B61);
+  background: rgba(245, 165, 36, 0.18);
+  border-color: #F5A524;
+  color: #F5A524;
 }
 .plano-opcao-selo {
   position: absolute;
@@ -8104,12 +8122,12 @@ body.sem-internet .layout { padding-top: 34px; }
   box-shadow: 0 6px 16px rgba(192, 69, 63, 0.4);
 }
 .plano-opcao-destaque .plano-opcao-btn {
-  background: var(--accent, #0A6B61);
+  background: #F5A524;
   border-color: transparent;
-  color: #fff;
-  box-shadow: 0 10px 24px -6px var(--accent-glow, rgba(10,107,97,0.5));
+  color: #1a1205;
+  box-shadow: 0 10px 24px -6px rgba(245, 165, 36, 0.55);
 }
-.plano-opcao-destaque .plano-opcao-btn:hover { filter: brightness(1.1); transform: translateY(-1px); color: #fff; }
+.plano-opcao-destaque .plano-opcao-btn:hover { filter: brightness(1.08); transform: translateY(-1px); color: #1a1205; }
 
 /* Sem moldura própria — vira só um bloco de conteúdo (selo + título + os
    dois cards .plano-opcao, que são os únicos "cards" de verdade agora). */
@@ -8126,6 +8144,27 @@ body.sem-internet .layout { padding-top: 34px; }
   border: none;
   background: none;
 }
+/* Empresarial mantém o teal como cor de venda (mesmo padrão da landing:
+   .lp-assinar-shell-empresarial), não o âmbar do Pessoal — contexto mais
+   profissional, sem a mesma urgência do consumidor comum. */
+#planoCardEmpresarial .plano-opcao-destaque {
+  border-color: var(--accent, #0A6B61);
+  background: linear-gradient(180deg, var(--accent-dim, rgba(10,107,97,0.06)), var(--surface, #fff) 55%);
+  box-shadow: 0 20px 52px -12px var(--accent-glow, rgba(10,107,97,0.35));
+}
+#planoCardEmpresarial .plano-opcao-destaque .plano-opcao-icone {
+  background: var(--accent-dim, rgba(10,107,97,0.1));
+  border-color: var(--accent, #0A6B61);
+  color: var(--accent, #0A6B61);
+}
+#planoCardEmpresarial .plano-opcao-destaque .plano-opcao-vantagens li svg { color: var(--accent, #0A6B61); }
+#planoCardEmpresarial .plano-opcao-destaque .plano-opcao-btn {
+  background: var(--accent, #0A6B61);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 10px 24px -6px var(--accent-glow, rgba(10,107,97,0.5));
+}
+#planoCardEmpresarial .plano-opcao-destaque .plano-opcao-btn:hover { filter: brightness(1.1); color: #fff; }
 /* Realce quando a pessoa chega da landing com um plano escolhido */
 
 @keyframes planoPulso {
@@ -8438,7 +8477,7 @@ body.sem-internet .layout { padding-top: 34px; }
      página, o que faz o olho só enxergar a borda reta (um "quadrado
      desenhado") em vez de uma superfície com relevo de verdade. */
   background: linear-gradient(165deg, #16283F 0%, #101F36 100%);
-  border-color: rgba(255,255,255,0.12);
+  border-color: rgba(76,141,245,0.22);
   box-shadow: 0 28px 64px -20px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 .lp-assinar-shell .plano-opcao-icone { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.18); color: var(--lp-text-dim); }
