@@ -8131,18 +8131,18 @@ body.sem-internet .layout { padding-top: 34px; }
 
 /* Sem moldura própria — vira só um bloco de conteúdo (selo + título + os
    dois cards .plano-opcao, que são os únicos "cards" de verdade agora). */
+/* Moldura própria: título, os dois cards de preço, a caixa da IA e a
+   lista de benefícios ficam todos dentro de um único painel — em vez de
+   soltos no fundo da tela depois dos cards de preço. */
 .plano-card {
   position: relative;
-  padding: 24px 0 0;
-  background: none;
-  border: none;
+  padding: 36px 30px 30px;
+  margin-top: 14px;
+  background: var(--surface2, #eef3f5);
+  border: 1px solid var(--border, #a9bac1);
+  border-radius: 28px;
   display: flex;
   flex-direction: column;
-}
-.plano-card-destaque,
-.plano-card-empresarial {
-  border: none;
-  background: none;
 }
 /* Empresarial mantém o teal como cor de venda (mesmo padrão da landing:
    .lp-assinar-shell-empresarial), não o âmbar do Pessoal — contexto mais
@@ -8174,7 +8174,8 @@ body.sem-internet .layout { padding-top: 34px; }
 .plano-selo {
   position: absolute;
   top: -11px;
-  left: 22px;
+  left: 50%;
+  transform: translateX(-50%);
   padding: 3px 12px;
   border-radius: 100px;
   background: var(--accent);
@@ -8195,6 +8196,7 @@ body.sem-internet .layout { padding-top: 34px; }
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 12px;
+  text-align: center;
 }
 
 /* Caixa de destaque da IA nos planos */
