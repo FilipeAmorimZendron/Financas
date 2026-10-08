@@ -1,27 +1,18 @@
 # FAZ Finanças
 
-## ⚠️ Uso pessoal — não é mais produto comercial (desde 18/09/2026)
-O Filipe decidiu não seguir vendendo o FAZ Finanças (mercado competitivo,
-projeto solo, sem tempo/diferencial pra tocar como negócio). O app continua
-no ar, mas fechado: só ele e um grupo pequeno de amigos, sem cobrar nada de
-ninguém. Isso muda como pensar sobre o projeto daqui pra frente:
-- **Cadastro é fechado por lista de e-mails**: `EMAILS_AUTORIZADOS` no topo
-  de `app.js` — só quem está lá consegue criar conta (checado em
-  `sbCadastro()` e `verificarLoginOAuth()`). Pra dar acesso a alguém, só
-  adicionar o e-mail nessa lista (minúsculo) e fazer deploy — nada mais.
-- **Quem está na lista tem acesso completo de graça**, sem passar pelo
-  checkout — `planoAtual()` já libera "premium" direto pra e-mail
-  autorizado, mesmo mecanismo que já existia pros usuários "da casa" de
-  antes do plano único (`usuarioAnteriorAoPlanoUnico`).
-- **O sistema de pagamento (Kiwify, checkout, webhook) foi deixado
-  intocado no código** — só fica sem uso na prática, já que ninguém de
-  fora consegue nem se cadastrar. Se um dia fizer sentido reabrir pra
-  público, é só reverter os dois pontos acima.
-- Toda a seção "Preços atuais" abaixo é **histórico** de quando o projeto
-  ainda era vendido — mantida só de referência, não reflete mais o
-  funcionamento atual.
-- As pendências de checkout/Vercel Pro (ver "Pendências" no fim) ficam
-  paradas — não fazem mais sentido perseguir enquanto for uso pessoal.
+## Cadastro reaberto pra testes (desde 08/10/2026)
+Entre 18/09 e 08/10/2026 o app ficou fechado (uso pessoal, só lista de
+e-mails). Foi reaberto pra testes, ainda sem clientes pagando:
+- `CADASTRO_ABERTO` no topo de `app.js` liga/desliga a criação de contas
+  (checado no cadastro por e-mail e em `verificarLoginOAuth()`). Com `false`,
+  só quem está em `EMAILS_AUTORIZADOS` consegue se cadastrar.
+- `EMAILS_AUTORIZADOS` continua dando acesso completo de graça, sem checkout
+  (`planoAtual()`), pro Filipe e amigos.
+- Antes de ter cliente pagando de verdade: migrar a Vercel pro plano Pro (o
+  Hobby não permite uso comercial) — ver "Pendências".
+- Em discussão: separar contas Pessoal e Empresarial a partir do cadastro
+  (cada conta enxerga só um espaço), com até 2 empresas grátis numa conta
+  Empresarial e as demais pagas, cada uma com nome editável.
 
 ## Sobre o projeto
 App web de finanças pessoais 100% em português (fazfinancas.com), com IA que:

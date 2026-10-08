@@ -22,25 +22,17 @@ function esc(v) {
     .replace(/'/g, "&#39;");
 }
 
-/* ─── Uso pessoal (desde 2026-09-18) ─────────────────────────
-   O Filipe decidiu não seguir vendendo o FAZ Finanças como produto
-   (mercado competitivo, projeto solo, sem diferencial claro) — o app
-   continua no ar, só que fechado: uso dele e de um grupo pequeno de
-   amigos, sem cobrar nada de ninguém.
-   O sistema de pagamento (Kiwify, checkout, webhook) foi deixado
-   INTOCADO no código, só fica sem uso — caso um dia volte a fazer
-   sentido reabrir pra público, é só apagar/ajustar as duas coisas
-   abaixo, nada mais precisa mudar.
-   Efeito de estar nesta lista:
-   1. Consegue criar conta — quem não está, nem chega a se cadastrar
-      (ver sbCadastro() e verificarLoginOAuth()).
-   2. Acesso completo liberado de graça, sem passar pelo checkout
-      (ver planoAtual()) — mesmo mecanismo já usado pros usuários "da
-      casa" de antes do plano único (usuarioAnteriorAoPlanoUnico).
-   Pra adicionar um amigo: só colocar o e-mail aqui embaixo, tudo
-   minúsculo, entre aspas, separado por vírgula. Não precisa mexer em
-   mais nada nem fazer deploy de outra coisa — é só isso, um redeploy
-   normal já basta. */
+/* ─── Cadastro e acesso de cortesia ──────────────────────────
+   CADASTRO_ABERTO: liga/desliga a criação de contas novas. Entre
+   18/09/2026 e 08/10/2026 o cadastro ficou fechado (uso pessoal); foi
+   reaberto pra testes. Com false, só quem está em EMAILS_AUTORIZADOS
+   consegue criar conta (checado em sbCadastro/handler do formCadastro e
+   em verificarLoginOAuth()).
+   EMAILS_AUTORIZADOS: acesso completo de graça, sem passar pelo checkout
+   (ver planoAtual()) — mesmo mecanismo dos usuários "da casa" de antes
+   do plano único (usuarioAnteriorAoPlanoUnico). Pra dar acesso a um
+   amigo: colocar o e-mail aqui, tudo minúsculo, e fazer deploy. */
+const CADASTRO_ABERTO = true;
 const EMAILS_AUTORIZADOS = [
   "filipeamoriz@gmail.com",
   "rodrigopadilha852@gmail.com",
@@ -837,11 +829,11 @@ async function verificarLoginOAuth() {
     if (!res.ok) throw new Error("Não foi possível confirmar o login com Google.");
     const user = await res.json();
 
-    // Cadastro fechado (ver EMAILS_AUTORIZADOS): bloqueia ANTES de salvar
+    // Cadastro fechado (CADASTRO_ABERTO = false): bloqueia ANTES de salvar
     // qualquer token — o Google confirma a identidade, mas quem decide se
     // entra no app é a lista. Sem isso, o OAuth criaria a conta no Supabase
     // e liberaria acesso pra qualquer dono de conta Google.
-    if (!emailAutorizado(user.email)) {
+    if (!CADASTRO_ABERTO && !emailAutorizado(user.email)) {
       esconderSplash();
       toast("Cadastro fechado — o FAZ Finanças agora é de uso pessoal/convidados. Fala com o Filipe se você deveria ter acesso.", "error");
       mostrarTelaLogin();
@@ -1571,7 +1563,7 @@ document.getElementById("formCadastro")?.addEventListener("submit", async e => {
   }
   if (senha !== conf) { toast("As senhas não coincidem.", "error"); return; }
   if (senha.length < 6) { toast("A senha deve ter pelo menos 6 caracteres.", "error"); return; }
-  if (!emailAutorizado(email)) {
+  if (!CADASTRO_ABERTO && !emailAutorizado(email)) {
     toast("Cadastro fechado — o FAZ Finanças agora é de uso pessoal/convidados. Fala com o Filipe se você deveria ter acesso.", "error");
     return;
   }
