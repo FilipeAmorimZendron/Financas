@@ -8628,7 +8628,7 @@ body.sem-internet .layout { padding-top: 34px; }
 /* ─── Cards de plano da landing: versão "explicativa" ──────────
    Cada opção diz pra quem é, quanto sai por dia e por que escolher;
    o Vitalício mostra a conta da economia em 3 anos. O que é igual nas
-   duas opções fica numa grade abaixo (.lp-incluso), em vez de repetir. */
+   duas opções aparece dentro de cada card (.plano-incluso). */
 .lp-assinar-shell .planos-duo { align-items: stretch; max-width: 860px; }
 .lp-assinar-shell .plano-opcao { min-height: 0; padding: 40px 28px 30px; }
 .lp-assinar-shell .plano-opcao-nome { margin-bottom: 12px; }
@@ -8730,50 +8730,54 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-economia-mensal .lp-economia-total strong { color: var(--lp-text); font-size: 14px; }
 .lp-assinar-shell .plano-opcao .lp-economia-mensal { margin-top: 0; }
 
-/* Grade "Incluso nas duas opções" */
-.lp-incluso-titulo {
-  margin: 34px auto 16px;
-  font-family: 'Sora', sans-serif;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--lp-text);
-}
-.lp-incluso {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  max-width: 860px;
-  margin: 0 auto 22px;
+/* "Tudo incluso" dentro de cada card — lista compacta com ícone,
+   título e uma frase de exemplo. */
+.plano-incluso-titulo {
+  width: 100%;
+  margin: 2px 0 12px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-text-dim);
   text-align: left;
 }
-.lp-incluso-item {
+.plano-incluso {
+  list-style: none;
+  width: 100%;
+  margin: 0 0 26px;
+  padding: 0;
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 16px 18px;
-  border-radius: 16px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid var(--lp-line);
+  flex-direction: column;
+  gap: 13px;
+  text-align: left;
 }
-/* Número ímpar de itens: o último ocupa a linha inteira */
-.lp-incluso-item:last-child:nth-child(odd) { grid-column: 1 / -1; }
-.lp-incluso-icone {
-  width: 38px; height: 38px;
+.plano-incluso li { display: flex; align-items: flex-start; gap: 12px; }
+.plano-incluso-icone {
+  width: 30px; height: 30px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 11px;
+  border-radius: 9px;
   background: rgba(30,246,221,0.08);
-  border: 1px solid rgba(30,246,221,0.25);
+  border: 1px solid rgba(30,246,221,0.22);
   color: var(--lp-teal);
 }
-.lp-incluso-icone svg { width: 19px; height: 19px; }
-.lp-incluso-item strong { display: block; font-size: 14.5px; font-weight: 700; color: var(--lp-text); margin-bottom: 3px; }
-.lp-incluso-item p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--lp-text-dim); }
-@media (max-width: 640px) {
-  .lp-incluso { grid-template-columns: 1fr; max-width: 420px; }
-  .lp-incluso-item:last-child:nth-child(odd) { grid-column: auto; }
+.plano-incluso-icone svg { width: 15px; height: 15px; }
+.plano-incluso strong { display: block; font-size: 13.5px; font-weight: 700; color: var(--lp-text); line-height: 1.3; }
+.plano-incluso li span:not(.plano-incluso-icone) { display: block; font-size: 12.5px; line-height: 1.4; color: var(--lp-text-dim); margin-top: 2px; }
+
+/* Nota de rodapé do Vitalício (créditos extras de IA) — discreta, mas
+   com contraste legível: condição de cobrança precisa ser clara (CDC). */
+.plano-opcao-nota {
+  margin: 14px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--lp-text-dim);
+  text-align: left;
 }
 
 .lp-assinar-lista {
@@ -8812,10 +8816,6 @@ body.sem-internet .layout { padding-top: 34px; }
 /* Card Empresarial: mesmo desenho do Pessoal, mas em teal (a cor da marca)
    em vez de âmbar — diferencia sem depender só da cor (o selo já diz
    "Empresarial" por escrito, e o botão tem texto diferente). */
-.lp-assinar-shell-empresarial {
-  border-color: rgba(30,246,221,0.4);
-  box-shadow: 0 50px 120px -30px rgba(0,0,0,0.4);
-}
 .lp-assinar-badge-empresarial {
   background: linear-gradient(135deg, var(--lp-teal-soft, #19D1BB), var(--lp-teal, #1EF6DD));
   color: #062420;
