@@ -9730,6 +9730,106 @@ function iniciarTiltHero() {
   });
 }
 
+/* ─── Vídeo de apresentação no hero ──────────────────────────
+   Começa sozinho assim que aparece na tela — sempre MUDO, porque os
+   navegadores bloqueiam autoplay com som. O chip "Ativar som" liga o
+   áudio e volta pro começo (pra pessoa ouvir a narração inteira).
+   Pausa sozinho quando sai da tela (rolou a página, fez login e a
+   landing sumiu) e volta quando aparece de novo — a não ser que a
+   pessoa tenha pausado de propósito. Quem prefere menos movimento no
+   sistema não recebe autoplay: o vídeo fica parado no pôster. */
+function iniciarVideoHero() {
+  const box = document.getElementById("lpVideo");
+  const video = document.getElementById("lpVideoEl");
+  if (!box || !video) return;
+
+  const btnPlay = document.getElementById("lpVideoPlay");
+  const btnMudo = document.getElementById("lpVideoMudo");
+  const chipSom = document.getElementById("lpVideoSomChip");
+  const volume = document.getElementById("lpVideoVolume");
+  const barra = document.getElementById("lpVideoBarra");
+
+  let pausadoPeloUsuario = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let visivel = false;
+  let somJaAtivado = false;
+
+  const tocar = () => video.play().catch(() => atualizarEstado());
+
+  function atualizarEstado() {
+    const terminou = video.ended;
+    box.classList.toggle("terminou", terminou);
+    box.classList.toggle("pausado", video.paused && !terminou);
+    box.classList.toggle("com-som", !video.muted && video.volume > 0);
+    btnPlay.setAttribute("aria-label", terminou ? "Assistir de novo" : video.paused ? "Reproduzir vídeo" : "Pausar vídeo");
+    btnMudo.setAttribute("aria-label", video.muted ? "Ativar som" : "Desativar som");
+    volume.value = video.muted ? 0 : video.volume;
+  }
+
+  function alternarPlay() {
+    if (video.ended) {
+      video.currentTime = 0;
+      pausadoPeloUsuario = false;
+      tocar();
+    } else if (video.paused) {
+      pausadoPeloUsuario = false;
+      tocar();
+    } else {
+      pausadoPeloUsuario = true;
+      video.pause();
+    }
+  }
+
+  function ativarSom() {
+    video.muted = false;
+    if (video.volume === 0) video.volume = 1;
+    // Primeira vez que liga o som: recomeça, pra ouvir a narração do início.
+    if (!somJaAtivado) {
+      somJaAtivado = true;
+      video.currentTime = 0;
+    }
+    pausadoPeloUsuario = false;
+    tocar();
+  }
+
+  btnPlay.addEventListener("click", alternarPlay);
+  video.addEventListener("click", alternarPlay);
+  chipSom.addEventListener("click", ativarSom);
+  btnMudo.addEventListener("click", () => {
+    if (video.muted || video.volume === 0) ativarSom();
+    else video.muted = true;
+  });
+  volume.addEventListener("input", () => {
+    const v = parseFloat(volume.value);
+    video.volume = v;
+    if (v > 0 && video.muted) {
+      somJaAtivado = true; // mexeu no volume = já escolheu ouvir, não recomeça
+      video.muted = false;
+    }
+    if (v === 0) video.muted = true;
+  });
+
+  ["play", "pause", "ended", "volumechange"].forEach(ev => video.addEventListener(ev, atualizarEstado));
+
+  // Barra de progresso suave (timeupdate só dispara ~4x por segundo).
+  const desenharProgresso = () => {
+    if (video.duration) barra.style.width = (video.currentTime / video.duration) * 100 + "%";
+    if (!video.paused) requestAnimationFrame(desenharProgresso);
+  };
+  video.addEventListener("play", () => requestAnimationFrame(desenharProgresso));
+  video.addEventListener("seeked", desenharProgresso);
+  video.addEventListener("ended", desenharProgresso);
+
+  // Toca quando está na tela, pausa quando sai.
+  const obs = new IntersectionObserver(([entrada]) => {
+    visivel = entrada.isIntersecting;
+    if (visivel && !pausadoPeloUsuario && !video.ended) tocar();
+    else if (!visivel && !video.paused) video.pause();
+  }, { threshold: 0.35 });
+  obs.observe(box);
+
+  atualizarEstado();
+}
+
 /* ─── Nav muda ao rolar ───────────────────────────────────── */
 function iniciarNavScroll() {
   const nav = document.querySelector(".lp-nav");
@@ -10084,6 +10184,7 @@ function iniciarLanding() {
   iniciarChatDemo();
   duplicarDepoimentos();
   iniciarTiltHero();
+  iniciarVideoHero();
 }
 
 
