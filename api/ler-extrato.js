@@ -7,6 +7,7 @@
 // _lerExtratoCore.js, compartilhado com api/receber-extrato-email.js.
 
 import { lerExtratoCore } from "./_lerExtratoCore.js";
+import { limitar, chaveDoIP } from "./_ratelimit.js";
 
 const SUPABASE_URL = "https://yuvhkrwksdnajfautkru.supabase.co";
 
@@ -69,6 +70,13 @@ export const config = { maxDuration: 60 };
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ erro: "Método não permitido" });
+  }
+
+  // Limite básico por IP: ler extrato é uma ação manual, não precisa de
+  // mais que ~10 por minuto em uso normal.
+  const { permitido } = limitar(chaveDoIP(req), 10, 60_000);
+  if (!permitido) {
+    return res.status(429).json({ erro: "Muitos extratos em pouco tempo. Espere um instante e tente de novo." });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

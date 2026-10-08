@@ -6,6 +6,8 @@
 //     diferença de plano, os dois nomes só continuam por causa de
 //     assinantes antigos que já têm um desses valores gravados no perfil.
 
+import { limitar, chaveDoIP } from "./_ratelimit.js";
+
 const SUPABASE_URL = "https://yuvhkrwksdnajfautkru.supabase.co";
 
 const LIMITES = {
@@ -67,6 +69,15 @@ async function validarUsuario(token, anonKey) {
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ erro: "Método não permitido" });
+  }
+
+  // Limite básico por IP — generoso o bastante pra uma conversa rápida no
+  // chat, mas contém um script batendo nessa rota sem parar (cada chamada
+  // custa uma consulta ao Supabase Auth, além do limite de "usos" da IA
+  // já checado mais abaixo).
+  const { permitido } = limitar(chaveDoIP(req), 30, 60_000);
+  if (!permitido) {
+    return res.status(429).json({ erro: "Muitas mensagens em pouco tempo. Espere um instante e tente de novo." });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

@@ -6,6 +6,8 @@
 // Mesma estrutura de api/ler-extrato.js (auth, plano, limite de uso).
 // Disponível pra quem assina o FAZ Finanças, só no espaço Empresarial.
 
+import { limitar, chaveDoIP } from "./_ratelimit.js";
+
 const SUPABASE_URL = "https://yuvhkrwksdnajfautkru.supabase.co";
 
 // Custo em "usos" da IA — mais leve que ler um extrato inteiro (um documento
@@ -16,6 +18,15 @@ const LIMITES = { premium: 100, master: 100 };
 const HORAS_RECARGA = 3;
 
 const CORTE_PLANO_UNICO = "2026-08-13T17:50:58Z";
+
+// Mesmo limite e lista de formatos usados em api/_lerExtratoCore.js —
+// recusa arquivo grande demais ou de tipo não suportado antes de gastar
+// tempo de função e custo de API numa chamada que a Anthropic ia recusar
+// de qualquer jeito.
+const TAMANHO_MAX_BASE64 = 20_000_000;
+const TIPOS_ARQUIVO_PERMITIDOS = new Set([
+  "application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"
+]);
 
 async function atualizarUso(userId, serviceKey, usos, resetEm) {
   await fetch(`${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${userId}`, {
@@ -60,6 +71,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ erro: "Método não permitido" });
   }
 
+  // Limite básico por IP: ler nota fiscal é uma ação manual, não precisa de
+  // mais que ~10 por minuto em uso normal.
+  const { permitido } = limitar(chaveDoIP(req), 10, 60_000);
+  if (!permitido) {
+    return res.status(429).json({ erro: "Muitas notas em pouco tempo. Espere um instante e tente de novo." });
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const serviceKey = process.env.SUPABASE_SERVICE_KEY;
   const anonKey = process.env.SUPABASE_ANON_KEY;
@@ -73,6 +91,12 @@ export default async function handler(req, res) {
 
     if (!arquivoBase64 || !tipoArquivo) {
       return res.status(400).json({ erro: "Envie a foto ou o PDF da nota fiscal." });
+    }
+    if (typeof arquivoBase64 !== "string" || arquivoBase64.length > TAMANHO_MAX_BASE64) {
+      return res.status(400).json({ erro: "Esse arquivo é grande demais. Tente uma foto ou PDF menor." });
+    }
+    if (!TIPOS_ARQUIVO_PERMITIDOS.has(tipoArquivo)) {
+      return res.status(400).json({ erro: "Formato de arquivo não suportado. Envie PDF, PNG, JPEG, WEBP ou GIF." });
     }
 
     let usosInfo = null;

@@ -57,11 +57,37 @@ function repararJSON(texto) {
    { lancamentos, duvidas, resumo } já sanitizados, prontos pra tela de
    revisão. Lança erro (com .status opcional) se algo der errado — quem
    chama decide como responder. */
+// Tamanho máximo de arquivo aceito (~15 MB de PDF/imagem, com folga pro
+// overhead do base64, que aumenta o texto em ~33%). Sem isso, um upload
+// gigante seguia até a chamada da IA — gastando tempo de função e custo de
+// API à toa antes da Anthropic eventualmente recusar.
+const TAMANHO_MAX_BASE64 = 20_000_000;
+
+// Tipos de arquivo que a IA de fato sabe ler (PDF + os formatos de imagem
+// que a Claude API aceita). Qualquer outro valor em tipoArquivo é recusado
+// aqui mesmo, antes de virar um "image" block mandado pra Anthropic.
+const TIPOS_ARQUIVO_PERMITIDOS = new Set([
+  "application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"
+]);
+
 export async function lerExtratoCore({
   texto, arquivoBase64, tipoArquivo,
   dataHoje, titular, contas, categorias,
   apiKey
 }) {
+  if (arquivoBase64 && tipoArquivo) {
+    if (typeof arquivoBase64 !== "string" || arquivoBase64.length > TAMANHO_MAX_BASE64) {
+      const erro = new Error("Esse arquivo é grande demais. Tente um extrato menor ou divida em partes.");
+      erro.status = 400;
+      throw erro;
+    }
+    if (!TIPOS_ARQUIVO_PERMITIDOS.has(tipoArquivo)) {
+      const erro = new Error("Formato de arquivo não suportado. Envie PDF, PNG, JPEG, WEBP ou GIF.");
+      erro.status = 400;
+      throw erro;
+    }
+  }
+
   dataHoje = dataHoje || new Date().toISOString().slice(0, 10);
 
   // Categorias do próprio usuário (fixas do espaço ativo + as que ele criou,
