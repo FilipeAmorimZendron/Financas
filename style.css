@@ -8442,7 +8442,7 @@ body.sem-internet .layout { padding-top: 34px; }
    grid (grid-area igual pros dois) e o CSS troca opacidade/brilho/escala
    de um pro outro — dá o efeito de "bloom" (estoura claro e assenta). */
 .lp-planos-grid-selecionavel {
-  grid-template-columns: minmax(0, 680px);
+  grid-template-columns: minmax(0, 880px);
   justify-content: center;
 }
 .lp-planos-grid-selecionavel .lp-assinar-shell {
@@ -8527,7 +8527,7 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-assinar-shell {
   position: relative;
   width: 100%;
-  max-width: 680px;
+  max-width: 880px;
   margin: 0 auto;
   background: none;
   border: none;
@@ -8625,6 +8625,157 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-assinar-shell-empresarial .plano-opcao-destaque .plano-opcao-icone { background: rgba(30,246,221,0.12); border-color: var(--lp-teal); color: var(--lp-teal); }
 .lp-assinar-shell-empresarial .plano-opcao-destaque .plano-opcao-btn { background: var(--lp-teal); color: #062420; box-shadow: 0 10px 24px -6px rgba(30,246,221,0.5); }
 .lp-assinar-shell-empresarial .plano-opcao-destaque .plano-opcao-btn:hover { color: #062420; }
+/* ─── Cards de plano da landing: versão "explicativa" ──────────
+   Cada opção diz pra quem é, quanto sai por dia e por que escolher;
+   o Vitalício mostra a conta da economia em 3 anos. O que é igual nas
+   duas opções fica numa grade abaixo (.lp-incluso), em vez de repetir. */
+.lp-assinar-shell .planos-duo { align-items: stretch; max-width: 860px; }
+.lp-assinar-shell .plano-opcao { min-height: 0; padding: 40px 28px 30px; }
+.lp-assinar-shell .plano-opcao-nome { margin-bottom: 12px; }
+.lp-assinar-shell .plano-opcao-explicacao { margin: 14px 0 18px; max-width: 34ch; }
+.lp-assinar-shell .plano-opcao-vantagens { gap: 12px; margin-bottom: 26px; }
+.lp-assinar-shell .plano-opcao-vantagens li { font-size: 14px; font-weight: 500; line-height: 1.45; }
+.lp-assinar-shell .plano-opcao-vantagens li svg { color: var(--lp-teal-soft); }
+
+.plano-opcao-por-dia {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lp-text-dim);
+}
+.plano-opcao-ideal {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--lp-text);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+}
+.lp-assinar-shell .plano-opcao-destaque .plano-opcao-ideal {
+  color: var(--lp-amber);
+  background: rgba(245,165,36,0.1);
+  border-color: rgba(245,165,36,0.4);
+}
+.lp-assinar-shell-empresarial .plano-opcao-destaque .plano-opcao-ideal {
+  color: var(--lp-teal);
+  background: rgba(30,246,221,0.08);
+  border-color: rgba(30,246,221,0.4);
+}
+
+/* Comparação de custo em 3 anos — barras com rótulo e valor escritos,
+   então a leitura não depende de distinguir as cores. */
+.lp-economia {
+  width: 100%;
+  margin: 18px 0 20px;
+  padding: 16px 16px 14px;
+  border-radius: 16px;
+  background: rgba(1,16,37,0.55);
+  border: 1px solid rgba(255,255,255,0.08);
+  text-align: left;
+}
+.lp-economia-titulo {
+  margin: 0 0 12px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-text-dim);
+}
+.lp-economia-linha {
+  display: grid;
+  grid-template-columns: 62px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 9px;
+  font-size: 13px;
+}
+.lp-economia-rotulo { font-weight: 600; color: var(--lp-text-dim); }
+.lp-economia-barra {
+  display: block;
+  height: 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+.lp-economia-barra i { display: block; height: 100%; border-radius: 8px; background: rgba(255,255,255,0.28); }
+.lp-economia-linha s { color: var(--lp-text-dim); font-weight: 600; white-space: nowrap; }
+.lp-economia-linha b { color: var(--lp-text); font-weight: 800; white-space: nowrap; }
+.lp-economia-linha-vit .lp-economia-rotulo { color: var(--lp-text); }
+.lp-economia-linha-vit .lp-economia-barra i { background: var(--lp-amber); }
+.lp-assinar-shell-empresarial .lp-economia-linha-vit .lp-economia-barra i { background: var(--lp-teal); }
+.lp-economia-total {
+  margin: 12px 0 0;
+  padding-top: 11px;
+  border-top: 1px dashed rgba(255,255,255,0.14);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lp-text);
+  text-align: center;
+}
+.lp-economia-total strong { color: var(--lp-amber); font-size: 17px; font-weight: 800; }
+.lp-assinar-shell-empresarial .lp-economia-total strong { color: var(--lp-teal); }
+
+/* Variante do Mensal: só os valores, sem barra de comparação */
+.lp-economia-valor {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  margin-bottom: 8px;
+}
+.lp-economia-valor span { color: var(--lp-text-dim); font-weight: 600; }
+.lp-economia-valor b { color: var(--lp-text); font-weight: 800; }
+.lp-economia-mensal .lp-economia-total strong { color: var(--lp-text); font-size: 14px; }
+.lp-assinar-shell .plano-opcao .lp-economia-mensal { margin-top: 0; }
+
+/* Grade "Incluso nas duas opções" */
+.lp-incluso-titulo {
+  margin: 34px auto 16px;
+  font-family: 'Sora', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--lp-text);
+}
+.lp-incluso {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  max-width: 860px;
+  margin: 0 auto 22px;
+  text-align: left;
+}
+.lp-incluso-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--lp-line);
+}
+/* Número ímpar de itens: o último ocupa a linha inteira */
+.lp-incluso-item:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.lp-incluso-icone {
+  width: 38px; height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: rgba(30,246,221,0.08);
+  border: 1px solid rgba(30,246,221,0.25);
+  color: var(--lp-teal);
+}
+.lp-incluso-icone svg { width: 19px; height: 19px; }
+.lp-incluso-item strong { display: block; font-size: 14.5px; font-weight: 700; color: var(--lp-text); margin-bottom: 3px; }
+.lp-incluso-item p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--lp-text-dim); }
+@media (max-width: 640px) {
+  .lp-incluso { grid-template-columns: 1fr; max-width: 420px; }
+  .lp-incluso-item:last-child:nth-child(odd) { grid-column: auto; }
+}
+
 .lp-assinar-lista {
   list-style: none;
   margin: 0 0 20px;
