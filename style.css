@@ -8628,11 +8628,10 @@ body.sem-internet .layout { padding-top: 34px; }
 /* ─── Cards de plano da landing: versão "explicativa" ──────────
    Cada opção diz pra quem é, quanto sai por dia e por que escolher;
    o Vitalício mostra a conta da economia em 3 anos. O que é igual nas
-   duas opções aparece dentro de cada card (.plano-incluso). */
+   duas opções aparece só no Mensal; o Vitalício avisa que é igual. */
 .lp-assinar-shell .planos-duo { align-items: start; max-width: 860px; }
 .lp-assinar-shell .plano-opcao { min-height: 0; padding: 40px 28px 30px; }
 .lp-assinar-shell .plano-opcao-nome { margin-bottom: 12px; }
-.lp-assinar-shell .plano-opcao-explicacao { margin: 14px 0 18px; max-width: 34ch; }
 .lp-assinar-shell .plano-opcao-vantagens { gap: 12px; margin-bottom: 26px; }
 .lp-assinar-shell .plano-opcao-vantagens li { font-size: 14px; font-weight: 500; line-height: 1.45; }
 .lp-assinar-shell .plano-opcao-vantagens li svg { color: var(--lp-teal-soft); }
@@ -8728,47 +8727,6 @@ body.sem-internet .layout { padding-top: 34px; }
 .lp-economia-valor span { color: var(--lp-text-dim); font-weight: 600; }
 .lp-economia-valor b { color: var(--lp-text); font-weight: 800; }
 .lp-economia-mensal .lp-economia-total strong { color: var(--lp-text); font-size: 14px; }
-.lp-assinar-shell .plano-opcao .lp-economia-mensal { margin-top: 0; }
-
-/* "Tudo incluso" dentro de cada card — lista compacta com ícone,
-   título e uma frase de exemplo. */
-.plano-incluso-titulo {
-  width: 100%;
-  margin: 2px 0 12px;
-  padding-top: 18px;
-  border-top: 1px solid rgba(255,255,255,0.08);
-  font-size: 11.5px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--lp-text-dim);
-  text-align: left;
-}
-.plano-incluso {
-  list-style: none;
-  width: 100%;
-  margin: 0 0 26px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
-  text-align: left;
-}
-.plano-incluso li { display: flex; align-items: flex-start; gap: 12px; }
-.plano-incluso-icone {
-  width: 30px; height: 30px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9px;
-  background: rgba(30,246,221,0.08);
-  border: 1px solid rgba(30,246,221,0.22);
-  color: var(--lp-teal);
-}
-.plano-incluso-icone svg { width: 15px; height: 15px; }
-.plano-incluso strong { display: block; font-size: 13.5px; font-weight: 700; color: var(--lp-text); line-height: 1.3; }
-.plano-incluso li span:not(.plano-incluso-icone) { display: block; font-size: 12.5px; line-height: 1.4; color: var(--lp-text-dim); margin-top: 2px; }
 
 /* Vitalício: em vez de repetir a lista, avisa que é igual ao Mensal */
 .plano-mesmas-vantagens {
@@ -8802,9 +8760,6 @@ body.sem-internet .layout { padding-top: 34px; }
   border-color: rgba(30,246,221,0.5);
   color: var(--lp-teal);
 }
-/* Quadro "Quanto custa" agora vem depois da lista de vantagens */
-.lp-assinar-shell .plano-opcao-vantagens + .lp-economia-mensal { margin: -6px 0 26px; }
-
 /* Nota de rodapé do Vitalício (créditos extras de IA) — discreta, mas
    com contraste legível: condição de cobrança precisa ser clara (CDC). */
 .plano-opcao-nota {
