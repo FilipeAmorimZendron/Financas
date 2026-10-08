@@ -35,6 +35,7 @@ function esc(v) {
 const CADASTRO_ABERTO = true;
 const EMAILS_AUTORIZADOS = [
   "filipeamoriz@gmail.com",
+  "filipezendron05@gmail.com",
   "rodrigopadilha852@gmail.com",
   "psilaviniareis@gmail.com",
 ];
