@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=202610081605" />
+  <link rel="stylesheet" href="style.css?v=202610081627" />
 
   <!-- Meta (Facebook) Pixel — FAZ Finanças -->
   <script>
@@ -71,15 +71,15 @@
         <img src="logofaz.png" alt="FAZ Finanças" class="brand-logo-img" />
       </div>
 
-      <div class="contexto-toggle" role="group" aria-label="Espaço financeiro" data-tooltip="Pessoal / Empresarial">
-        <button type="button" class="contexto-btn active" data-contexto="pessoal" data-tooltip="Pessoal" onclick="alternarContexto('pessoal')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span class="menu-label">Pessoal</span>
+      <!-- Seletor de empresa — só em conta Empresarial (ver
+           atualizarSeletorContexto / renderMenuEmpresas em app.js). -->
+      <div class="empresa-seletor" id="empresaSeletor" hidden>
+        <button type="button" class="empresa-seletor-btn" id="empresaSeletorBtn" aria-haspopup="true" aria-expanded="false" data-tooltip="Minha empresa" onclick="abrirMenuEmpresas(event)">
+          <svg class="empresa-seletor-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg>
+          <span class="menu-label empresa-seletor-nome" id="empresaSeletorNome">Minha empresa</span>
+          <svg class="menu-label empresa-seletor-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
         </button>
-        <button type="button" class="contexto-btn" data-contexto="empresarial" data-tooltip="Empresarial" onclick="alternarContexto('empresarial')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg>
-          <span class="menu-label">Empresarial</span>
-        </button>
+        <div class="empresa-menu" id="empresaMenu" hidden></div>
       </div>
 
       <div class="sidebar-section-label">Menu</div>
@@ -1713,8 +1713,8 @@
 
           <div class="planos-topo">
             <h2 class="planos-titulo">Assine o FAZ Finanças</h2>
-            <p class="planos-sub">Escolha o Pessoal ou o Empresarial, cada um com seu próprio espaço, sem misturar as finanças.</p>
-            <div class="plano-tab-selector" role="tablist" aria-label="Escolher tipo de plano">
+            <p class="planos-sub">Escolha mensal ou pague uma vez só. Tudo incluso, sem trava de recursos.</p>
+            <div class="plano-tab-selector" role="tablist" aria-label="Escolher tipo de plano" hidden>
               <button type="button" class="plano-tab-opt ativo" data-plano="pessoal" role="tab" aria-selected="true" onclick="selecionarPlanoTela('pessoal')">Pessoal</button>
               <button type="button" class="plano-tab-opt" data-plano="empresarial" role="tab" aria-selected="false" onclick="selecionarPlanoTela('empresarial')">Empresarial</button>
             </div>
@@ -1756,7 +1756,7 @@
                 <p class="plano-opcao-explicacao">Um pagamento único, via Pix, sem mensalidade nunca mais. O acesso fica liberado na sua conta pra sempre.</p>
                 <ul class="plano-opcao-vantagens">
                   <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sai mais em conta se você ficar mais de 1 ano</li>
-                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Paga uma vez e nunca mais recebe cobrança</li>
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sem mensalidade: nada de cobrança todo mês no cartão</li>
                 </ul>
                 <div class="plano-ia-box">
                   <span class="plano-ia-titulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></svg> IA completa</span>
@@ -1777,7 +1777,7 @@
           <!-- Plano Empresarial -->
           <div class="plano-card plano-card-empresarial" id="planoCardEmpresarial" data-plano="empresarial" hidden>
             <div class="plano-selo plano-selo-empresarial">Empresarial</div>
-            <div class="plano-nome">Espaço separado pra empresa</div>
+            <div class="plano-nome">Conta só pra empresa</div>
 
             <div class="planos-duo">
               <div class="plano-opcao">
@@ -1791,13 +1791,13 @@
                 </ul>
                 <div class="plano-ia-box">
                   <span class="plano-ia-titulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg> Espaço 100% separado</span>
-                  <span class="plano-ia-desc">Contas, lançamentos e categorias isolados do seu espaço pessoal, sem nunca se misturar</span>
+                  <span class="plano-ia-desc">2 empresas inclusas, cada uma com as próprias contas, lançamentos e categorias</span>
                 </div>
                 <ul class="plano-lista">
                   <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Categorias prontas pra empresa: fornecedores, folha, impostos e mais</li>
                   <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Notas fiscais e cadastro de clientes/fornecedores</li>
-                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Tudo do plano Pessoal incluído</li>
-                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Troca de espaço com um clique, sem precisar de outra conta</li>
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Todos os recursos do plano Pessoal</li>
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Empresa extra por R$ 19,90, pagamento único</li>
                   <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Suporte prioritário</li>
                 </ul>
                 <button type="button" class="plano-opcao-btn" id="btnAssinarEmpresarial" onclick="assinarPlanoEmpresarial()">Assinar Empresarial</button>
@@ -1810,17 +1810,17 @@
                 <p class="plano-opcao-explicacao">Um pagamento único, via Pix, sem mensalidade nunca mais. O acesso fica liberado na sua conta pra sempre.</p>
                 <ul class="plano-opcao-vantagens">
                   <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sai mais em conta se você ficar mais de 1 ano</li>
-                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Paga uma vez e nunca mais recebe cobrança</li>
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sem mensalidade: nada de cobrança todo mês no cartão</li>
                 </ul>
                 <div class="plano-ia-box">
                   <span class="plano-ia-titulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg> Espaço 100% separado</span>
-                  <span class="plano-ia-desc">Contas, lançamentos e categorias isolados do seu espaço pessoal, sem nunca se misturar</span>
+                  <span class="plano-ia-desc">2 empresas inclusas, cada uma com as próprias contas, lançamentos e categorias</span>
                 </div>
                 <ul class="plano-lista">
                   <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Categorias prontas pra empresa: fornecedores, folha, impostos e mais</li>
                   <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Notas fiscais e cadastro de clientes/fornecedores</li>
-                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Tudo do plano Pessoal incluído</li>
-                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Troca de espaço com um clique, sem precisar de outra conta</li>
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Todos os recursos do plano Pessoal</li>
+                  <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Empresa extra por R$ 19,90, pagamento único</li>
                   <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Suporte prioritário</li>
                 </ul>
                 <button type="button" class="plano-opcao-btn" id="btnVitalicioEmpresarial" onclick="assinarVitalicioEmpresarial(this)">Quero o vitalício</button>
@@ -2539,9 +2539,9 @@
         </div>
         <h3 class="lp-card-titulo">Espaço Empresarial</h3>
         <p class="lp-card-desc">
-          Tem uma empresa também? Assine o plano Empresarial e tenha um espaço
-          separado pra ela — categorias prontas pro negócio, tudo isolado das
-          suas finanças pessoais, trocado com um clique.
+          Tem empresa? Crie uma conta Empresarial, separada da pessoal, com
+          categorias prontas pro negócio e 2 empresas inclusas, cada uma com
+          os próprios dados.
         </p>
       </div>
     </div>
@@ -2958,7 +2958,7 @@
     <div class="lp-secao-head reveal">
       <p class="lp-eyebrow">Planos</p>
       <h2 class="lp-h2">Pessoal ou Empresarial.<br>Sem misturar as finanças.</h2>
-      <p class="lp-p lp-planos-sub">Sem versão limitada, sem trava de recursos, sem letra miúda. Assine o que precisa, e pode ter os dois, cada um no seu próprio espaço.</p>
+      <p class="lp-p lp-planos-sub">Sem versão limitada, sem trava de recursos, sem letra miúda. Pessoal e Empresarial são contas separadas, cada uma com o próprio cadastro.</p>
       <div class="plano-selector" role="tablist" aria-label="Escolher tipo de plano">
         <button type="button" class="plano-selector-opt ativo" data-plano="pessoal" role="tab" aria-selected="true" onclick="selecionarPlanoLanding('pessoal')">Pessoal</button>
         <button type="button" class="plano-selector-opt" data-plano="empresarial" role="tab" aria-selected="false" onclick="selecionarPlanoLanding('empresarial')">Empresarial</button>
@@ -2995,7 +2995,7 @@
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>Contas, cartões, metas e gastos fixos sem limite</span></li>
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>Investimentos e cripto com cotação ao vivo</span></li>
             </ul>
-            <button type="button" class="plano-opcao-btn" onclick="assinarNaLanding()">Começar agora</button>
+            <button type="button" class="plano-opcao-btn" onclick="assinarNaLanding('pessoal')">Começar agora</button>
           </div>
           <div class="plano-opcao plano-opcao-destaque">
             <span class="plano-opcao-selo">Mais escolhido</span>
@@ -3042,8 +3042,8 @@
         <div class="lp-assinar-icone lp-assinar-icone-empresarial">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg>
         </div>
-        <h3 class="lp-assinar-titulo">Espaço separado pra empresa</h3>
-        <p class="lp-assinar-sub">Tudo do plano Pessoal, num espaço financeiro só da empresa, que nunca se mistura com o seu.</p>
+        <h3 class="lp-assinar-titulo">Conta só pra empresa</h3>
+        <p class="lp-assinar-sub">Todos os recursos do Pessoal, numa conta separada pra empresa, com 2 empresas inclusas.</p>
 
         <div class="planos-duo">
           <div class="plano-opcao">
@@ -3060,13 +3060,14 @@
             </div>
             <ul class="plano-opcao-vantagens">
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>Cobrança automática no cartão. Cancela quando quiser, sem fidelidade</span></li>
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>Tudo do Pessoal, num espaço 100% separado pra empresa</span></li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>2 empresas inclusas, cada uma com os próprios dados</span></li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>Precisa de mais? Cada empresa extra é R$ 19,90, pagamento único</span></li>
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>Categorias prontas: fornecedores, folha, impostos e taxas</span></li>
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>Notas fiscais: a IA lê a foto ou o PDF e preenche pra você</span></li>
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>Clientes e fornecedores com o total de cada um</span></li>
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>DRE, fluxo de caixa e suporte prioritário</span></li>
             </ul>
-            <button type="button" class="plano-opcao-btn" onclick="abrirAuth('cadastro')">Começar agora</button>
+            <button type="button" class="plano-opcao-btn" onclick="assinarNaLanding('empresarial')">Começar agora</button>
           </div>
           <div class="plano-opcao plano-opcao-destaque">
             <span class="plano-opcao-selo">Mais escolhido</span>
@@ -3093,19 +3094,19 @@
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>Se paga em menos de 1 ano. Depois disso é só economia</span></li>
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>Uma despesa só, sem mensalidade pesando no caixa todo mês</span></li>
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>Paga no Pix, sem precisar do cartão da empresa</span></li>
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>Espaço empresarial liberado pra sempre na sua conta*</span></li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span>Conta Empresarial liberada pra sempre*</span></li>
             </ul>
             <div class="plano-mesmas-vantagens">
               <span class="plano-mesmas-vantagens-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
               <p><strong>Mesmas vantagens do Mensal.</strong> Tudo que está incluso no plano mensal vem igual no vitalício, sem diferença nenhuma de recursos. Só muda a forma de pagar.</p>
             </div>
-            <button type="button" class="plano-opcao-btn" onclick="abrirAuth('cadastro')">Quero o vitalício</button>
+            <button type="button" class="plano-opcao-btn" onclick="assinarVitalicioLanding('empresarial')">Quero o vitalício</button>
             <p class="plano-opcao-nota">* O vitalício libera o acesso ao app pra sempre, com a IA dentro do limite de uso padrão. Créditos extras de IA, pra quem usa acima desse limite, podem ser cobrados à parte no futuro, sempre com aviso antes.</p>
           </div>
         </div>
 
 
-        <p class="lp-assinar-rodape">✓ Escolhido dentro do app, depois de criar sua conta</p>
+        <p class="lp-assinar-rodape">✓ Cancele quando quiser (mensal) &nbsp;·&nbsp; ✓ Pagamento seguro pela Kiwify</p>
       </div>
     </div>
     <div class="lp-planos-garantia">
@@ -3280,9 +3281,32 @@
         <!-- CADASTRO -->
         <div id="formCadastroWrap" class="auth-painel" style="display:none">
           <h2 class="auth-titulo">Assine o FAZ Finanças</h2>
-          <p class="auth-sub">R$ <span class="preco-plano-valor">26,90</span>/mês, com tudo incluso. Cancele quando quiser.</p>
+          <p class="auth-sub" id="cadSub">R$ 26,90/mês, com tudo incluso. Cancele quando quiser.</p>
 
-          <button type="button" class="auth-btn-google" onclick="loginComGoogle()">
+          <!-- Tipo de conta: Pessoal e Empresa são contas separadas desde o
+               cadastro (ver perfil.tipo_conta). Vem marcado com o que a
+               pessoa escolheu na landing. -->
+          <div class="auth-tipo" role="radiogroup" aria-label="Tipo de conta">
+            <label class="auth-tipo-opt">
+              <input type="radio" name="cadTipo" value="pessoal" checked onchange="atualizarCadastroTipo()" />
+              <span class="auth-tipo-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <strong>Pessoal</strong>
+                <small>Suas finanças</small>
+              </span>
+            </label>
+            <label class="auth-tipo-opt">
+              <input type="radio" name="cadTipo" value="empresarial" onchange="atualizarCadastroTipo()" />
+              <span class="auth-tipo-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg>
+                <strong>Empresa</strong>
+                <small>Finanças do negócio</small>
+              </span>
+            </label>
+          </div>
+          <p class="auth-tipo-nota">Pessoal e Empresa são contas separadas. Quer as duas? Crie uma de cada, com e-mails diferentes.</p>
+
+          <button type="button" class="auth-btn-google" onclick="cadastroComGoogle()">
             <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
               <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
               <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
@@ -3404,38 +3428,46 @@
        um usuário de antes do plano único) cai aqui, sem ver o resto do app. -->
   <div id="telaAssinar" class="auth-modal" style="display:none">
     <div class="assinar-shell">
-      <span class="assinar-badge">Plano único</span>
+      <span class="assinar-badge" id="assinarBadge">Plano Pessoal</span>
       <img src="logofaz-transparente.png" alt="FAZ Finanças" class="assinar-logo" />
-      <h2 class="assinar-titulo">Assine e libere tudo</h2>
-      <p class="assinar-sub">Sem versão limitada, sem trava de recursos. Escolha mensal ou pague uma vez só.</p>
+      <h2 class="assinar-titulo" id="assinarTitulo">Assine e libere tudo</h2>
+      <p class="assinar-sub" id="assinarSub">Sem versão limitada, sem trava de recursos. Escolha mensal ou pague uma vez só.</p>
 
       <div class="planos-duo">
         <div class="plano-opcao">
           <span class="plano-opcao-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></span>
           <span class="plano-opcao-nome">Mensal</span>
-          <div class="plano-opcao-preco">R$ <span class="preco-plano-valor">26,90</span><span class="plano-opcao-ciclo">/mês</span></div>
+          <div class="plano-opcao-preco">R$ <span id="assinarPrecoMensal">26,90</span><span class="plano-opcao-ciclo">/mês</span></div>
           <p class="plano-opcao-explicacao">Cobrança automática todo mês no cartão. Cancele quando quiser, direto no app, sem multa nem burocracia.</p>
           <ul class="plano-opcao-vantagens">
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sem compromisso, paga mês a mês</li>
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Não precisa juntar o valor de uma vez</li>
           </ul>
-          <button type="button" class="plano-opcao-btn" id="btnAssinarAgora" onclick="assinarPlanoUnico()">Assinar agora</button>
+          <button type="button" class="plano-opcao-btn" id="btnAssinarAgora" onclick="assinarDoTipo(false, this)">Assinar agora</button>
         </div>
         <div class="plano-opcao plano-opcao-destaque">
           <span class="plano-opcao-selo">Mais escolhido</span>
           <span class="plano-opcao-icone plano-opcao-icone-destaque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.739-8z"/></svg></span>
           <span class="plano-opcao-nome">Vitalício</span>
-          <div class="plano-opcao-preco">R$ 369,90<span class="plano-opcao-ciclo"> único</span></div>
+          <div class="plano-opcao-preco">R$ <span id="assinarPrecoVitalicio">369,90</span><span class="plano-opcao-ciclo"> único</span></div>
           <p class="plano-opcao-explicacao">Um pagamento único, via Pix, sem mensalidade nunca mais. O acesso fica liberado na sua conta pra sempre.</p>
           <ul class="plano-opcao-vantagens">
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sai mais em conta se você ficar mais de 1 ano</li>
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Paga uma vez e nunca mais recebe cobrança</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sem mensalidade: nada de cobrança todo mês no cartão</li>
           </ul>
-          <button type="button" class="plano-opcao-btn" onclick="assinarVitalicioPessoal(this)">Quero o vitalício</button>
+          <button type="button" class="plano-opcao-btn" onclick="assinarDoTipo(true, this)">Quero o vitalício</button>
         </div>
       </div>
 
-      <ul class="assinar-lista">
+      <ul class="assinar-lista assinar-lista-empresarial" hidden>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 2 empresas inclusas, cada uma com os próprios dados</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Categorias prontas: fornecedores, folha, impostos e taxas</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Notas fiscais: a IA lê a foto ou o PDF e preenche pra você</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Clientes e fornecedores, DRE e fluxo de caixa</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Assistente de IA, extrato do banco e suporte prioritário</li>
+      </ul>
+
+      <ul class="assinar-lista assinar-lista-pessoal">
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Contas, metas e lançamentos sem limite</li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Assistente de IA financeiro, sempre à mão</li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Investimentos e cripto com cotação ao vivo</li>
@@ -3449,6 +3481,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js?v=202610081605"></script>
+  <script src="app.js?v=202610081627"></script>
 </body>
 </html>

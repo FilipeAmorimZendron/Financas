@@ -7,10 +7,13 @@
 
 const SUPABASE_URL = "https://yuvhkrwksdnajfautkru.supabase.co";
 
-// Mesma lista de tabelas que o app já limpava do lado do cliente.
+// Todas as tabelas com dado do usuário. A ordem importa: os dados vêm
+// antes de "empresas" (empresa_id aponta pra ela).
 const TABELAS = [
   "recorrencia_pagamentos", "movimentos", "transferencias",
-  "recorrencias", "metas", "objetivos", "investimentos", "contas"
+  "recorrencias", "metas", "objetivos", "investimentos", "contas",
+  "categorias", "faturas_pagas", "notas_fiscais", "contatos",
+  "empresas", "empresas_extras_compras"
 ];
 
 // Valida o token do usuário e retorna o ID dele (não dá pra falsificar,

@@ -30,7 +30,7 @@ async function validarUsuario(token, anonKey) {
 
 async function lerPerfil(userId, serviceKey) {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${userId}&select=plano,assinatura_status,ia_usos,ia_reset_em,admin`,
+    `${SUPABASE_URL}/rest/v1/perfil?user_id=eq.${userId}&select=plano,assinatura_status,ia_usos,ia_reset_em,admin,tipo_conta`,
     { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
   );
   if (!res.ok) return null;
@@ -115,7 +115,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, processados: 0, motivo: "sem assinatura ativa" });
     }
 
-    const { contas, categorias } = await buscarContasECategorias(userId, "pessoal", serviceKey);
+    // Conta Empresarial só tem contas/categorias no contexto "empresarial".
+    const contextoConta = perfil?.tipo_conta === "empresarial" ? "empresarial" : "pessoal";
+    const { contas, categorias } = await buscarContasECategorias(userId, contextoConta, serviceKey);
     const admin = !!perfil?.admin;
     let usos = perfil?.ia_usos || 0;
     let resetEm = perfil?.ia_reset_em ? new Date(perfil.ia_reset_em) : new Date();

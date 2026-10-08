@@ -197,7 +197,7 @@ export default async function handler(req, res) {
 
     const linha = {
       user_id: perfil.user_id,
-      contexto: "pessoal", // ajustado na revisão, se a pessoa tiver o Empresarial liberado
+      contexto: "pessoal", // só informativo: a revisão no app grava no espaço da conta (e na empresa ativa)
       remetente,
       email_id: emailId,
       processado: false,

@@ -57,16 +57,16 @@ const state = {
   extratosEmailPendentes: [],
   perfil: { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null },
   user: null,
-  // true quando o espaço que NÃO está ativo agora tem algo vencido ou
-  // vencendo — acende a bolinha vermelha no seletor da sidebar. Ver
-  // haCompromissoPendente() e atualizarSeletorContexto().
-  avisoOutroContexto: false,
-  // "pessoal" ou "empresarial" — qual espaço financeiro está ativo agora.
-  // Ver alternarContexto() e TABELAS_COM_CONTEXTO.
-  contextoAtivo: (() => {
-    try { return localStorage.getItem("fp_contexto") === "empresarial" ? "empresarial" : "pessoal"; }
-    catch (e) { return "pessoal"; }
-  })()
+  // "pessoal" ou "empresarial" — o espaço da conta. Desde 08/10/2026 cada
+  // conta tem UM tipo só, escolhido no cadastro (perfil.tipo_conta); isto
+  // só espelha esse tipo depois que o perfil carrega (carregarDadosNuvem).
+  contextoAtivo: "pessoal",
+  // Contas Empresariais podem ter várias empresas (2 grátis, as demais
+  // compradas à parte — ver limiteEmpresas()). Cada dado do espaço
+  // Empresarial é de UMA empresa (coluna empresa_id); só a ativa aparece.
+  empresas: [],
+  empresaAtivaId: null,
+  extrasPagas: 0
 };
 
 /* ── DIAGNÓSTICO TEMPORÁRIO (v53) ──────────────────────────
@@ -1028,17 +1028,37 @@ async function dbSelect(tabela) {
 /* Tabelas com dado financeiro separado por espaço (Pessoal/Empresarial).
    Toda gravação nelas leva a tag do contexto ativo — dbInsert cuida disso
    sozinho, então nenhuma das funções que chamam dbInsert("contas", ...)
-   etc. precisou mudar. Ver state.contextoAtivo e alternarContexto(). */
+   etc. precisou mudar. No Empresarial também leva a empresa ativa
+   (empresa_id). Ver state.contextoAtivo e trocarEmpresa(). */
 const TABELAS_COM_CONTEXTO = new Set([
   "contas", "movimentos", "transferencias", "recorrencias",
   "recorrencia_pagamentos", "metas", "objetivos", "investimentos",
   "categorias", "faturas_pagas", "notas_fiscais", "contatos"
 ]);
 
+/* ─── Empresas (contas Empresariais) ─────────────────────────
+   2 empresas grátis por conta; cada compra de "empresa extra" (R$ 19,90,
+   pagamento único — ver api/criar-checkout.js e o webhook) libera mais
+   uma. O banco também confere esse limite (trigger checar_limite_empresas),
+   então o app não é a única trava. */
+const EMPRESAS_GRATIS = 2;
+const PRECO_EMPRESA_EXTRA = 19.90;
+function limiteEmpresas() { return EMPRESAS_GRATIS + (state.extrasPagas || 0); }
+function empresaAtiva() {
+  return state.empresas.find(e => e.id === state.empresaAtivaId) || state.empresas[0] || null;
+}
+function contaEmpresarial() { return state.perfil?.tipoConta === "empresarial"; }
+function chaveEmpresaAtiva() { return `fp_empresa_${state.user?.id || ""}`; }
+
 async function dbInsert(tabela, dados) {
-  const corpo = (TABELAS_COM_CONTEXTO.has(tabela) && dados && dados.contexto === undefined)
+  let corpo = (TABELAS_COM_CONTEXTO.has(tabela) && dados && dados.contexto === undefined)
     ? { ...dados, contexto: state.contextoAtivo || "pessoal" }
     : dados;
+  // Dado do espaço Empresarial sempre pertence a uma empresa (a ativa).
+  if (TABELAS_COM_CONTEXTO.has(tabela) && corpo && corpo.contexto === "empresarial"
+      && corpo.empresa_id === undefined && state.empresaAtivaId) {
+    corpo = { ...corpo, empresa_id: state.empresaAtivaId };
+  }
   const res = await fetchSeguro(`${SUPABASE_URL}/rest/v1/${tabela}`, {
     method: "POST",
     headers: { ..._h, ...getAuthHeader(), "Prefer": "return=representation" },
@@ -1070,7 +1090,7 @@ async function dbDelete(tabela, id) {
 async function carregarDadosNuvem() {
   mostrarLoading(true, "Carregando seus dados", "Buscando contas, lançamentos e metas...");
   try {
-    const [contas, movimentos, transferencias, recorrencias, metas, objetivos, investimentos, recPagamentos, perfilRows, faturasPagas, categorias, notasFiscais, contatos] = await Promise.all([
+    const [contas, movimentos, transferencias, recorrencias, metas, objetivos, investimentos, recPagamentos, perfilRows, faturasPagas, categorias, notasFiscais, contatos, empresas, extrasCompras] = await Promise.all([
       dbSelect("contas"),
       dbSelect("movimentos"),
       dbSelect("transferencias"),
@@ -1083,13 +1103,57 @@ async function carregarDadosNuvem() {
       dbSelect("faturas_pagas").catch(()=>[]),
       dbSelect("categorias").catch(()=>[]),
       dbSelect("notas_fiscais").catch(()=>[]),
-      dbSelect("contatos").catch(()=>[])
+      dbSelect("contatos").catch(()=>[]),
+      dbSelect("empresas").catch(()=>[]),
+      dbSelect("empresas_extras_compras").catch(()=>[])
     ]);
+    const perfilExistente = (perfilRows||[])[0];
+    state.perfil = mapPerfil(perfilExistente);
+
+    // Conta sem tipo ainda (cadastro pelo Google, que não passa pelo
+    // formulário): usa o que a pessoa escolheu na landing, ou pergunta.
+    if (!state.perfil.tipoConta && state.user?.id) {
+      let tipo = tipoContaPendente();
+      if (!tipo) {
+        mostrarLoading(false);
+        tipo = await escolherTipoConta();
+        mostrarLoading(true, "Carregando seus dados", "Preparando sua conta...");
+      }
+      try {
+        const salvo = await salvarPerfil({ tipo_conta: tipo, ...(perfilExistente ? {} : { plano: "basico", assinatura_status: "inativa" }) });
+        if (salvo) state.perfil = mapPerfil(salvo);
+        else state.perfil.tipoConta = tipo;
+      } catch (e) { state.perfil.tipoConta = tipo; }
+      limparTipoContaPendente();
+    } else if (tipoContaPendente()) {
+      limparTipoContaPendente();
+    }
+
+    // O espaço é o tipo da conta (escolhido no cadastro) — não se troca mais.
+    state.contextoAtivo = state.perfil.tipoConta === "empresarial" ? "empresarial" : "pessoal";
+    state.extrasPagas = (Array.isArray(extrasCompras) ? extrasCompras : []).filter(x => x.status === "paga").length;
+    state.empresas = (Array.isArray(empresas) ? empresas : [])
+      .map(mapEmpresa)
+      .sort((a, b) => String(a.criadoEm).localeCompare(String(b.criadoEm)));
+    // Conta Empresarial recém-criada: nasce com a primeira empresa.
+    if (state.contextoAtivo === "empresarial" && !state.empresas.length && state.user?.id) {
+      try {
+        const nova = await dbInsert("empresas", { nome: "Minha empresa" });
+        if (nova?.id) state.empresas.push(mapEmpresa(nova));
+      } catch (e) { console.error("Falha ao criar a primeira empresa:", e); }
+    }
+    let salva = null;
+    try { salva = localStorage.getItem(chaveEmpresaAtiva()); } catch (e) {}
+    state.empresaAtivaId = state.empresas.some(e => e.id === salva) ? salva : (state.empresas[0]?.id || null);
+    const empresaPadrao = state.empresas[0]?.id || null;
+
     // Cada tabela em TABELAS_COM_CONTEXTO só entra no app se for do espaço
-    // ativo agora (Pessoal ou Empresarial) — dado sem a coluna ainda
-    // (linhas antigas, de antes da migração) conta como "pessoal".
-    const ctx = state.contextoAtivo || "pessoal";
-    const doContexto = linha => (linha.contexto || "pessoal") === ctx;
+    // da conta — dado sem a coluna ainda (linhas antigas, de antes da
+    // migração) conta como "pessoal". No Empresarial, só da empresa ativa
+    // (linha sem empresa_id conta como da primeira empresa).
+    const ctx = state.contextoAtivo;
+    const doContexto = linha => (linha.contexto || "pessoal") === ctx &&
+      (ctx !== "empresarial" || (linha.empresa_id || empresaPadrao) === state.empresaAtivaId);
 
     // Mapear campos do banco para o formato do app
     state.bancos         = contas.filter(doContexto).map(c => ({ id:c.id, nome:c.nome, tipo:c.tipo, saldoInicial: Number(c.saldo_inicial), saldoData: c.saldo_data || null, cor: c.cor || null, logoId: c.logo_id ?? null, temCartao: c.tem_cartao || false, limite: c.limite != null ? Number(c.limite) : null, diaFechamento: c.dia_fechamento || null, diaVencimento: c.dia_vencimento || null }));
@@ -1110,21 +1174,6 @@ async function carregarDadosNuvem() {
       fim: r.fim || null,
       ativa: r.ativa !== false
     }));
-    const perfilExistente = (perfilRows||[])[0];
-    state.perfil = mapPerfil(perfilExistente);
-
-    // Bolinha de aviso no seletor Pessoal/Empresarial: verifica se o
-    // espaço que NÃO está ativo agora tem algo vencido/vencendo nos
-    // próximos dias. Usa os arrays brutos (movimentos/recorrencias/
-    // recPagamentos) já buscados acima — sem nenhuma consulta extra ao
-    // banco. Ver haCompromissoPendente() e atualizarSeletorContexto().
-    try {
-      const outro = state.contextoAtivo === "empresarial" ? "pessoal" : "empresarial";
-      const podeVerOutro = outro === "pessoal" || !!state.perfil?.empresarial;
-      state.avisoOutroContexto = podeVerOutro && haCompromissoPendente(outro, movimentos, recorrencias, recPagamentos);
-    } catch (e) {
-      state.avisoOutroContexto = false;
-    }
 
     // O plano pode ter mudado no servidor (pagamento, atraso, cancelamento).
     // Atualiza o selo e os cadeados na hora, sem esperar o próximo render.
@@ -1132,7 +1181,7 @@ async function carregarDadosNuvem() {
     // Se o usuário ainda não tem linha de perfil, cria uma agora (plano básico).
     // Assim todo usuário aparece na tabela perfil e pode receber premium.
     if (!perfilExistente && state.user?.id) {
-      salvarPerfil({ plano: "basico", assinatura_status: "inativa" })
+      salvarPerfil({ plano: "basico", assinatura_status: "inativa", ...(tipoContaPendente() ? { tipo_conta: tipoContaPendente() } : {}) })
         .then(() => console.log("Perfil criado automaticamente para", state.user.id))
         .catch(err => console.error("Erro ao criar perfil automático:", err));
     }
@@ -1217,6 +1266,7 @@ function mostrarTelaApp() {
    roda antes da decisão de mostrar o paywall), então renderizar aqui não
    expõe nada que um F12 já não expusesse. */
 function mostrarTelaAssinar() {
+  prepararTelaAssinar();
   document.getElementById("landing").style.display = "none";
   document.getElementById("telaLogin").style.display = "none";
 
@@ -1228,6 +1278,55 @@ function mostrarTelaAssinar() {
   const tela = document.getElementById("telaAssinar");
   if (tela) tela.style.display = "flex";
   document.body.style.overflow = "hidden";
+}
+
+/* Ajusta a tela de assinatura ao tipo da conta (preços, textos, lista). */
+function prepararTelaAssinar() {
+  const emp = contaEmpresarial();
+  const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  set("assinarBadge", emp ? "Plano Empresarial" : "Plano Pessoal");
+  set("assinarTitulo", emp ? "Libere o espaço da sua empresa" : "Assine e libere tudo");
+  set("assinarSub", emp
+    ? "Finanças do negócio organizadas, com 2 empresas inclusas. Escolha mensal ou pague uma vez só."
+    : "Sem versão limitada, sem trava de recursos. Escolha mensal ou pague uma vez só.");
+  set("assinarPrecoMensal", emp ? "41,90" : "26,90");
+  set("assinarPrecoVitalicio", emp ? "479,90" : "369,90");
+  document.querySelectorAll("#telaAssinar .assinar-lista-pessoal").forEach(el => { el.hidden = emp; });
+  document.querySelectorAll("#telaAssinar .assinar-lista-empresarial").forEach(el => { el.hidden = !emp; });
+}
+
+/* Escolha do tipo de conta pra quem chegou sem tipo (cadastro pelo Google
+   sem passar pela landing). Não fecha sem escolher — é obrigatório. */
+function escolherTipoConta() {
+  return new Promise(resolve => {
+    const ov = document.createElement("div");
+    ov.className = "confirm-ov";
+    ov.innerHTML = `
+      <div class="confirm-box is-neutro escolher-tipo-box" role="dialog" aria-modal="true" aria-labelledby="escolherTipoTitulo">
+        <h3 class="confirm-titulo" id="escolherTipoTitulo">Como você vai usar o FAZ?</h3>
+        <p class="confirm-msg">Pessoal e Empresa são contas separadas. Essa escolha não muda depois. Quer as duas? Crie uma de cada, com e-mails diferentes.</p>
+        <div class="escolher-tipo-opcoes">
+          <button type="button" class="escolher-tipo-opt" data-tipo="pessoal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <strong>Pessoal</strong><small>Suas finanças · R$ 26,90/mês</small>
+          </button>
+          <button type="button" class="escolher-tipo-opt" data-tipo="empresarial">
+            ${ICONE_PREDIO}
+            <strong>Empresa</strong><small>2 empresas inclusas · R$ 41,90/mês</small>
+          </button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    requestAnimationFrame(() => ov.classList.add("open"));
+    ov.querySelectorAll(".escolher-tipo-opt").forEach(b => {
+      b.onclick = () => {
+        ov.classList.remove("open");
+        setTimeout(() => ov.remove(), 200);
+        resolve(b.dataset.tipo === "empresarial" ? "empresarial" : "pessoal");
+      };
+    });
+    setTimeout(() => ov.querySelector(".escolher-tipo-opt")?.focus(), 60);
+  });
 }
 
 /* Chamada depois que os dados da nuvem (e um eventual retorno do checkout)
@@ -1317,8 +1416,19 @@ async function _assinarPlano(tipoConta, btn, contentName, tipoPagamento) {
   }
 }
 
-/* Inicia o checkout do plano Pessoal — usada na tela de assinatura
-   obrigatória, no cadastro fundido e na landing. */
+/* Inicia o checkout do tipo da conta (Pessoal ou Empresarial), mensal
+   ou vitalício — usada no cadastro e na tela de assinatura obrigatória. */
+async function assinarDoTipo(vitalicio, btn) {
+  const empresarial = contaEmpresarial();
+  return _assinarPlano(
+    empresarial ? "empresarial" : "pessoal",
+    btn || null,
+    `faz_${vitalicio ? "vitalicio_" : ""}${empresarial ? "empresarial" : "pessoal"}`,
+    vitalicio ? "vitalicio" : undefined
+  );
+}
+
+/* Inicia o checkout do plano Pessoal — usada na tela de Planos do app. */
 async function assinarPlanoUnico() {
   return _assinarPlano("pessoal", document.getElementById("btnAssinarAgora"), "faz_unico");
 }
@@ -1327,7 +1437,7 @@ async function assinarPlanoUnico() {
    da tela de planos. Quem já tem o Empresarial não precisa passar por
    aqui de novo (evita criar uma segunda assinatura por engano). */
 async function assinarPlanoEmpresarial() {
-  if (state.perfil?.empresarial) {
+  if (state.perfil?.empresarial && planoAtual() !== "basico") {
     toast("Você já tem o plano Empresarial ativo.", "info");
     return;
   }
@@ -1342,7 +1452,7 @@ async function assinarVitalicioPessoal(btn) {
   return _assinarPlano("pessoal", btn || null, "faz_vitalicio_pessoal", "vitalicio");
 }
 async function assinarVitalicioEmpresarial(btn) {
-  if (state.perfil?.empresarial) {
+  if (state.perfil?.empresarial && planoAtual() !== "basico") {
     toast("Você já tem o plano Empresarial ativo.", "info");
     return;
   }
@@ -1584,14 +1694,20 @@ document.getElementById("formCadastro")?.addEventListener("submit", async e => {
       state.user = { email: data.user.email, id: data.user.id, createdAt: data.user.created_at || null };
       iniciarRenovacaoAutomaticaDeSessao();
       fecharAuth();
+      // Tipo da conta (Pessoal/Empresa) vai pro perfil ANTES do checkout —
+      // o servidor usa ele pra escolher o link de pagamento certo.
+      const tipo = tipoCadastroEscolhido();
+      try {
+        const salvo = await salvarPerfil({ tipo_conta: tipo, plano: "basico", assinatura_status: "inativa" });
+        state.perfil = mapPerfil(salvo);
+      } catch (e) {
+        state.perfil = { ...mapPerfil(null), tipoConta: tipo };
+      }
       // Se veio do botão "Quero o vitalício" da landing, manda pro pagamento
       // único em vez da assinatura mensal de sempre.
-      if (_pagamentoEscolhidoLanding === "vitalicio") {
-        _pagamentoEscolhidoLanding = null;
-        await assinarVitalicioPessoal();
-      } else {
-        await assinarPlanoUnico();
-      }
+      const vitalicio = _pagamentoEscolhidoLanding === "vitalicio";
+      _pagamentoEscolhidoLanding = null;
+      await assinarDoTipo(vitalicio);
     } else {
       // Extremamente improvável com autoconfirmação ligada, mas cobre o
       // caso de ela ser desligada no futuro sem alguém lembrar de ajustar aqui.
@@ -5162,40 +5278,6 @@ async function verificarExtratosPorEmail() {
   renderSino();
 }
 
-/* Só chamada pra quem tem o espaço Empresarial liberado (perfil.empresarial)
-   — pergunta se o extrato que chegou por e-mail é do espaço Pessoal ou do
-   Empresarial, já que isso não dá pra saber só pelo remetente. Devolve
-   "pessoal" | "empresarial" | null (fechou sem escolher — continua pendente). */
-function escolherEspacoExtratoEmail(pendente) {
-  return new Promise(resolve => {
-    const ov = document.createElement("div");
-    ov.className = "confirm-ov";
-    ov.innerHTML = `
-      <div class="confirm-box is-neutro" role="alertdialog" aria-modal="true">
-        <h3 class="confirm-titulo">Extrato recebido por e-mail</h3>
-        <p class="confirm-msg">Esse extrato${pendente.remetente ? ` (recebido de ${esc(pendente.remetente)})` : ""} é do espaço Pessoal ou do Empresarial?</p>
-        <div class="confirm-btns">
-          <button class="confirm-cancel">Pessoal</button>
-          <button class="confirm-ok">Empresarial</button>
-        </div>
-      </div>`;
-    document.body.appendChild(ov);
-    requestAnimationFrame(() => ov.classList.add("open"));
-    const fechar = val => {
-      ov.classList.remove("open");
-      setTimeout(() => ov.remove(), 200);
-      resolve(val);
-    };
-    ov.querySelector(".confirm-ok").onclick = () => fechar("empresarial");
-    ov.querySelector(".confirm-cancel").onclick = () => fechar("pessoal");
-    // Fechar clicando fora não deve escolher "Pessoal" silenciosamente —
-    // aqui os dois botões já SÃO escolhas de verdade, então fechar sem
-    // clicar em nenhum dos dois devolve null (continua pendente).
-    ov.addEventListener("click", e => { if (e.target === ov) fechar(null); });
-    ov.addEventListener("keydown", e => { if (e.key === "Escape") fechar(null); });
-  });
-}
-
 /* Como o e-mail não diz de qual conta é o extrato (diferente do upload
    manual, onde a pessoa já escolhe a conta antes de enviar o arquivo),
    pergunta isso antes de abrir a revisão de verdade. Reaproveita o
@@ -5241,21 +5323,8 @@ async function abrirRevisaoExtratoEmail() {
   const painelSino = document.getElementById("sinoPainel");
   if (painelSino) painelSino.hidden = true;
 
-  // O e-mail sozinho não diz se o extrato é do espaço Pessoal ou do
-  // Empresarial — só quem tem os dois espaços liberados (perfil.empresarial)
-  // precisa escolher; quem só tem o Pessoal nem vê essa pergunta, vai direto
-  // sem fricção à toa (é o caso da imensa maioria das contas).
-  let contextoDoExtrato = "pessoal";
-  if (state.perfil?.empresarial) {
-    const escolha = await escolherEspacoExtratoEmail(pendente);
-    if (!escolha) return; // fechou sem escolher — continua pendente pra próxima vez
-    contextoDoExtrato = escolha;
-  }
-
-  if (contextoDoExtrato !== state.contextoAtivo) {
-    await alternarContexto(contextoDoExtrato);
-  }
-
+  // Cada conta tem um espaço só (e, no Empresarial, o extrato entra na
+  // empresa ativa — dá pra trocar de empresa antes de revisar).
   if (!state.bancos.length) {
     // Sem conta cadastrada não dá pra revisar — em vez de só avisar e
     // deixar a pessoa procurar sozinha, já leva direto pra tela de criar
@@ -6348,14 +6417,20 @@ document.getElementById("formDadosEmpresa")?.addEventListener("submit", async e 
     cnpjInput.focus();
     return;
   }
+  // Os dados são da empresa ATIVA (cada empresa tem os seus).
+  const emp = empresaAtiva();
+  if (!emp) { toast("Nenhuma empresa ativa pra salvar os dados.", "error"); return; }
   try {
-    const salvo = await salvarPerfil({
-      empresa_cnpj: cnpjDigitado ? formatarCnpj(cnpjDigitado) : null,
-      empresa_razao_social: razaoInput.value.trim() || null,
-      empresa_nome_fantasia: fantasiaInput.value.trim() || null
+    const salvo = await dbUpdate("empresas", emp.id, {
+      cnpj: cnpjDigitado ? formatarCnpj(cnpjDigitado) : null,
+      razao_social: razaoInput.value.trim() || null,
+      nome_fantasia: fantasiaInput.value.trim() || null
     });
-    state.perfil = mapPerfil(salvo);
-    toast("Dados da empresa salvos!", "success");
+    if (salvo) {
+      const i = state.empresas.findIndex(e => e.id === emp.id);
+      if (i >= 0) state.empresas[i] = mapEmpresa(salvo);
+    }
+    toast(`Dados de "${emp.nome}" salvos!`, "success");
   } catch (err) { tratarErro(err); }
 });
 
@@ -6435,7 +6510,7 @@ document.getElementById("nfArquivoImportar")?.addEventListener("change", async e
         tipoArquivo: arquivo.type,
         token: localStorage.getItem("fp_token") || "",
         hoje: hojeISO(),
-        meuCnpj: state.perfil?.empresaCnpj || ""
+        meuCnpj: empresaAtiva()?.cnpj || ""
       })
     });
     const dados = await resp.json();
@@ -8786,49 +8861,6 @@ function ocorrenciasNaJanela(deISO, ateISO) {
   return itens.sort((a, b) => a.vencimento.localeCompare(b.vencimento));
 }
 
-/* Versão leve de "tem algo pra resolver", usada só pra acender a bolinha
-   vermelha do espaço que NÃO está ativo agora (seletor Pessoal/Empresarial
-   na sidebar — ver atualizarSeletorContexto()). Recebe os arrays BRUTOS
-   (como vêm do Supabase, chave em snake_case) já buscados em
-   carregarDadosNuvem() — não faz nenhuma consulta nova, e não mexe em
-   state.* (por isso não reaproveita calcularAvisos(), que é amarrado ao
-   contexto ativo). Olha só o que é rápido de checar: lançamento avulso
-   pendente vencido/vencendo, ou ocorrência de recorrência não paga —
-   não cobre saldo negativo nem meta estourada do outro espaço. */
-function haCompromissoPendente(contexto, movimentosBrutos, recorrenciasBrutas, recPagamentosBrutos) {
-  const limite = somarDias(hojeISO(), 5); // mesmo horizonte de calcularAvisos()
-  const doContexto = linha => (linha.contexto || "pessoal") === contexto;
-
-  const temAvulso = (movimentosBrutos || []).some(m => {
-    if (!doContexto(m)) return false;
-    if (m.tipo !== "gasto" || (m.status || "pago") !== "pendente") return false;
-    const venc = m.vencimento || m.data;
-    return venc && venc <= limite;
-  });
-  if (temAvulso) return true;
-
-  const recDoOutro = (recorrenciasBrutas || []).filter(r => doContexto(r) && r.ativa !== false);
-  if (!recDoOutro.length) return false;
-
-  const pagas = new Set(
-    (recPagamentosBrutos || [])
-      .filter(doContexto)
-      .map(p => `${p.recorrencia_id}|${p.vencimento}`)
-  );
-  return recDoOutro.some(r => {
-    const rec = {
-      ativa: true,
-      inicio: r.inicio || (r.dia ? `${mesAtualISO()}-${String(r.dia).padStart(2,"0")}` : hojeISO()),
-      fim: r.fim || null,
-      frequencia: r.frequencia || "mensal",
-      intervalo: r.intervalo || 1,
-      intervaloUnidade: r.intervalo_unidade || "meses"
-    };
-    return ocorrenciasDe(rec, "2000-01-01", limite).some(venc => !pagas.has(`${r.id}|${venc}`));
-  });
-}
-
-
 /* Descrição legível da frequência */
 function textoFrequencia(rec) {
   switch (rec.frequencia) {
@@ -9838,7 +9870,9 @@ function rolarPara(id) {
 
 /* Seletor Pessoal/Empresarial dos cards de plano na landing — mostra só
    um card por vez, com um brilho (bloom) na entrada do escolhido. */
+let _tipoLandingAtual = "pessoal";   // aba de planos aberta na landing
 function selecionarPlanoLanding(tipo) {
+  _tipoLandingAtual = tipo === "empresarial" ? "empresarial" : "pessoal";
   document.querySelectorAll(".plano-selector-opt").forEach(b => {
     const ativo = b.dataset.plano === tipo;
     b.classList.toggle("ativo", ativo);
@@ -10109,12 +10143,19 @@ function iniciarPainelDemo() {
 }
 
 /* ─── Auth: login/cadastro viram modal sobre a landing ───── */
-function abrirAuth(qual) {
+function abrirAuth(qual, tipoConta) {
   const tela = document.getElementById("telaLogin");
   if (!tela) return;
   tela.style.display = "flex";
   document.body.style.overflow = "hidden";
   mostrarTela(qual === "cadastro" ? "cadastro" : "login");
+  if (qual === "cadastro") {
+    // Já marca Pessoal/Empresa conforme o botão (ou a aba de planos) da landing.
+    const tipo = tipoConta || _tipoLandingAtual || "pessoal";
+    const radio = document.querySelector(`input[name="cadTipo"][value="${tipo}"]`);
+    if (radio) radio.checked = true;
+    atualizarCadastroTipo();
+  }
   // Foco no primeiro campo (acessibilidade)
   setTimeout(() => {
     const campo = qual === "cadastro"
@@ -10126,19 +10167,37 @@ function abrirAuth(qual) {
 
 /* Clicou em "Assinar" na landing: abre o cadastro. Plano único agora —
    criar a conta já leva direto pro pagamento (ver o listener do formCadastro). */
-function assinarNaLanding() {
+function assinarNaLanding(tipoConta) {
   _pagamentoEscolhidoLanding = null;
-  abrirAuth("cadastro");
+  abrirAuth("cadastro", tipoConta);
 }
 
-/* Clicou em "Quero o vitalício" na landing (só existe pro Pessoal — o
-   Empresarial vitalício, como o mensal, só é escolhido dentro do app depois
-   de logado). Guarda a escolha pra o listener do formCadastro usar assim
-   que a conta for criada — ver _pagamentoEscolhidoLanding. */
+/* Tipo de conta marcado no cadastro: "pessoal" | "empresarial". */
+function tipoCadastroEscolhido() {
+  return document.querySelector('input[name="cadTipo"]:checked')?.value === "empresarial" ? "empresarial" : "pessoal";
+}
+/* Ajusta o subtítulo do cadastro ao tipo marcado (preço certo). */
+function atualizarCadastroTipo() {
+  const sub = document.getElementById("cadSub");
+  if (!sub) return;
+  sub.textContent = tipoCadastroEscolhido() === "empresarial"
+    ? `R$ ${PRECO_EMPRESARIAL_CHEIO.toFixed(2).replace(".", ",")}/mês, com 2 empresas inclusas. Cancele quando quiser.`
+    : `R$ ${PRECO_PLANO_CHEIO.toFixed(2).replace(".", ",")}/mês, com tudo incluso. Cancele quando quiser.`;
+}
+/* Cadastro pelo Google: o Google não passa pelo formulário, então o tipo
+   escolhido fica guardado no navegador até a conta voltar logada. */
+function cadastroComGoogle() {
+  guardarTipoContaPendente(tipoCadastroEscolhido());
+  loginComGoogle();
+}
+
+/* Clicou em "Quero o vitalício" na landing (Pessoal ou Empresarial).
+   Guarda a escolha pra o listener do formCadastro usar assim que a conta
+   for criada — ver _pagamentoEscolhidoLanding. */
 let _pagamentoEscolhidoLanding = null;
 function assinarVitalicioLanding(tipoConta) {
   _pagamentoEscolhidoLanding = "vitalicio";
-  abrirAuth("cadastro");
+  abrirAuth("cadastro", tipoConta === "empresarial" ? "empresarial" : "pessoal");
 }
 
 function fecharAuth() {
@@ -10489,8 +10548,11 @@ async function salvarPerfil(dados) {
 }
 
 function mapPerfil(p) {
-  if (!p) return { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null, plano: "basico", assinaturaStatus: "inativa", atrasoDesde: null, empresarial: false, vitalicio: false, empresaCnpj: "", empresaRazaoSocial: "", empresaNomeFantasia: "" };
+  if (!p) return { avatarTipo: "inicial", avatarPadrao: null, avatarUrl: null, nome: null, plano: "basico", assinaturaStatus: "inativa", atrasoDesde: null, empresarial: false, vitalicio: false, tipoConta: null };
   return {
+    // "pessoal" | "empresarial" — fixo depois de escolhido (o banco recusa
+    // trocar, ver trigger travar_tipo_conta). null = ainda não escolheu.
+    tipoConta: p.tipo_conta === "empresarial" || p.tipo_conta === "pessoal" ? p.tipo_conta : null,
     avatarTipo:   p.avatar_tipo   || "inicial",
     avatarPadrao: p.avatar_padrao || null,
     avatarUrl:    p.avatar_url    || null,
@@ -10508,12 +10570,37 @@ function mapPerfil(p) {
     // sem asaas_subscription_id, sem proxima_cobranca. Só afeta a UI (esconde
     // "cancelar assinatura"/aviso de renovação); o acesso em si já é
     // liberado normalmente via assinaturaStatus === "ativa".
-    vitalicio:        !!p.vitalicio,
-    // Dados da empresa (opcionais) — só aparecem no espaço Empresarial.
-    empresaCnpj:          p.empresa_cnpj          || "",
-    empresaRazaoSocial:   p.empresa_razao_social  || "",
-    empresaNomeFantasia:  p.empresa_nome_fantasia || ""
+    vitalicio:        !!p.vitalicio
+    // (Dados da empresa — CNPJ, razão social, nome fantasia — moraram aqui
+    // até 08/10/2026; agora são de cada empresa, ver mapEmpresa.)
   };
+}
+
+function mapEmpresa(e) {
+  return {
+    id: e.id,
+    nome: e.nome || "Minha empresa",
+    cnpj: e.cnpj || "",
+    razaoSocial: e.razao_social || "",
+    nomeFantasia: e.nome_fantasia || "",
+    criadoEm: e.criado_em || ""
+  };
+}
+
+/* Tipo de conta escolhido antes de a conta existir (na landing ou no
+   formulário de cadastro). Fica no navegador até o perfil ser gravado —
+   cobre o cadastro pelo Google, que sai do site e volta. */
+function guardarTipoContaPendente(tipo) {
+  try { localStorage.setItem("fp_tipo_conta_pendente", tipo === "empresarial" ? "empresarial" : "pessoal"); } catch (e) {}
+}
+function tipoContaPendente() {
+  try {
+    const t = localStorage.getItem("fp_tipo_conta_pendente");
+    return t === "empresarial" || t === "pessoal" ? t : null;
+  } catch (e) { return null; }
+}
+function limparTipoContaPendente() {
+  try { localStorage.removeItem("fp_tipo_conta_pendente"); } catch (e) {}
 }
 
 /* ============================================================
@@ -10564,6 +10651,9 @@ function planoAtual() {
   if (emailAutorizado(state.user?.email)) return "premium";
 
   const p = state.perfil || {};
+  // Conta Empresarial só libera com o plano Empresarial pago (o webhook marca
+  // perfil.empresarial) — pagar o Pessoal não abre o espaço da empresa.
+  if (p.tipoConta === "empresarial" && !p.empresarial) return "basico";
   const status = p.assinaturaStatus || "inativa";
   const plano  = p.plano || "basico";
   const ehPago = (plano === "premium" || plano === "master");
@@ -10819,88 +10909,187 @@ function atualizarSeloPlano() {
 }
 
 /* ============================================================
-   PESSOAL x EMPRESARIAL (espaços separados)
-   Alterna qual "contexto" está ativo. Tudo que o usuário cadastra fica
-   marcado com esse contexto (ver TABELAS_COM_CONTEXTO / dbInsert) e só
-   aparece de volta quando o mesmo contexto estiver ativo — Pessoal e
-   Empresarial nunca se misturam.
-   Empresarial é um plano à parte (R$ 41,90/mês): sem ele, o botão leva
-   para o upsell em vez de trocar de espaço.
+   PESSOAL x EMPRESARIAL — e as EMPRESAS de uma conta Empresarial
+   Desde 08/10/2026 cada conta tem UM tipo, escolhido no cadastro
+   (perfil.tipo_conta): Pessoal ou Empresarial. Não existe mais trocar de
+   espaço. Conta Empresarial pode ter várias empresas (2 grátis + 1 por
+   compra de "empresa extra"); o seletor no topo do menu troca a empresa
+   ativa, renomeia e adiciona. Tudo que se cadastra fica marcado com a
+   empresa ativa (dbInsert) e só aparece quando ela estiver ativa.
    ============================================================ */
 
-/* Troca de espaço financeiro e recarrega os dados já filtrados para ele. */
-async function alternarContexto(ctx) {
-  if (ctx !== "pessoal" && ctx !== "empresarial") return;
-  if (ctx === state.contextoAtivo) return;
+const ICONE_PREDIO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg>';
+const ICONE_LAPIS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+const ICONE_CHECK_EMP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const ICONE_MAIS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>';
 
-  if (ctx === "empresarial" && !state.perfil?.empresarial) {
-    irParaPlanos(
-      "Espaço Empresarial",
-      "Separe as finanças da sua empresa das suas finanças pessoais — assine o plano Empresarial para liberar."
-    );
-    // Já abre direto na aba Empresarial da tela de Planos — foi isso que a
-    // pessoa tentou acessar, não faz sentido cair na aba Pessoal.
-    selecionarPlanoTela("empresarial");
-    return;
-  }
-
-  state.contextoAtivo = ctx;
-  try { localStorage.setItem("fp_contexto", ctx); } catch (e) {}
-
-  atualizarSeletorContexto();
+/* Troca a empresa ativa e recarrega os dados já filtrados pra ela. */
+async function trocarEmpresa(id) {
+  if (!contaEmpresarial()) return;
+  if (!state.empresas.some(e => e.id === id)) return;
+  fecharMenuEmpresas();
+  if (id === state.empresaAtivaId) return;
+  state.empresaAtivaId = id;
+  try { localStorage.setItem(chaveEmpresaAtiva(), id); } catch (e) {}
   await carregarDadosNuvem();
+  atualizarSeletorContexto();
   renderTudo();
   trocarTela("dashboard");
+  toast(`Agora em "${empresaAtiva()?.nome}".`, "success");
 }
 
-/* Pinta o seletor Pessoal/Empresarial no topo do menu (sidebar e gaveta
-   mobile reaproveitam o mesmo HTML) de acordo com o contexto ativo e se
-   o plano Empresarial está liberado. */
-function atualizarSeletorContexto() {
-  // O espaço que NÃO está ativo agora — só ele pode mostrar a bolinha de
-  // aviso (o espaço ativo já tem seus avisos no sino, não precisa duplicar).
-  const outro = state.contextoAtivo === "empresarial" ? "pessoal" : "empresarial";
-
-  document.querySelectorAll(".contexto-btn").forEach(btn => {
-    const ctx = btn.dataset.contexto;
-    btn.classList.toggle("active", ctx === state.contextoAtivo);
-    const bloqueado = ctx === "empresarial" && !state.perfil?.empresarial;
-    btn.classList.toggle("contexto-btn-bloqueado", bloqueado);
-    let cadeado = btn.querySelector(".contexto-cadeado");
-    if (bloqueado) {
-      if (!cadeado) {
-        cadeado = document.createElement("span");
-        cadeado.className = "contexto-cadeado";
-        cadeado.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
-        btn.appendChild(cadeado);
-      }
-    } else if (cadeado) {
-      cadeado.remove();
-    }
-
-    // Bolinha de aviso: só no botão do espaço que não está ativo agora, e
-    // só quando esse espaço tem algo vencido/vencendo (calculado em
-    // carregarDadosNuvem() → haCompromissoPendente(), guardado em
-    // state.avisoOutroContexto). Some junto com o cadeado se o Empresarial
-    // estiver bloqueado — não faz sentido avisar de algo que a pessoa
-    // ainda não pode ver.
-    const temAviso = ctx === outro && !bloqueado && !!state.avisoOutroContexto;
-    let bolinha = btn.querySelector(".contexto-aviso-dot");
-    if (temAviso) {
-      if (!bolinha) {
-        bolinha = document.createElement("span");
-        bolinha.className = "contexto-aviso-dot";
-        bolinha.title = `Tem algo vencido ou vencendo no espaço ${ctx === "empresarial" ? "Empresarial" : "Pessoal"}`;
-        btn.appendChild(bolinha);
-      }
-    } else if (bolinha) {
-      bolinha.remove();
-    }
+/* Pergunta um nome (renomear/criar empresa). Devolve o texto ou null. */
+function pedirNome(titulo, { valor = "", descricao = "", okLabel = "Salvar" } = {}) {
+  return new Promise(resolve => {
+    const ov = document.createElement("div");
+    ov.className = "confirm-ov";
+    ov.innerHTML = `
+      <div class="confirm-box is-neutro" role="dialog" aria-modal="true">
+        <div class="confirm-ico">${ICONE_PREDIO}</div>
+        <h3 class="confirm-titulo">${esc(titulo)}</h3>
+        ${descricao ? `<p class="confirm-msg">${descricao}</p>` : ""}
+        <input type="text" class="prompt-input pedir-nome-input" maxlength="60" autocomplete="off" placeholder="Ex.: Loja Centro" />
+        <div class="confirm-btns">
+          <button class="confirm-cancel">Cancelar</button>
+          <button class="confirm-ok">${esc(okLabel)}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    requestAnimationFrame(() => ov.classList.add("open"));
+    const input = ov.querySelector("input");
+    input.value = valor;
+    setTimeout(() => { input.focus(); input.select(); }, 60);
+    const fechar = v => { ov.classList.remove("open"); setTimeout(() => ov.remove(), 200); resolve(v); };
+    const ok = () => {
+      const v = input.value.trim();
+      if (!v) { input.focus(); return; }
+      fechar(v.slice(0, 60));
+    };
+    ov.querySelector(".confirm-ok").onclick = ok;
+    ov.querySelector(".confirm-cancel").onclick = () => fechar(null);
+    input.addEventListener("keydown", e => { if (e.key === "Enter") ok(); if (e.key === "Escape") fechar(null); });
+    ov.addEventListener("click", e => { if (e.target === ov) fechar(null); });
   });
+}
+
+async function renomearEmpresa(id) {
+  const emp = state.empresas.find(e => e.id === id);
+  if (!emp) return;
+  fecharMenuEmpresas();
+  const nome = await pedirNome("Renomear empresa", { valor: emp.nome, descricao: "Use um nome fácil de reconhecer, pra não confundir uma empresa com a outra." });
+  if (!nome || nome === emp.nome) return;
+  try {
+    const salvo = await dbUpdate("empresas", id, { nome });
+    emp.nome = salvo?.nome || nome;
+    atualizarSeletorContexto();
+    toast("Nome da empresa atualizado!", "success");
+  } catch (e) { tratarErro(e); }
+}
+
+/* "+ Adicionar empresa": grátis até o limite; depois disso, leva pro
+   pagamento único da empresa extra (R$ 19,90). */
+async function adicionarEmpresa() {
+  fecharMenuEmpresas();
+  if (!contaEmpresarial()) return;
+  if (state.empresas.length >= limiteEmpresas()) {
+    const ok = await confirmar("Liberar mais uma empresa?", {
+      tipo: "neutro",
+      descricao: `Sua conta já tem ${state.empresas.length} empresas. Cada empresa a mais custa <strong>${fmtMoeda(PRECO_EMPRESA_EXTRA)}</strong>, pagamento único, sem mensalidade. Depois do pagamento, é só voltar aqui e criar.`,
+      okLabel: `Liberar por ${fmtMoeda(PRECO_EMPRESA_EXTRA)}`
+    });
+    if (ok) comprarEmpresaExtra();
+    return;
+  }
+  const restantesGratis = Math.max(0, limiteEmpresas() - state.empresas.length);
+  const nome = await pedirNome("Nova empresa", {
+    descricao: restantesGratis === 1 && state.extrasPagas === 0
+      ? "Essa é a sua empresa grátis a mais. Cada empresa tem as próprias contas, lançamentos e relatórios, sem misturar com as outras."
+      : "Cada empresa tem as próprias contas, lançamentos e relatórios, sem misturar com as outras.",
+    okLabel: "Criar empresa"
+  });
+  if (!nome) return;
+  try {
+    const nova = await dbInsert("empresas", { nome });
+    if (!nova?.id) throw new Error("Não foi possível criar a empresa.");
+    state.empresas.push(mapEmpresa(nova));
+    await trocarEmpresa(nova.id);
+  } catch (e) {
+    if (String(e?.message || "").includes("LIMITE_EMPRESAS")) {
+      toast("Você chegou no limite de empresas. Libere mais uma pra continuar.", "error");
+    } else tratarErro(e);
+  }
+}
+
+async function comprarEmpresaExtra() {
+  return _assinarPlano("empresarial", null, "faz_empresa_extra", "empresa_extra");
+}
+
+function abrirMenuEmpresas(ev) {
+  ev?.stopPropagation();
+  const menu = document.getElementById("empresaMenu");
+  const btn = document.getElementById("empresaSeletorBtn");
+  if (!menu || !btn) return;
+  if (!menu.hidden) { fecharMenuEmpresas(); return; }
+  renderMenuEmpresas();
+  menu.hidden = false;
+  btn.setAttribute("aria-expanded", "true");
+  setTimeout(() => menu.querySelector(".empresa-menu-item.ativa")?.focus(), 30);
+}
+function fecharMenuEmpresas() {
+  const menu = document.getElementById("empresaMenu");
+  if (menu) menu.hidden = true;
+  document.getElementById("empresaSeletorBtn")?.setAttribute("aria-expanded", "false");
+}
+document.addEventListener("click", e => {
+  if (!e.target.closest?.("#empresaSeletor")) fecharMenuEmpresas();
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") fecharMenuEmpresas(); });
+
+function renderMenuEmpresas() {
+  const menu = document.getElementById("empresaMenu");
+  if (!menu) return;
+  const restantes = limiteEmpresas() - state.empresas.length;
+  const rotuloAdicionar = restantes > 0
+    ? `Grátis · ${state.empresas.length} de ${limiteEmpresas()}`
+    : `${fmtMoeda(PRECO_EMPRESA_EXTRA)}, pagamento único`;
+  menu.innerHTML = `
+    <p class="empresa-menu-titulo">Suas empresas</p>
+    ${state.empresas.map(e => `
+      <div class="empresa-menu-linha">
+        <button type="button" class="empresa-menu-item${e.id === state.empresaAtivaId ? " ativa" : ""}" onclick="trocarEmpresa('${e.id}')" title="${esc(e.nome)}" aria-current="${e.id === state.empresaAtivaId ? "true" : "false"}">
+          <span class="empresa-menu-check">${e.id === state.empresaAtivaId ? ICONE_CHECK_EMP : ""}</span>
+          <span class="empresa-menu-nome">${esc(e.nome)}</span>
+        </button>
+        <button type="button" class="empresa-menu-renomear" onclick="renomearEmpresa('${e.id}')" aria-label="Renomear ${esc(e.nome)}" title="Renomear">${ICONE_LAPIS}</button>
+      </div>`).join("")}
+    <button type="button" class="empresa-menu-adicionar" onclick="adicionarEmpresa()">
+      <span class="empresa-menu-mais">${ICONE_MAIS}</span>
+      <span><strong>Adicionar empresa</strong><small>${rotuloAdicionar}</small></span>
+    </button>`;
+}
+
+/* Pinta o topo do menu: conta Pessoal não tem seletor nenhum; conta
+   Empresarial mostra a empresa ativa (com o menu de trocar/renomear/
+   adicionar). Também mostra/esconde o que só existe no Empresarial. */
+function atualizarSeletorContexto() {
+  const empresarial = state.contextoAtivo === "empresarial";
+  const seletor = document.getElementById("empresaSeletor");
+  if (seletor) seletor.hidden = !empresarial;
+  if (empresarial) {
+    const nome = empresaAtiva()?.nome || "Minha empresa";
+    const elNome = document.getElementById("empresaSeletorNome");
+    if (elNome) elNome.textContent = nome;
+    const btn = document.getElementById("empresaSeletorBtn");
+    if (btn) btn.dataset.tooltip = nome;
+    if (!document.getElementById("empresaMenu")?.hidden) renderMenuEmpresas();
+  } else {
+    fecharMenuEmpresas();
+  }
+  // Tela de Planos: só o plano do tipo da conta (sem abas).
+  if (typeof selecionarPlanoTela === "function") selecionarPlanoTela(state.contextoAtivo);
 
   // Itens que só existem no espaço Empresarial (menu "Notas Fiscais",
   // grupo "Dados da empresa" na tela de Conta) — escondidos no Pessoal.
-  const empresarial = state.contextoAtivo === "empresarial";
   document.querySelectorAll(".menu-item-empresarial").forEach(el => { el.hidden = !empresarial; });
   const grupoEmpresa = document.getElementById("contaGrupoEmpresa");
   if (grupoEmpresa) {
@@ -10909,9 +11098,10 @@ function atualizarSeletorContexto() {
       const cnpj = document.getElementById("empresaCnpj");
       const razao = document.getElementById("empresaRazaoSocial");
       const fantasia = document.getElementById("empresaNomeFantasia");
-      if (cnpj && document.activeElement !== cnpj) cnpj.value = state.perfil?.empresaCnpj || "";
-      if (razao && document.activeElement !== razao) razao.value = state.perfil?.empresaRazaoSocial || "";
-      if (fantasia && document.activeElement !== fantasia) fantasia.value = state.perfil?.empresaNomeFantasia || "";
+      const emp = empresaAtiva() || {};
+      if (cnpj && document.activeElement !== cnpj) cnpj.value = emp.cnpj || "";
+      if (razao && document.activeElement !== razao) razao.value = emp.razaoSocial || "";
+      if (fantasia && document.activeElement !== fantasia) fantasia.value = emp.nomeFantasia || "";
     }
   }
 }
@@ -12618,7 +12808,10 @@ function montarResumoFinanceiro() {
   }
   // Dados da empresa (só faz sentido mostrar dentro do espaço Empresarial)
   if (state.contextoAtivo === "empresarial") {
-    const { empresaCnpj, empresaRazaoSocial, empresaNomeFantasia } = state.perfil || {};
+    const emp = empresaAtiva() || {};
+    const empresaCnpj = emp.cnpj, empresaRazaoSocial = emp.razaoSocial, empresaNomeFantasia = emp.nomeFantasia;
+    linhas.push(`Empresa ativa agora: "${emp.nome || "Minha empresa"}"` +
+      (state.empresas.length > 1 ? ` (a conta tem ${state.empresas.length} empresas: ${state.empresas.map(e => `"${e.nome}"`).join(", ")} — você só vê os dados da ativa).` : "."));
     if (empresaCnpj || empresaRazaoSocial || empresaNomeFantasia) {
       linhas.push("Dados da empresa cadastrados:");
       if (empresaRazaoSocial) linhas.push(`  - Razão social: ${empresaRazaoSocial}`);
@@ -15169,7 +15362,7 @@ const ACOES_IA = {
     },
     preparar(d) {
       if (state.contextoAtivo !== "empresarial") {
-        return { erro: "Notas fiscais só existem no espaço Empresarial. Explique que ele precisa trocar pro espaço Empresarial no seletor da sidebar primeiro (ou usar a ferramenta trocar_contexto, se ele pedir)." };
+        return { erro: "Notas fiscais só existem em conta Empresarial. Esta é uma conta Pessoal — explique que Pessoal e Empresarial são contas separadas no FAZ, e que pra controlar uma empresa ele precisa de uma conta Empresarial à parte." };
       }
       const p = {};
       p.valor = valorIA(d.valor);
@@ -15238,7 +15431,7 @@ const ACOES_IA = {
     },
     preparar(d) {
       if (state.contextoAtivo !== "empresarial") {
-        return { erro: "Notas fiscais só existem no espaço Empresarial. Explique que ele precisa trocar pro espaço Empresarial primeiro." };
+        return { erro: "Notas fiscais só existem no espaço Empresarial. Esta é uma conta Pessoal — explique que Pessoal e Empresarial são contas separadas no FAZ, e que pra isso ele precisa de uma conta Empresarial à parte." };
       }
       return _acharItemIA(d, "Qual nota fiscal você quer apagar?", {
         lista: state.notasFiscais || [],
@@ -15280,7 +15473,7 @@ const ACOES_IA = {
     },
     preparar(d) {
       if (state.contextoAtivo !== "empresarial") {
-        return { erro: "Clientes e fornecedores só existem no espaço Empresarial. Explique que ele precisa trocar pro espaço Empresarial primeiro." };
+        return { erro: "Clientes e fornecedores só existem no espaço Empresarial. Esta é uma conta Pessoal — explique que Pessoal e Empresarial são contas separadas no FAZ, e que pra isso ele precisa de uma conta Empresarial à parte." };
       }
       const nome = String(d.nome == null ? "" : d.nome).trim().slice(0, 120);
       if (!nome) {
@@ -15343,7 +15536,7 @@ const ACOES_IA = {
     },
     preparar(d) {
       if (state.contextoAtivo !== "empresarial") {
-        return { erro: "Clientes e fornecedores só existem no espaço Empresarial. Explique que ele precisa trocar pro espaço Empresarial primeiro." };
+        return { erro: "Clientes e fornecedores só existem no espaço Empresarial. Esta é uma conta Pessoal — explique que Pessoal e Empresarial são contas separadas no FAZ, e que pra isso ele precisa de uma conta Empresarial à parte." };
       }
       return _acharItemIA(d, "Qual cadastro você quer apagar?", {
         lista: state.contatos || [],
@@ -15368,32 +15561,38 @@ const ACOES_IA = {
     }
   },
 
-  trocar_contexto: {
-    descricao: "Troca o espaço financeiro ativo entre Pessoal e Empresarial. Use quando o usuário pedir pra trocar, mudar ou ir pro espaço Empresarial ou Pessoal.",
+  trocar_empresa: {
+    descricao: "Troca a empresa ativa (só em conta Empresarial com mais de uma empresa). Use quando o usuário pedir pra ir pra outra empresa dele, pelo nome.",
     parametros: {
       type: "object",
       properties: {
-        espaco: { type: "string", enum: ["pessoal", "empresarial"], description: "Pra qual espaço trocar." }
+        empresa: { type: "string", description: "Nome (ou parte do nome) da empresa pra onde trocar." }
       },
-      required: ["espaco"]
+      required: ["empresa"]
     },
     preparar(d) {
-      const espaco = normIA(d.espaco) === "empresarial" ? "empresarial" : "pessoal";
-      if (espaco === "empresarial" && !state.perfil?.empresarial) {
-        return { erro: "O usuário não tem o plano Empresarial. Explique que precisa assinar (R$ 41,90/mês) na tela de Planos antes de usar esse espaço." };
+      if (!contaEmpresarial()) {
+        return { erro: "Esta é uma conta Pessoal: não tem empresas. Pessoal e Empresarial são contas separadas no FAZ — pra controlar uma empresa, é preciso criar uma conta Empresarial à parte." };
       }
-      return { dados: { espaco }, perguntas: [] };
+      const alvo = normIA(d.empresa);
+      const achadas = state.empresas.filter(e => normIA(e.nome) === alvo);
+      const lista = achadas.length ? achadas : state.empresas.filter(e => alvo && normIA(e.nome).includes(alvo));
+      if (lista.length !== 1) {
+        const nomes = state.empresas.map(e => `"${e.nome}"`).join(", ");
+        return { erro: lista.length ? `Mais de uma empresa bate com "${d.empresa}". As empresas dele são: ${nomes}. Pergunte qual.` : `Nenhuma empresa chamada "${d.empresa}". As empresas dele são: ${nomes}.` };
+      }
+      return { dados: { id: lista[0].id, nome: lista[0].nome }, perguntas: [] };
     },
     async executar(p) {
-      if (p.espaco === state.contextoAtivo) {
-        return { ok: true, titulo: "Já estava lá", mensagem: `Você já está no espaço ${p.espaco === "empresarial" ? "Empresarial" : "Pessoal"}.` };
+      if (p.id === state.empresaAtivaId) {
+        return { ok: true, titulo: "Já estava lá", mensagem: `Você já está em "${p.nome}".` };
       }
-      await alternarContexto(p.espaco);
+      await trocarEmpresa(p.id);
       return {
         ok: true,
-        titulo: "Espaço trocado",
-        recibo: [{ rotulo: "Espaço ativo", valor: p.espaco === "empresarial" ? "Empresarial" : "Pessoal" }],
-        mensagem: `Troquei pro espaço ${p.espaco === "empresarial" ? "Empresarial" : "Pessoal"}.`
+        titulo: "Empresa trocada",
+        recibo: [{ rotulo: "Empresa ativa", valor: p.nome }],
+        mensagem: `Troquei pra "${p.nome}".`
       };
     }
   }
@@ -16022,12 +16221,13 @@ async function executarAcaoIA(acao) {
       if (!retomou) {
         const nome = primeiroNome();
         const abertura = nome ? "Oi, " + nome + "!" : "Oi!";
-        // Saudação muda conforme o espaço ativo — nunca mistura os dois na
-        // mesma mensagem (ver ESPAÇOS PESSOAL E EMPRESARIAL em chat-ia.js).
-        // Curta, pontuação correta, sem travessão, terminando em emoji.
+        // Saudação muda conforme o tipo da conta (e, no Empresarial, diz em
+        // qual empresa está). Curta, pontuação correta, sem travessão,
+        // terminando em emoji.
         const empresarial = state.contextoAtivo === "empresarial";
+        const nomeEmpresa = empresaAtiva()?.nome;
         const saudacao = empresarial
-          ? abertura + " Sou o Assistente FAZ no espaço **Empresarial**. Me conta um gasto, tipo \"paguei 800 de fornecedor\", que eu registro pra você 👋"
+          ? abertura + " Sou o Assistente FAZ" + (nomeEmpresa ? " na empresa **" + nomeEmpresa + "**" : "") + ". Me conta um gasto, tipo \"paguei 800 de fornecedor\", que eu registro pra você 👋"
           : abertura + " Sou o Assistente FAZ. Me conta um gasto, tipo \"gastei 50 no mercado\", que eu registro pra você 👋";
         addMsg(saudacao, "ia");
         conversaIniciada = true;
@@ -16104,11 +16304,12 @@ async function executarAcaoIA(acao) {
           resumoFinanceiro: resumo,
           token: token,
           historico: historicoEnvio,
-          // Pra IA saber em qual espaço está respondendo (Pessoal ou
-          // Empresarial) e se o outro espaço existe — sem nunca receber os
-          // dados financeiros do espaço que não está ativo agora.
+          // Pra IA saber se a conta é Pessoal ou Empresarial (e, no
+          // Empresarial, qual empresa está ativa — os dados das outras
+          // empresas nunca vão junto).
           contexto: state.contextoAtivo || "pessoal",
-          temEmpresarial: !!state.perfil?.empresarial
+          empresaAtiva: contaEmpresarial() ? (empresaAtiva()?.nome || null) : null,
+          totalEmpresas: contaEmpresarial() ? state.empresas.length : 0
         };
         if (typeof esquemaAcoesIA === "function") corpo.acoes = esquemaAcoesIA();
         if (extras.length) { corpo.continuacao = true; corpo.extras = extras; }

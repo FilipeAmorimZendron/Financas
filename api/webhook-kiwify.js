@@ -4,8 +4,9 @@
 // Quando o pagamento é confirmado, liberamos o plano do usuário no Supabase.
 //
 // Diferente do Asaas, aqui NÃO existe API pra criar checkout dinâmico — os
-// 4 produtos (Pessoal Mensal, Empresarial Mensal, Pessoal Vitalício,
-// Empresarial Vitalício) são cadastrados manualmente no painel da Kiwify.
+// produtos (Pessoal Mensal, Empresarial Mensal, Pessoal Vitalício,
+// Empresarial Vitalício e Empresa Extra) são cadastrados manualmente no
+// painel da Kiwify.
 // O link de cada um mora em api/criar-checkout.js. Qual plano liberar é
 // decidido pelo NOME do produto que vem no webhook, procurando só
 // palavra-chave (ver classificarProduto) — não precisa bater exato com o
@@ -61,6 +62,12 @@ function normalizar(txt) {
 function classificarProduto(nomeProduto) {
   const nome = normalizar(nomeProduto);
   if (!nome) return null;
+  // "Empresa extra" (R$ 19,90, pagamento único) — NÃO é plano: só libera
+  // mais uma empresa numa conta Empresarial. Checado antes de tudo porque
+  // o nome do produto pode ter "empresarial" também.
+  if (nome.includes("extra") && nome.includes("empresa")) {
+    return { tipoConta: "empresa_extra", tipoPagamento: "unico" };
+  }
   const tipoConta = nome.includes("empresarial") ? "empresarial" : "pessoal";
   const tipoPagamento = nome.includes("vitalici") ? "vitalicio" : "mensal";
   return { tipoConta, tipoPagamento };
@@ -200,6 +207,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, motivo: "usuário não identificado" });
     }
 
+    // Empresa extra: grava/estorna a compra na tabela própria (uma linha por
+    // pedido, então reenvio do webhook não libera duas empresas). Não mexe
+    // no plano nem na assinatura da pessoa — estorno dela também não.
+    if (tipoConta === "empresa_extra") {
+      return await tratarEmpresaExtra({ evento, orderStatus, body, userId, email, res });
+    }
+
     let atualizacao = null;
 
     // Compra aprovada — vale tanto pro Vitalício (pagamento único) quanto
@@ -309,6 +323,51 @@ export default async function handler(req, res) {
     console.error("Erro no webhook Kiwify:", e);
     return res.status(200).json({ ok: false, motivo: "erro interno" });
   }
+}
+
+async function tratarEmpresaExtra({ evento, orderStatus, body, userId, email, res }) {
+  const orderId = body.order_id ? String(body.order_id) : "";
+  if (!orderId) {
+    console.error("Empresa extra sem order_id — não dá pra registrar sem duplicar:", userId);
+    return res.status(200).json({ ok: false, motivo: "sem order_id" });
+  }
+  const cabecalhos = {
+    apikey: SUPABASE_SERVICE_KEY,
+    Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+    "Content-Type": "application/json",
+  };
+
+  if (evento === "order_approved" && orderStatus === "paid") {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/empresas_extras_compras`, {
+      method: "POST",
+      headers: { ...cabecalhos, Prefer: "resolution=ignore-duplicates,return=minimal" },
+      body: JSON.stringify({ order_id: orderId, user_id: userId, status: "paga" }),
+    });
+    if (!resp.ok) {
+      console.error("Falha ao registrar empresa extra:", resp.status, await resp.text());
+      return res.status(200).json({ ok: false, motivo: "falha supabase" });
+    }
+    console.log(`EMPRESA EXTRA liberada (Kiwify) para ${userId} — pedido ${orderId}`);
+    await enviarPurchaseFacebook({
+      valor: Number(body.Commissions?.charge_amount || 0) / 100,
+      email,
+      plano: "empresa_extra",
+      idEvento: orderId,
+    });
+    return res.status(200).json({ ok: true, userId, evento });
+  }
+
+  if (evento === "order_refunded" || evento === "chargeback") {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/empresas_extras_compras?order_id=eq.${encodeURIComponent(orderId)}`,
+      { method: "PATCH", headers: { ...cabecalhos, Prefer: "return=minimal" }, body: JSON.stringify({ status: "estornada" }) }
+    );
+    if (!resp.ok) console.error("Falha ao estornar empresa extra:", resp.status, await resp.text());
+    console.log(`EMPRESA EXTRA estornada (Kiwify, ${evento}) para ${userId} — pedido ${orderId}`);
+    return res.status(200).json({ ok: true, userId, evento });
+  }
+
+  return res.status(200).json({ ok: true, evento, acao: "ignorado" });
 }
 
 /* Envia o evento de compra (Purchase) pro Facebook via Conversions API.
