@@ -392,7 +392,6 @@ button, input, textarea, select {
 @media (max-width: 420px) { .escolher-tipo-opcoes { grid-template-columns: 1fr; } }
 
 /* Itens escondidos pelo atributo hidden mesmo com display próprio */
-#telaAssinar .assinar-lista[hidden],
 #screen-planos .plano-tab-selector[hidden] { display: none; }
 
 .menu { display: flex; flex-direction: column; gap: 2px; }
@@ -4047,6 +4046,14 @@ body.sem-internet .layout { padding-top: 34px; }
   background: rgba(1, 16, 37, 0.6);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  /* Mesma paleta da landing — os cards aqui dentro são os mesmos de lá
+     (.lp-assinar-shell), que leem estas variáveis. */
+  --lp-text:      #E6EEF5;
+  --lp-text-dim:  #7C8FA3;
+  --lp-line:      #2C384A;
+  --lp-teal:      #1EF6DD;
+  --lp-teal-soft: #19D1BB;
+  --lp-amber:     #F5A524;
 }
 #telaAssinar::before { content: none; }
 /* Sem moldura própria — o overlay escuro atrás (#telaAssinar) já dá o
@@ -4054,9 +4061,13 @@ body.sem-internet .layout { padding-top: 34px; }
 .assinar-shell {
   position: relative;
   width: 100%;
-  max-width: 640px;
-  max-height: 90vh;
+  max-width: 900px;
+  max-height: 94vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Barra de rolagem fina e escura (a padrão aparecia branca no meio da tela) */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.18) transparent;
   background: none;
   border: none;
   padding: 24px 12px 36px;
@@ -4077,7 +4088,21 @@ body.sem-internet .layout { padding-top: 34px; }
   letter-spacing: 0.03em;
   box-shadow: 0 4px 18px rgba(245,165,36,0.45);
 }
+.assinar-badge-empresarial {
+  background: linear-gradient(135deg, #19D1BB, #1EF6DD);
+  color: #062420;
+  box-shadow: 0 4px 18px rgba(30,246,221,0.35);
+}
 .assinar-logo { height: 26px; margin-bottom: 20px; }
+.assinar-shell::-webkit-scrollbar { width: 8px; }
+.assinar-shell::-webkit-scrollbar-track { background: transparent; }
+.assinar-shell::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 8px; }
+.assinar-variante[hidden] { display: none; }
+#telaAssinar .lp-assinar-shell { max-width: 860px; padding: 8px 0 0; }
+#telaAssinar .plano-opcao-preco { white-space: nowrap; }
+.assinar-conta { margin: 18px 0 0; font-size: 12.5px; color: #7C8FA3; }
+.assinar-conta:empty { display: none; }
+.assinar-conta + .assinar-sair { margin-top: 8px; }
 .assinar-titulo {
   font-family: 'Sora', sans-serif;
   font-size: 25px;
@@ -4087,24 +4112,6 @@ body.sem-internet .layout { padding-top: 34px; }
 }
 .assinar-sub { font-size: 15px; color: #93A5B8; margin: 0 0 26px; line-height: 1.5; }
 
-.assinar-lista {
-  list-style: none;
-  margin: 0 0 30px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  text-align: left;
-}
-.assinar-lista li {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: 15px;
-  color: #E6EEF5;
-  line-height: 1.48;
-}
-.assinar-lista li svg { width: 17px; height: 17px; flex-shrink: 0; margin-top: 1px; color: #1EF6DD; }
 /* CTA em laranja/âmbar com um pulso sutil — o botão é o único elemento
    quente na tela, pra ficar óbvio onde clicar. */
 
@@ -4113,7 +4120,7 @@ body.sem-internet .layout { padding-top: 34px; }
    shell mais largo (pra caber os dois cards .plano-opcao lado a lado);
    só a dupla de preço usa a largura cheia do shell. Vem depois das regras
    acima de propósito, pra vencer o "margin" (shorthand) delas na cascata. */
-.assinar-titulo, .assinar-sub, .assinar-lista, .assinar-rodape {
+.assinar-titulo, .assinar-sub, .assinar-rodape {
   max-width: 420px;
   margin-left: auto;
   margin-right: auto;
@@ -4204,38 +4211,6 @@ body.sem-internet .layout { padding-top: 34px; }
   transition: color 0.2s;
 }
 .assinar-sair:hover { color: #E6EEF5; text-decoration: underline; }
-/* Override escuro do .plano-opcao (definido perto de .plano-card) — a tela
-   de assinatura obrigatória não segue o tema claro/escuro do app, é sempre
-   escura, então fixa as cores em vez de usar var(--surface)/var(--accent). */
-#telaAssinar .planos-duo { margin: 8px 0 12px; }
-#telaAssinar .plano-opcao {
-  /* O preenchimento precisa ficar CLARAMENTE mais claro que o fundo da
-     tela (#011025) do início ao fim do gradiente — antes ele escurecia
-     de novo perto do fundo do card e quase sumia no fundo da página,
-     o que faz o olho só enxergar a borda reta (um "quadrado desenhado")
-     em vez de uma superfície com relevo de verdade. */
-  background: linear-gradient(165deg, #16283F 0%, #101F36 100%);
-  border-color: rgba(76,141,245,0.22);
-  box-shadow: 0 28px 64px -20px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
-}
-#telaAssinar .plano-opcao-icone { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.16); color: #7C8FA3; }
-#telaAssinar .plano-opcao-nome { color: #7C8FA3; }
-#telaAssinar .plano-opcao-preco { color: #E6EEF5; }
-#telaAssinar .plano-opcao-preco .plano-opcao-ciclo { color: #7C8FA3; }
-#telaAssinar .plano-opcao-explicacao { color: #93A5B8; }
-#telaAssinar .plano-opcao-vantagens li { color: #E6EEF5; }
-#telaAssinar .plano-opcao-vantagens li svg { color: #7C8FA3; }
-#telaAssinar .plano-opcao-destaque .plano-opcao-vantagens li svg { color: #F5A524; }
-#telaAssinar .plano-opcao-btn { border-color: rgba(255,255,255,0.18); color: #E6EEF5; }
-#telaAssinar .plano-opcao-btn:hover { border-color: #1EF6DD; color: #1EF6DD; }
-#telaAssinar .plano-opcao-destaque {
-  border-color: #F5A524;
-  background: linear-gradient(165deg, rgba(245,165,36,0.18), #101F36 100%);
-  box-shadow: 0 28px 64px -20px rgba(245,165,36,0.3), 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
-}
-#telaAssinar .plano-opcao-destaque .plano-opcao-icone { background: rgba(245,165,36,0.14); border-color: #F5A524; color: #F5A524; }
-#telaAssinar .plano-opcao-destaque .plano-opcao-btn { background: #F5A524; color: #1a1205; box-shadow: 0 10px 24px -6px rgba(245,165,36,0.5); }
-#telaAssinar .plano-opcao-destaque .plano-opcao-btn:hover { color: #1a1205; }
 @media (max-width: 480px) {
   .assinar-shell { padding: 36px 24px 28px; }
 }

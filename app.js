@@ -1281,19 +1281,21 @@ function mostrarTelaAssinar() {
   document.body.style.overflow = "hidden";
 }
 
-/* Ajusta a tela de assinatura ao tipo da conta (preços, textos, lista). */
+/* Ajusta a tela de assinatura ao tipo da conta: textos do topo, qual
+   par de cards aparece (mesmos da landing) e com qual e-mail está logado. */
 function prepararTelaAssinar() {
   const emp = contaEmpresarial();
   const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
   set("assinarBadge", emp ? "Plano Empresarial" : "Plano Pessoal");
-  set("assinarTitulo", emp ? "Libere o espaço da sua empresa" : "Assine e libere tudo");
+  document.getElementById("assinarBadge")?.classList.toggle("assinar-badge-empresarial", emp);
+  set("assinarTitulo", emp ? "Libere a conta da sua empresa" : "Assine e libere tudo");
   set("assinarSub", emp
     ? "Finanças do negócio organizadas, com 2 empresas inclusas. Escolha mensal ou pague uma vez só."
     : "Sem versão limitada, sem trava de recursos. Escolha mensal ou pague uma vez só.");
-  set("assinarPrecoMensal", emp ? "41,90" : "26,90");
-  set("assinarPrecoVitalicio", emp ? "479,90" : "369,90");
-  document.querySelectorAll("#telaAssinar .assinar-lista-pessoal").forEach(el => { el.hidden = emp; });
-  document.querySelectorAll("#telaAssinar .assinar-lista-empresarial").forEach(el => { el.hidden = !emp; });
+  set("assinarConta", state.user?.email ? `Você entrou como ${state.user.email}` : "");
+  document.querySelectorAll("#telaAssinar .assinar-variante").forEach(el => {
+    el.hidden = el.dataset.tipo !== (emp ? "empresarial" : "pessoal");
+  });
 }
 
 /* Escolha do tipo de conta pra quem chegou sem tipo (cadastro pelo Google
