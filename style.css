@@ -8871,7 +8871,6 @@ body.sem-internet .layout { padding-top: 34px; }
   margin-right: auto;
 }
 
-.lp-assinar-rodape { margin: 10px 0 0; font-size: 12.5px; font-weight: 600; color: var(--lp-text-dim); line-height: 1.5; }
 @media (max-width: 480px) {
   .lp-assinar-shell { padding: 8px 6px 0; }
 }
